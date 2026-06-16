@@ -251,7 +251,7 @@ export const defaultDesignRequirements = {
     "maximumWeight": 300,
     "isolationSides": ["primary"],
     "maximumDimensions": {"width": null, "height": 0.05, "depth": null},
-    "terminalType": ["FlyingLead"],
+    "terminalType": ["Flying Lead"],
     "wiringTechnology": "Wound"
 }
 

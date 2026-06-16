@@ -828,6 +828,45 @@ export async function checkAndFixMas(mas, mkf=null) {
             })
         }
 
+        // Reconcile terminalType (per-winding projection) with the per-end connection.type source of truth: derive where leads have types, else seed leads from it.
+        const coilWindings = (mas.magnetic != null && mas.magnetic.coil != null
+            && Array.isArray(mas.magnetic.coil.functionalDescription))
+            ? mas.magnetic.coil.functionalDescription : null;
+        if (coilWindings != null && coilWindings.length > 0) {
+            if (mas.inputs.designRequirements.terminalType == null) {
+                mas.inputs.designRequirements.terminalType = [];
+            }
+            const terminalType = mas.inputs.designRequirements.terminalType;
+            coilWindings.forEach((winding, windingIndex) => {
+                const connections = Array.isArray(winding.connections) ? winding.connections : [];
+                const presentTypes = connections
+                    .map((connection) => (connection != null ? connection.type : null))
+                    .filter((type) => type != null && type !== '');
+                if (presentTypes.length > 0) {
+                    const counts = {};
+                    let best = presentTypes[0];
+                    presentTypes.forEach((type) => {
+                        counts[type] = (counts[type] || 0) + 1;
+                        if (counts[type] > (counts[best] || 0)) {
+                            best = type;
+                        }
+                    });
+                    terminalType[windingIndex] = best;
+                }
+                else if (terminalType[windingIndex] != null) {
+                    connections.forEach((connection) => {
+                        if (connection != null && connection.type == null) {
+                            connection.type = terminalType[windingIndex];
+                        }
+                    });
+                }
+            });
+            // Trim the projection to the winding count (never pad with holes).
+            if (terminalType.length > coilWindings.length) {
+                terminalType.length = coilWindings.length;
+            }
+        }
+
         if (mas.inputs.operatingPoints != null) {
             for (const op of mas.inputs.operatingPoints) {
                 if (op.excitationsPerWinding == null) continue;
