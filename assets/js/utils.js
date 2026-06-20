@@ -306,7 +306,7 @@ export function deepCopy(data) {
 }
 
 export function removeTrailingZeroes(value, maximumNumberDecimals=4) {
-    if (isNaN(value) || !isFinite(value)) {
+    if (value == null || isNaN(value) || !isFinite(value)) {  // null/undefined slip past isNaN/isFinite
         return value;
     }
     const split = value.toFixed(5).split(".")
@@ -871,6 +871,7 @@ export async function checkAndFixMas(mas, mkf=null) {
             for (const op of mas.inputs.operatingPoints) {
                 if (op.excitationsPerWinding == null) continue;
                 for (const exc of op.excitationsPerWinding) {
+                    if (exc == null) continue;  // a just-added winding can leave a null excitation
                     for (const signal of ['current', 'voltage']) {
                         const harmonics = exc[signal]?.harmonics;
                         if (harmonics == null) continue;
