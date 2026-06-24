@@ -1,219 +1,169 @@
 <script setup>
-import { toTitleCase, getMultiplier, isString, combinedStyle, combinedClass } from '../assets/js/utils.js'
-import DimensionUnit from './DimensionUnit.vue'
-import { tooltipsMagneticSynthesisDesignRequirements } from '../assets/js/texts.js'
-
+import { toTitleCase } from '../assets/js/utils.js'
+import Select from 'primevue/select'
+import InputText from 'primevue/inputtext'
 </script>
 <script>
 export default {
+    components: { Select, InputText },
     props: {
-        name:{
-            required: true
-        },
-        modelValue:{
-            type: Object,
-            required: true
-        },
-        options:{
-            required: true
-        },
-        replaceTitle:{
-            type: String
-        },
-        titleSameRow:{
-            type: Boolean,
-            default: false
-        },
-        altText:{
-            type: String
-        },
-        dataTestLabel: {
-            type: String,
-            default: '',
-        },
-        optionsToDisable: {
-            type: Array,
-            default: () => [],
-        },
-        justifyContent: {
-            type: Boolean,
-            default: false,
-        },
-        disabled: {
-            type: Boolean,
-            default: false,
-        },
-        labelWidthProportionClass: {
-            type: String,
-            default: "col-4",
-        },
-        selectStyleClass: {
-            type: String,
-            default: "col-8",
-        },
-        valueFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelBgColor: {
-            type: [String, Object],
-            default: "bg-dark",
-        },
-        valueBgColor: {
-            type: [String, Object],
-            default: "bg-light",
-        },
-        textColor: {
-            type: [String, Object],
-            default: "text-white",
-        },
+        name: { required: true },
+        modelValue: { type: Object, required: true },
+        options: { required: true },
+        optionLabels: { type: Object, default: null },
+        replaceTitle: { type: String },
+        tooltip: { type: String, default: null },
+        titleSameRow: { type: Boolean, default: false },
+        altText: { type: String },
+        dataTestLabel: { type: String, default: '' },
+        optionsToDisable: { type: Array, default: () => [] },
+        justifyContent: { type: Boolean, default: false },
+        disabled: { type: Boolean, default: false },
+        labelWidthProportionClass: { type: String, default: '' },
+        selectStyleClass: { type: String, default: '' },
+        valueFontSize: { type: [String, Object], default: () => ({ fontSize: '0.875rem' }) },
+        labelFontSize: { type: [String, Object], default: () => ({ fontSize: '0.875rem' }) },
+        labelBgColor: { type: [String, Object], default: () => ({}) },
+        valueBgColor: { type: [String, Object], default: () => ({}) },
+        textColor: { type: [String, Object], default: () => ({}) },
     },
-    data() {
-        const localData = this.modelValue ? this.assignLocalData(this.options) : null;
-
-        return {
-            localData
-        }
-    },
+    emits: ['update', 'model-changed', 'changeText'],
     computed: {
-        computedOptions() {
-            if (this.options.constructor.name === "Array") {
-                return this.options;
-            }
-            else {
-                const computedOptions = []
-                for (let [key, value] of Object.entries(this.options)) {
-                    computedOptions.push(value)
-                }
-                return computedOptions;
-            }
+        isArrayOptions() {
+            return Array.isArray(this.options)
         },
-        chosenOption() {
-            if (this.options.constructor.name === "Array") {
-                return this.modelValue[this.name];
+        // Normalised list for PrimeVue's <Select>:
+        //   [{ label, value, disabled }]
+        // For Array options, the stored value === the option string.
+        // For Object options, the stored value is the OBJECT KEY, and the
+        // displayed text is `optionLabels[value] || value`.
+        primeOptions() {
+            if (this.isArrayOptions) {
+                return this.options.map(v => ({
+                    label: (this.optionLabels && this.optionLabels[v] != null) ? this.optionLabels[v] : v,
+                    value: v,
+                    disabled: this.optionsToDisable.includes(v),
+                }))
             }
-            else {
-                let chosen = null;
-                for (let [key, value] of Object.entries(this.options)) {
-                    if (this.modelValue[this.name] == key) {
-                        this.modelValue[this.name] = value;
-                        break;
-                    }
-                }
-                return chosen;
-            }
+            return Object.entries(this.options).map(([key, value]) => ({
+                label: (this.optionLabels && this.optionLabels[value] != null) ? this.optionLabels[value] : value,
+                value: key,
+                disabled: this.optionsToDisable.includes(value),
+            }))
         },
-    },
-    watch: {
-        'options': {
-            handler(newValue, oldValue) {
-                this.localData = this.assignLocalData(newValue);
-            },
-            deep: true
+        currentValue() {
+            if (!this.modelValue) return null
+            return this.modelValue[this.name]
         },
-        'modelValue': {
-            handler(newValue, oldValue) {
-                this.localData = this.assignLocalData(this.options);
-            },
-            deep: true
-        },
-    },
-    mounted () {
     },
     methods: {
-        assignLocalData(options) {
-            if (!this.modelValue) return null;
-            
-            let localData;
-            if (options.constructor.name === "Array") {
-                localData = this.modelValue[this.name];
-            }
-            else {
-                const computedOptions = []
-                for (let [key, value] of Object.entries(options)) {
-                    if (this.modelValue[this.name] == key) {
-                        localData = value;
-                        break;
-                    }
-                }
-            }
-            return localData;
+        toTitleCase,
+        onChange(newVal) {
+            this.modelValue[this.name] = newVal
+            this.$emit('update', newVal, this.name)
+            this.$emit('model-changed', newVal, this.name)
         },
-        changeOption(event) {
-            let chosen = null;
-
-            if (this.options.constructor.name === "Array") {
-                for (let i = this.options.length - 1; i >= 0; i--) {
-                    if (event.target.value == this.options[i]) {
-                        chosen = this.options[i];
-                    }
-                }
-            }
-            else{
-                for (let [key, value] of Object.entries(this.options)) {
-                    if (event.target.value == value) {
-                        chosen = key;
-                        break;
-                    }
-                }
-            }
-            this.modelValue[this.name] = chosen;
-            this.localData = event.target.value;
-            this.$emit("update", chosen, this.name);
-            this.$emit("model-changed", chosen, this.name);
-        },
-    }
+    },
 }
 </script>
 
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex">
-        <div class="row">
-            <input
-                :style="combinedStyle([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
-                v-if="altText != null && !titleSameRow"
+    <div :data-cy="dataTestLabel + '-container'" class="efl-container">
+        <div class="efl-row" v-if="!titleSameRow">
+            <InputText
+                v-if="altText != null"
+                :class="['efl-alt-input', labelWidthProportionClass]"
                 :data-cy="dataTestLabel + '-alt-title-label'"
-                type="text"
-                :class="combinedClass([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
-                class="rounded-2 ms-3 col-11 p-0 mb-2 border-0"
-                @change="$emit('changeText', $event.target.value)"
-                :value="altText">
+                :model-value="altText"
+                @change="$emit('changeText', $event.target.value)" />
             <label
-                :style="combinedStyle([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
-                v-if="altText == null && !titleSameRow"
-                :class="combinedClass([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
+                v-else
+                :style="[labelFontSize, labelBgColor, textColor]"
+                :class="labelWidthProportionClass"
                 :data-cy="dataTestLabel + '-title'"
-                class="rounded-2 p-0">{{replaceTitle == null? toTitleCase(name) : replaceTitle}}
+                v-tooltip="tooltip"
+                class="efl-label">
+                {{ replaceTitle == null ? toTitleCase(name) : replaceTitle }}
             </label>
         </div>
-        <div class="row" :class="justifyContent? 'd-flex justify-content-between' : ''">
+        <div class="efl-row" :class="justifyContent ? 'efl-row-between' : ''">
             <label
-                :style="combinedStyle([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
-                :data-cy="dataTestLabel + '-same-row-label'"
                 v-if="titleSameRow"
-                :class="combinedClass([labelWidthProportionClass, labelFontSize, labelBgColor, textColor])"
-                class="rounded-2 m-0 p-0">{{replaceTitle == null? toTitleCase(name) : replaceTitle}}
+                :style="[labelFontSize, labelBgColor, textColor]"
+                :class="labelWidthProportionClass"
+                :data-cy="dataTestLabel + '-same-row-label'"
+                v-tooltip="tooltip"
+                class="efl-label efl-label-inline">
+                {{ replaceTitle == null ? toTitleCase(name) : replaceTitle }}
             </label>
-            <div  v-if="!titleSameRow" class=" col-sm-0 col-md-2">
-            </div>
-            <select
-                :style="combinedStyle([selectStyleClass, valueFontSize, disabled? labelBgColor : valueBgColor, textColor])"
-                :disabled="disabled"
+            <Select
                 :data-cy="dataTestLabel + '-select'"
-                :class="combinedClass([selectStyleClass, valueFontSize, disabled? labelBgColor : valueBgColor, textColor, disabled? 'border-0 text-end':''])"
-                class="form-select py-1 px-2 m-0 mt-1 pe-5"
-                @change="changeOption"
-                style="width:auto; max-height: 3em;"
-                :value="localData"
-            >
-                <option :disabled="optionsToDisable.includes(value)" v-for="value in computedOptions" :key="value">
-                    {{value}}
-                </option>
-            </select>
+                :class="['efl-select', selectStyleClass]"
+                :style="[valueFontSize, disabled ? labelBgColor : valueBgColor, textColor]"
+                :options="primeOptions"
+                option-label="label"
+                option-value="value"
+                option-disabled="disabled"
+                :model-value="currentValue"
+                @update:model-value="onChange"
+                :disabled="disabled"
+            />
         </div>
     </div>
 </template>
+
+<style scoped>
+.efl-container:not([class*="col-"]) {
+    width: 100%;
+}
+.efl-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+    padding: 0 !important;
+}
+.efl-row-between {
+    justify-content: space-between;
+}
+.efl-label {
+    font-size: 0.875rem;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0;
+    margin: 0;
+}
+.efl-label-inline {
+    flex: 0 0 auto;
+}
+.efl-alt-input {
+    margin-left: 1rem;
+    margin-bottom: 0.5rem;
+    border: 0;
+    padding: 0;
+    flex: 1 1 auto;
+    background: transparent;
+    color: inherit;
+}
+.efl-select {
+    height: 1.75rem;
+    line-height: 1.25rem;
+    font-size: 0.875rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 !important;
+}
+.efl-select :deep(.p-select-label) {
+    padding: 0.25rem 0.5rem;
+    line-height: 1.25rem;
+    font-size: 0.875rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+}
+.efl-select :deep(.p-select-dropdown) {
+    width: 1.75rem;
+}
+</style>

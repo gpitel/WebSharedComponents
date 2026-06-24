@@ -99,11 +99,11 @@ export default {
         },
         backgroundColor: {
             type: String,
-            default: "#1a1a1a",
+            default: "var(--p-dark)",
         },
         textColor: {
             type: String,
-            default: "#ffffff",
+            default: "var(--p-white)",
         },
         buttonStyle: {
             type: [Object, String],
@@ -121,12 +121,47 @@ export default {
             type: Boolean,
             default: false,
         },
+        insulationColor: {
+            type: String,
+            default: "0xfff05b",  // original yellow
+        },
+        marginColor: {
+            type: String,
+            default: "0xfff05b",  // original yellow
+        },
+        spacerColor: {
+            type: String,
+            default: "0x3b3b3b",  // original dark gray
+        },
+        // Core/ferrite fill and wire/copper fill for plot_turns. MKF's own
+        // defaults pick up the host's primary color (e.g. brand red in Asgard),
+        // which is wrong for a magnetic core. Default to the same neutral ferrite
+        // gray and copper tone the 3D visualizer uses so 2D and 3D agree.
+        ferriteColor: {
+            type: String,
+            default: "0x7b7c7d",  // neutral ferrite gray (matches 3D ferrite)
+        },
+        copperColor: {
+            type: String,
+            default: "0xb87333",  // copper (matches 3D copper)
+        },
+        drawSpacer: {
+            type: Boolean,
+            default: true,
+        },
+        enableTemperaturePlot: {
+            type: Boolean,
+            default: true,
+        },
     },
     data() {
+        const initialMode = (!this.enableTemperaturePlot && this.plotModeInit === PLOT_MODES.TEMPERATURE_FIELD)
+            ? PLOT_MODES.BASIC
+            : this.plotModeInit;
         return {
             posting: false,
             zoomingPlot: this.zoomedInit,
-            currentPlotMode: this.plotModeInit,
+            currentPlotMode: initialMode,
             includeFringing: this.includeFringingInit,
             blockingRebounds: false,
             recentChange: false,
@@ -150,6 +185,12 @@ export default {
         currentModeLabel() {
             return PLOT_MODE_LABELS[this.currentPlotMode] || 'Basic';
         },
+        effectiveAvailablePlotModes() {
+            if (this.enableTemperaturePlot) {
+                return this.availablePlotModes;
+            }
+            return this.availablePlotModes.filter(m => m !== PLOT_MODES.TEMPERATURE_FIELD);
+        },
     },
     watch: {
         forceUpdate: {
@@ -165,6 +206,10 @@ export default {
             deep: true,
         },
         plotModeInit(newValue) {
+            if (!this.enableTemperaturePlot && newValue === PLOT_MODES.TEMPERATURE_FIELD) {
+                this.currentPlotMode = PLOT_MODES.BASIC;
+                return;
+            }
             this.currentPlotMode = newValue;
         },
         includeFringingInit(newValue) {
@@ -266,18 +311,74 @@ export default {
                 return;
             }
 
+            // Fit the SVG's viewBox to its actual content. MKF's
+            // plot_temperature_field occasionally emits a viewBox that is
+            // narrower on Y than the paths it draws (toroid rendered sideways
+            // with a colorbar extending X), which clips the top/bottom of the
+            // toroid in the browser. Recompute the content bbox and widen the
+            // viewBox to match, preserving aspect by letting the browser
+            // apply preserveAspectRatio (default xMidYMid meet).
+            try {
+                const svgEl = this.$refs.plotView.querySelector('svg');
+                if (svgEl) {
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    for (const el of svgEl.querySelectorAll('*')) {
+                        try {
+                            const b = el.getBBox?.();
+                            if (b && isFinite(b.x) && (b.width > 0 || b.height > 0)) {
+                                minX = Math.min(minX, b.x);
+                                minY = Math.min(minY, b.y);
+                                maxX = Math.max(maxX, b.x + b.width);
+                                maxY = Math.max(maxY, b.y + b.height);
+                            }
+                        } catch { /* some elements don't support getBBox */ }
+                    }
+                    if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+                        // For toroidal SVGs (identified by the scale(1,-1) Y-flip group added
+                        // by MKF's export_svg), getBBox() reports coordinates in pre-flip local
+                        // space and ignores stroke-width, producing a portrait bbox even though
+                        // the physical core is circular. Force a symmetric square viewBox so the
+                        // full toroid ring (including its stroke) is always visible.
+                        const isToroid = !!svgEl.querySelector('g[transform="scale(1,-1)"]');
+                        let vbX, vbY, vbW, vbH;
+                        if (isToroid) {
+                            const half = Math.max(
+                                Math.abs(minX), Math.abs(maxX),
+                                Math.abs(minY), Math.abs(maxY)
+                            ) * 1.04; // 4% padding for strokes
+                            vbX = -half; vbY = -half; vbW = 2 * half; vbH = 2 * half;
+                        } else {
+                            // Small padding so strokes at the edges aren't cut.
+                            const padX = (maxX - minX) * 0.02;
+                            const padY = (maxY - minY) * 0.02;
+                            vbX = minX - padX;
+                            vbY = minY - padY;
+                            vbW = (maxX - minX) + padX * 2;
+                            vbH = (maxY - minY) + padY * 2;
+                        }
+                        svgEl.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+                        // Update the intrinsic width/height attributes so the
+                        // downstream `extractSvgDimension` + scaling math sees
+                        // the corrected aspect ratio. Keep them as numeric
+                        // strings so the existing regex in calculateSvgWidth
+                        // still matches.
+                        svgEl.setAttribute('width', vbW.toFixed(1));
+                        svgEl.setAttribute('height', vbH.toFixed(1));
+                    }
+                }
+            } catch (e) {
+                console.warn('[processSvgResult] viewBox recalculation skipped:', e);
+            }
+
+            // Re-read the corrected HTML/dims for the scaling calculation.
+            const correctedHtml = this.$refs.plotView.innerHTML;
             const clientWidth = this.$refs.Magnetic2DVisualizerContainer.clientWidth;
             const clientHeight = this.$refs.Magnetic2DVisualizerContainer.clientHeight * (this.enableOptions ? OPTIONS_HEIGHT_MULTIPLIER : 1);
 
-            const originalWidth = extractSvgDimension(result, 'width');
-            const originalHeight = extractSvgDimension(result, 'height');
-            
-            console.log('[processSvgResult] Original dimensions:', originalWidth, 'x', originalHeight);
-            console.log('[processSvgResult] Client dimensions:', clientWidth, 'x', clientHeight);
+            const originalWidth = extractSvgDimension(correctedHtml, 'width');
+            const originalHeight = extractSvgDimension(correctedHtml, 'height');
 
             this.width = this.calculateSvgWidth(originalWidth, originalHeight, clientWidth, clientHeight);
-            
-            console.log('[processSvgResult] Calculated width:', this.width);
             this.$refs.plotView.innerHTML = this.$refs.plotView.innerHTML.replace('width=', 'class="scaling-svg" width=');
 
             this.errorMessage = "";
@@ -327,6 +428,15 @@ export default {
 
             try {
                 const mkf = await waitForMkf();
+                // Apply insulation/margin colors before plotting
+                const settings = JSON.parse(await mkf.get_settings());
+                settings.painterColorInsulation = this.insulationColor;
+                settings.painterColorMargin = this.marginColor;
+                settings.painterColorSpacer = this.spacerColor;
+                settings.painterColorFerrite = this.ferriteColor;
+                settings.painterColorCopper = this.copperColor;
+                settings.painterDrawSpacer = this.drawSpacer;
+                await mkf.set_settings(JSON.stringify(settings));
                 const result = await mkf.plot_turns(JSON.stringify(this.modelValue.magnetic));
                 this.processSvgResult(result);
             } catch (error) {
@@ -357,6 +467,7 @@ export default {
                 const settings = JSON.parse(await mkf.get_settings());
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
+                settings.painterColorFerrite = this.ferriteColor;
                 settings.painterIncludeFringing = this.includeFringing;
                 await mkf.set_settings(JSON.stringify(settings));
 
@@ -393,6 +504,7 @@ export default {
                 const settings = JSON.parse(await mkf.get_settings());
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
+                settings.painterColorFerrite = this.ferriteColor;
                 await mkf.set_settings(JSON.stringify(settings));
 
                 const result = await mkf.plot_electric_field(
@@ -406,6 +518,49 @@ export default {
                 this.tryingToPlot = false;
             }
         },
+        // Validate that wire data is complete for temperature plot
+        validateWiresForTemperaturePlot() {
+            const coil = this.modelValue.magnetic?.coil;
+            if (!coil?.functionalDescription?.length) {
+                return { valid: false, error: 'No windings defined' };
+            }
+
+            for (let i = 0; i < coil.functionalDescription.length; i++) {
+                const winding = coil.functionalDescription[i];
+                const wire = winding?.wire;
+                if (!wire) {
+                    return { valid: false, error: `Winding ${i} has no wire defined` };
+                }
+
+                // Check wire type and required dimensions
+                const wireType = wire.type;
+                if (wireType === 'round') {
+                    if (!wire.conductingDiameter?.nominal) {
+                        return {
+                            valid: false,
+                            error: `Winding ${i} (${wire.name || 'unnamed'}): Round wire missing conductingDiameter. Please load a wire from the catalog or define the wire dimensions.`
+                        };
+                    }
+                } else if (wireType === 'litz') {
+                    if (!wire.strand?.conductingDiameter) {
+                        return {
+                            valid: false,
+                            error: `Winding ${i} (${wire.name || 'unnamed'}): Litz wire missing strand conductingDiameter. Please load a wire from the catalog or define the wire dimensions.`
+                        };
+                    }
+                } else if (wireType === 'rectangular' || wireType === 'foil' || wireType === 'planar') {
+                    if (!wire.conductingWidth?.nominal || !wire.conductingHeight?.nominal) {
+                        return { 
+                            valid: false, 
+                            error: `Winding ${i} (${wire.name || 'unnamed'}): Rectangular/foil/planar wire missing conductingWidth/Height. Please load a wire from the catalog or define the wire dimensions.` 
+                        };
+                    }
+                }
+            }
+
+            return { valid: true };
+        },
+
         // Temperature field plot - uses existing WASM function
         async calculateTemperatureFieldPlot() {
             if (this.modelValue.magnetic == null) {
@@ -424,38 +579,40 @@ export default {
                 return;
             }
 
+            // Validate wire data before calling temperature plot
+            const validation = this.validateWiresForTemperaturePlot();
+            if (!validation.valid) {
+                console.error('[Temperature Plot] Validation failed:', validation.error);
+                this.$emit('errorInImage', `Temperature plot error: ${validation.error}`);
+                this.posting = false;
+                this.tryingToPlot = false;
+                return;
+            }
+
             try {
                 const mkf = await waitForMkf();
                 const settings = JSON.parse(await mkf.get_settings());
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
+                settings.painterColorFerrite = this.ferriteColor;
                 await mkf.set_settings(JSON.stringify(settings));
-
-                console.log('[Temperature Plot] Calling plot_temperature_field...');
                 // Ensure color values are plain strings (not reactive objects)
-                const textColorStr = String(this.textColor || '#ffffff');
-                const bgColorStr = String(this.backgroundColor || '#1a1a1a');
-                console.log('[Temperature Plot] Colors being passed:', { textColor: textColorStr, bgColor: bgColorStr });
+                const textColorStr = String(this.textColor || 'var(--p-white)');
+                const bgColorStr = String(this.backgroundColor || 'var(--p-dark)');
                 const result = await mkf.plot_temperature_field(
                     JSON.stringify(this.modelValue.magnetic),
                     JSON.stringify(this.modelValue.inputs.operatingPoints[this.operatingPointIndex]),
                     textColorStr,
                     bgColorStr
                 );
-                console.log('[Temperature Plot] Result received, length:', result?.length || 0);
-                console.log('[Temperature Plot] Result starts with:', result?.substring(0, 100) || 'empty');
                 // Check if result is an error message (doesn't start with <svg)
                 if (!result?.startsWith('<svg')) {
                     console.error('[Temperature Plot] ERROR - Result is not an SVG:', result);
+                    this.$emit('errorInImage', 'Temperature plot error: ' + result);
                     this.posting = false;
                     this.tryingToPlot = false;
                     return;
                 }
-                // Check if result contains Core_Segment (for debugging missing toroidal core)
-                const hasCoreSegments = result?.includes('Core_Segment') || false;
-                const hasTurns = result?.includes('L_') || result?.includes('Turn_') || false;
-                console.log('[Temperature Plot] SVG contains Core_Segment:', hasCoreSegments);
-                console.log('[Temperature Plot] SVG contains turns:', hasTurns);
                 this.processSvgResult(result);
             } catch (error) {
                 console.error('[Temperature Plot] Error:', error);
@@ -486,6 +643,7 @@ export default {
                 const settings = JSON.parse(await mkf.get_settings());
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
+                settings.painterColorFerrite = this.ferriteColor;
                 await mkf.set_settings(JSON.stringify(settings));
 
                 const result = await mkf.plot_wire_losses(
@@ -577,6 +735,9 @@ export default {
             this.$emit("zoomOut");
         },
         setPlotMode(mode) {
+            if (mode === PLOT_MODES.TEMPERATURE_FIELD && !this.enableTemperaturePlot) {
+                return;
+            }
             if (this.currentPlotMode === mode) {
                 // Toggle back to basic if clicking the same mode
                 this.currentPlotMode = PLOT_MODES.BASIC;
@@ -615,6 +776,11 @@ export default {
                     this.calculateElectricFieldPlot();
                     break;
                 case PLOT_MODES.TEMPERATURE_FIELD:
+                    if (!this.enableTemperaturePlot) {
+                        this.currentPlotMode = PLOT_MODES.BASIC;
+                        this.calculateBasicPlot();
+                        break;
+                    }
                     this.calculateTemperatureFieldPlot();
                     break;
                 case PLOT_MODES.WIRES_LOSSES:
@@ -667,16 +833,16 @@ export default {
 
 <template>
     <div v-if="modelValue.magnetic != null && showWarning && modelValue.magnetic.coil.turnsDescription == null" class="container">
-        <div class="row">
-            <i class="col-12 fa-solid fa-9x fa-triangle-exclamation"></i>
-            <label class="text-danger col-12 pt-1 fs-5" style="font-size: 1em">Winding turns not possible</label>
+        <div class="grid">
+            <i class="col-12 pi pi-exclamation-triangle display-1"></i>
+            <label class="text-danger col-12 pt-1 text-lg" style="font-size: 1em">Winding turns not possible</label>
         </div>
     </div>
     <div v-if="showWarning && !$stateStore.wire2DVisualizerState.showAnyway" class="container">
-        <div class="row">
-            <i class="col-12 fa-solid fa-9x fa-triangle-exclamation"></i>
-            <label class="text-danger col-12 pt-1 fs-5" style="font-size: 1em">Turns don't fit in winding window</label>
-            <button class="btn btn-danger offset-3 col-6 fs-5" @click="showCoilAnyway()">Show me anyway</button>
+        <div class="grid">
+            <i class="col-12 pi pi-exclamation-triangle display-1"></i>
+            <label class="text-danger col-12 pt-1 text-lg" style="font-size: 1em">Turns don't fit in winding window</label>
+            <button class="p-button p-button-danger col-offset-3 col-6 text-lg" @click="showCoilAnyway()">Show me anyway</button>
         </div>
     </div>
 
@@ -687,7 +853,7 @@ export default {
             </div>
             <div class="zoom-modal-content" :style="{ backgroundColor: backgroundColor }">
                 <button class="zoom-modal-close" :style="{ color: textColor }" @click="zoomOut()">
-                    <i class="fas fa-times"></i>
+                    <i class="pi pi-times"></i>
                 </button>
                 <div class="zoom-modal-image" ref="zoomPlotView"></div>
             </div>
@@ -703,16 +869,16 @@ export default {
                 <div :class="{ 'plot-loading': posting }">
                     <div data-cy="MagneticAdvise-core-field-plot-image" ref="plotView" class="mt-2 scaling-svg-container"/>
                     <div v-if="enableZoom" class="text-center mt-1">
-                        <button class="btn btn-sm btn-outline-secondary" @click="zoomIn()">
-                            <i class="fas fa-expand"></i> Expand
+                        <button class="p-button p-button-sm btn-outline-secondary" @click="zoomIn()">
+                            <i class="pi pi-window-maximize"></i> Expand
                         </button>
                     </div>
                     <div v-if="modelValue.magnetic != null && enableOptions && modelValue.magnetic.coil.turnsDescription != null" class="text-center">
-                        <template v-for="mode in availablePlotModes" :key="mode">
+                        <template v-for="mode in effectiveAvailablePlotModes" :key="mode">
                             <button
                                 v-if="mode !== PLOT_MODES.BASIC"
                                 :style="buttonStyle"
-                                class="btn mt-1 ms-1"
+                                class="btn mt-1 ml-1"
                                 :class="isModeActive(mode) ? 'btn-success' : 'btn-primary'"
                                 @click="setPlotMode(mode)"
                             >
@@ -723,7 +889,7 @@ export default {
                     <div v-if="modelValue.magnetic != null && showFringingOption && modelValue.magnetic.coil.turnsDescription != null" class="text-center">
                         <button
                             :style="buttonStyle"
-                            class="btn btn-primary ms-1 mt-1"
+                            class="p-button p-button-primary ml-1 mt-1"
                             @click="swapIncludeFringing()"
                         >
                             {{ includeFringing ? 'Exclude Fringing' : 'Include Fringing' }}

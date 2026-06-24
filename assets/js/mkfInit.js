@@ -95,14 +95,29 @@ export async function loadMkfData(mkf, options = {}) {
     // In worker mode, all calls are already async
     // In main-thread mode, they block but return immediately
     
+    // For materials/shapes/wires, the embedded MKF data filesystem already
+    // ships the canonical NDJSON. Calling `load_*("")` parses it in WASM
+    // without paying for an HTTP fetch + multi-MB JS string round-trip.
+    // Only fetch external bytes when the caller actually wants them merged
+    // on top (loadExternalParts=true). Previously we always fetched and
+    // discarded the bytes, costing ~10–30 MB of cold-start traffic.
+    const fetchTextOrEmpty = async (url) => {
+        try {
+            const text = await fetch(url).then(r => r.text());
+            return text.startsWith("<") ? "" : text;
+        } catch {
+            return "";
+        }
+    };
+
     try {
         onProgress('Loading core materials...');
-        const coreMaterialsData = await fetch(`${baseUrl}core_materials.ndjson`).then(r => r.text());
         if (loadAllParts) {
             await mkf.load_core_materials("");
         }
-        if (loadExternalParts && !coreMaterialsData.startsWith("<")) {
-            await mkf.load_core_materials(coreMaterialsData);
+        if (loadExternalParts) {
+            const coreMaterialsData = await fetchTextOrEmpty(`${baseUrl}core_materials.ndjson`);
+            if (coreMaterialsData) await mkf.load_core_materials(coreMaterialsData);
         }
     } catch (error) {
         console.error('Error loading core materials:', error);
@@ -110,12 +125,12 @@ export async function loadMkfData(mkf, options = {}) {
 
     try {
         onProgress('Loading core shapes...');
-        const coreShapesData = await fetch(`${baseUrl}core_shapes.ndjson`).then(r => r.text());
         if (loadAllParts) {
             await mkf.load_core_shapes("");
         }
-        if (loadExternalParts && !coreShapesData.startsWith("<")) {
-            await mkf.load_core_shapes(coreShapesData);
+        if (loadExternalParts) {
+            const coreShapesData = await fetchTextOrEmpty(`${baseUrl}core_shapes.ndjson`);
+            if (coreShapesData) await mkf.load_core_shapes(coreShapesData);
         }
     } catch (error) {
         console.error('Error loading core shapes:', error);
@@ -123,14 +138,13 @@ export async function loadMkfData(mkf, options = {}) {
 
     try {
         onProgress('Loading wires...');
-        const wiresData = await fetch(`${baseUrl}wires.ndjson`).then(r => r.text()).catch(() => 
-            fetch(`${baseUrl}lab_osma_wires.ndjson`).then(r => r.text())
-        );
         if (loadAllParts) {
             await mkf.load_wires("");
         }
-        if (loadExternalParts && !wiresData.startsWith("<")) {
-            await mkf.load_wires(wiresData);
+        if (loadExternalParts) {
+            let wiresData = await fetchTextOrEmpty(`${baseUrl}wires.ndjson`);
+            if (!wiresData) wiresData = await fetchTextOrEmpty(`${baseUrl}lab_osma_wires.ndjson`);
+            if (wiresData) await mkf.load_wires(wiresData);
         }
     } catch (error) {
         console.error('Error loading wires:', error);

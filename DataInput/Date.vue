@@ -1,113 +1,71 @@
 <script setup>
-import { toTitleCase, combinedStyle, combinedClass } from '../assets/js/utils.js'
-import VueDatePicker from '@vuepic/vue-datepicker';
+import { toTitleCase } from '../assets/js/utils.js'
+import DatePicker from 'primevue/datepicker'
 </script>
-
 <script>
 export default {
+    components: { DatePicker },
+    emits: ['hasError'],
     props: {
-        name:{
-            type: String,
-            required: true
-        },
-        modelValue:{
-            type: Object,
-            required: true
-        },
-        defaultValue:{
-            type: String,
-            default: '',
-        },
-        dataTestLabel: {
-            type: String,
-            default: '',
-        },
-        labelBgColor: {
-            type: [String, Object],
-            default: "bg-dark",
-        },
-        valueBgColor: {
-            type: [String, Object],
-            default: "bg-light",
-        },
-        textColor: {
-            type: [String, Object],
-            default: "text-white",
-        },
-        labelWidthProportionClass:{
-            type: String,
-            default: 'col-4'
-        },
-        inputStyleClass: {
-            type: String,
-            default: "m-0 px-0 col-8",
-        },
-    },
-    data() {
-        let localData = "";
-
-        if (this.modelValue[this.name] == null &&
-            this.defaultValue != null) {
-            localData = this.defaultValue;
-        }
-
-        if (this.modelValue[this.name] != null) {
-            localData = this.modelValue[this.name];
-        }
-
-        const errorMessages = ''
-
-        return {
-            localData,
-            errorMessages
-        }
+        name: { type: String, required: true },
+        modelValue: { type: Object, required: true },
+        defaultValue: { type: String, default: '' },
+        dataTestLabel: { type: String, default: '' },
+        labelBgColor: { type: [String, Object], default: () => ({}) },
+        valueBgColor: { type: [String, Object], default: () => ({}) },
+        textColor: { type: [String, Object], default: () => ({}) },
+        labelWidthProportionClass: { type: String, default: '' },
+        inputStyleClass: { type: String, default: '' },
     },
     computed: {
-    },
-    watch: {
-        modelValue(newValue, oldValue) {
-            this.modelValue[this.name] = newValue[this.name];
+        boundDate: {
+            get() {
+                const v = this.modelValue[this.name] || this.defaultValue || null
+                return v ? new Date(v) : null
+            },
+            set(val) {
+                this.modelValue[this.name] = val ? val.toISOString().slice(0, 10) : ''
+            },
         },
     },
-    mounted () {
-    },
-    methods: {
-        changeText(newValue) {
-            if (newValue == '') {
-                this.errorMessages = toTitleCase(name) + " cannot be empty. Please write a name."
-                this.$emit("hasError")
-            }
-            else {
-                this.errorMessages = ""
-                this.modelValue[this.name] = newValue;
-            }
-        }
-    }
+    methods: { toTitleCase },
 }
 </script>
 
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex">
-        <div class="row">
-            <label
-                :style="combinedStyle([labelWidthProportionClass, labelBgColor, textColor])"
-                :data-cy="dataTestLabel + '-title'"
-                :for="name + '-date-input'"
-                :class="combinedClass([labelWidthProportionClass, labelBgColor, textColor])"
-                class="rounded-2 fs-5 col-3 "
-            >
-                {{toTitleCase(name)}}
-            </label>
-            <div :class="inputStyleClass">
-                <VueDatePicker
-                    v-model="modelValue[name]"
-                    auto-apply
-                    :class="valueBgColor + ' ' + textColor" class="m-0 p-0" :id="name + '-date-input'"
-                    format='dd/MM/yyyy'
-                    />
-            </div>
-        </div>
+    <div :data-cy="dataTestLabel + '-container'" class="date-input-container">
+        <label
+            :class="labelWidthProportionClass"
+            :style="[labelBgColor, textColor]"
+            :data-cy="dataTestLabel + '-title'"
+            :for="name + '-date-input'"
+            class="date-input-label">
+            {{ toTitleCase(name) }}
+        </label>
+        <DatePicker
+            v-model="boundDate"
+            :input-id="name + '-date-input'"
+            :class="inputStyleClass"
+            class="date-input-picker"
+            date-format="dd/mm/yy"
+            show-icon
+            fluid />
     </div>
 </template>
 
-
+<style scoped>
+.date-input-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+.date-input-label {
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+.date-input-picker {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+</style>

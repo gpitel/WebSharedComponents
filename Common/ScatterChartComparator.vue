@@ -69,15 +69,15 @@ export default {
         const style = getComputedStyle(document.body);
 
         const theme = {
-          primary: style.getPropertyValue('--bs-primary'),
-          secondary: style.getPropertyValue('--bs-secondary'),
-          success: style.getPropertyValue('--bs-success'),
-          info: style.getPropertyValue('--bs-info'),
-          warning: style.getPropertyValue('--bs-warning'),
-          danger: style.getPropertyValue('--bs-danger'),
-          light: style.getPropertyValue('--bs-light'),
-          dark: style.getPropertyValue('--bs-dark'),
-          white: style.getPropertyValue('--bs-white'),
+          primary: style.getPropertyValue('--p-primary'),
+          secondary: style.getPropertyValue('--p-secondary'),
+          success: style.getPropertyValue('--p-success'),
+          info: style.getPropertyValue('--p-info'),
+          warning: style.getPropertyValue('--p-warning'),
+          danger: style.getPropertyValue('--p-danger'),
+          light: style.getPropertyValue('--p-light'),
+          dark: style.getPropertyValue('--p-dark'),
+          white: style.getPropertyValue('--p-white'),
         };
         const options = {
             title: {
@@ -191,6 +191,8 @@ export default {
             options,
             updateOpts,
             theme,
+            chartVisible: false,
+            _visibilityObserver: null,
         }
     },
     watch: {
@@ -202,6 +204,34 @@ export default {
         },
     },
     mounted() {
+        // Defer ECharts init until the wrapper actually has dimensions, to avoid
+        // "Can't get DOM width or height" warnings when mounted in hidden tabs.
+        const el = this.$refs.chartWrapper;
+        if (el && typeof IntersectionObserver !== 'undefined') {
+            const checkSize = () => {
+                if (el.clientWidth > 0 && el.clientHeight > 0) {
+                    this.chartVisible = true;
+                    if (this._visibilityObserver) {
+                        this._visibilityObserver.disconnect();
+                        this._visibilityObserver = null;
+                    }
+                    return true;
+                }
+                return false;
+            };
+            if (!checkSize()) {
+                this._visibilityObserver = new IntersectionObserver(() => { checkSize(); });
+                this._visibilityObserver.observe(el);
+            }
+        } else {
+            this.chartVisible = true;
+        }
+    },
+    beforeUnmount() {
+        if (this._visibilityObserver) {
+            this._visibilityObserver.disconnect();
+            this._visibilityObserver = null;
+        }
     },
     created() {
     },
@@ -277,5 +307,7 @@ export default {
 </script>
 
 <template>
-    <v-chart class="chart" :option="options" autoresize :update-options="updateOpts" @click="onClick" :style="'height: 50vh'"/>
+    <div ref="chartWrapper" class="chart" style="height: 50vh">
+        <v-chart v-if="chartVisible" class="chart" :option="options" autoresize :update-options="updateOpts" @click="onClick" style="width: 100%; height: 100%;"/>
+    </div>
 </template>

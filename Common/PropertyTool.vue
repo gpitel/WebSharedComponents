@@ -43,21 +43,33 @@ export default {
             type: [Boolean, Array[Boolean]],
             default: true,
         },
+        // Gradient area fill under the line(s). Forwarded to LineVisualizer.
+        showArea: {
+            type: Boolean,
+            default: true,
+        },
+        // echarts tooltip trigger forwarded to LineVisualizer. 'axis' shows the
+        // value at the cursor's x anywhere on the line (needed when showPoints
+        // is false); 'item' (default) only fires on a data point.
+        tooltipTrigger: {
+            type: String,
+            default: 'item',
+        },
         addElementButtonColor: {
             type: [String, Object],
-            default: "text-secondary",
+            default: () => ({ color: 'var(--p-text-color-secondary-color, #6c757d)' }),
         },
         removeElementButtonColor: {
             type: [String, Object],
-            default: "text-danger",
+            default: () => ({ color: 'var(--p-red-500, #dc3545)' }),
         },
         labelWidthProportionClass: {
             type: String,
-            default: "col-4",
+            default: "",
         },
         selectStyleClass: {
             type: String,
-            default: "col-8",
+            default: "",
         },
         valueFontSize: {
             type: [String, Object],
@@ -73,27 +85,27 @@ export default {
         },
         labelBgColor: {
             type: [String, Object],
-            default: "bg-dark",
+            default: () => ({ backgroundColor: 'var(--p-surface-800, #1d252d)' }),
         },
         valueBgColor: {
             type: [String, Object],
-            default: "bg-light",
+            default: () => ({ backgroundColor: 'var(--p-surface-100, #f8f9fa)' }),
         },
         textColor: {
             type: [String, Object],
-            default: "text-white",
+            default: () => ({ color: 'var(--p-surface-0, var(--p-white))' }),
         },
         visualizerBgColor: {
             type: [String, Object],
-            default: "#1a1a1a",
+            default: "var(--p-dark)",
         },
         visualizerLineColor: {
             type: [String, Object],
-            default: "#d4d4d4",
+            default: "var(--p-light)",
         },
         visualizerTextColor: {
             type: [String, Object],
-            default: "#d4d4d4",
+            default: "var(--p-light)",
         },
         chartPaddings:{
             type: Object,
@@ -123,7 +135,7 @@ export default {
 
         const xAxisOptions = {
             label: this.propertiesConfiguration.xAxisLabel,
-            colorLabel: '#d4d4d4',
+            colorLabel: 'var(--p-light)',
             type: this.propertiesConfiguration.xAxisMode == "linear"? "value" : this.propertiesConfiguration.xAxisMode,
             unit: this.propertiesConfiguration.xAxisUnit,
             numberDecimals: this.propertiesConfiguration.xAxisNumberDecimals,
@@ -274,43 +286,40 @@ export default {
 </script>
 
 <template>
-    <div class="container-flex border pt-2 ps-3">
-        <div class="row">
-            <div 
-                class="col-9"
-            >
+    <div class="pt-container">
+        <div class="pt-header">
+            <div class="pt-title">
                 {{title}}
             </div>
-            <div 
-                class="col-3 row"
-            >
+            <div class="pt-header-actions">
                 <button
                     v-if="enableEditing"
-                    :style="showEditor? $styleStore[styleSection].activeButton : $styleStore[styleSection].button"
-                    class="btn col-5 p-0"
+                    :style="showEditor? $styleStore?.[styleSection]?.activeButton : $styleStore?.[styleSection]?.button"
+                    class="pt-icon-btn"
+                    :class="showEditor? 'pt-icon-btn-active' : ''"
                     @click="onEdit"
                 >
-                    <i class="fa-solid fa-pen-to-square"></i>
+                    <i class="pi pi-pencil"></i>
                 </button>
                 <button
                     v-if="showGraph"
-                    :style="showConfiguration? $styleStore[styleSection].activeButton : $styleStore[styleSection].button"
-                    class="btn offset-1 col-5 p-0"
+                    :style="showConfiguration? $styleStore?.[styleSection]?.activeButton : $styleStore?.[styleSection]?.button"
+                    class="pt-icon-btn"
+                    :class="showConfiguration? 'pt-icon-btn-active' : ''"
                     @click="showConfiguration = !showConfiguration && ! showEditor"
                 >
-                    <i class="fa-solid fa-gear"></i>
+                    <i class="pi pi-cog"></i>
                 </button>
             </div>
         </div>
-        <div class="row">
+        <div class="pt-body">
             <div
                 v-if="showEditor"
-                class="col-12"
+                class="pt-editor"
             >
-                <div class="row">
+                <div class="pt-property-selector">
                     <ElementFromList
                         v-if="Object.keys(propertyLabels).length > 1"
-                        class="offset-1 col-10 mb-1 text-start"
                         :dataTestLabel="dataTestLabel + '-PropertySelector'"
                         :name="'propertyToEdit'"
                         :titleSameRow="true"
@@ -318,8 +327,6 @@ export default {
                         :modelValue="localData"
                         @update:modelValue="localData = $event"
                         :options="propertyLabels"
-                        :labelWidthProportionClass="'col-6'"
-                        :selectStyleClass="'col-6'"
                         :valueFontSize="labelFontSize"
                         :labelFontSize="scalarFontSize"
                         :labelBgColor="labelBgColor"
@@ -328,10 +335,14 @@ export default {
                         @update="propertyToEditChanged"
                     />
                 </div>
-                <div class="row"  v-for="row, index in properties[selectedPropertyToEdit]" :key="index">
+                <div
+                    class="pt-point-row"
+                    :class="index < properties[selectedPropertyToEdit].length - 1? 'pt-point-row-divider' : ''"
+                    v-for="row, index in properties[selectedPropertyToEdit]"
+                    :key="index"
+                >
                     <PairOfDimensions
-                        :class="index < properties[selectedPropertyToEdit].length - 1? 'border-bottom' : '' "
-                        class="pt-1 pb-0 pe-4 mb-0 col-10"
+                        class="pt-point-pair"
                         :names="[propertiesConfiguration.xAxisLabel, propertiesConfiguration.yAxisLabel]"
                         :replaceTitle="[propertiesConfiguration.xAxisReplaceLabel, propertiesConfiguration.yAxisReplaceLabel[selectedPropertyToEdit]]"
                         :units="[propertiesConfiguration.xAxisUnit, propertiesConfiguration.yAxisUnit]"
@@ -341,8 +352,6 @@ export default {
                         :maxs="[propertiesConfiguration.xAxisMax, propertiesConfiguration.yAxisMax]"
                         :dataTestLabel="dataTestLabel + '-Property-' + index"
                         v-model="properties[selectedPropertyToEdit][index]"
-                        :labelWidthProportionClass="'col-4'"
-                        :valueWidthProportionClass="'col-8'"
                         :valueFontSize='valueFontSize'
                         :labelFontSize='valueFontSize'
                         :labelBgColor='labelBgColor'
@@ -350,42 +359,40 @@ export default {
                         :textColor='textColor'
                         @update="$emit('onDimensionUpdate', $event, selectedPropertyToEdit, index)"
                     />
-                    <div
-                        class="col-2 row"
-                    >
+                    <div class="pt-point-actions">
                         <button
                             :data-cy="dataTestLabel + '-remove-point-button'"
                             type="button"
-                            class="btn h-100 w-50 btn-circle col-6"
+                            class="pt-circle-btn"
                             @click="onRemovePoint(index)">
                             <i
                                 :style="combinedStyle([removeElementButtonColor])"
                                 :class="combinedClass([removeElementButtonColor])"
-                                class="fa-solid fa-1x fa-circle-minus"
+                                class="pi pi-minus-circle"
                             />
                         </button>
                         <button
                             :data-cy="dataTestLabel + '-add-point-below-button'"
                             type="button"
-                            class="btn btn-circle h-100 w-50 col-6"
-                            @click=" onAddPointBelow(index)"
+                            class="pt-circle-btn"
+                            @click="onAddPointBelow(index)"
                             >
                             <i
                                 :style="combinedStyle([addElementButtonColor])"
                                 :class="combinedClass([addElementButtonColor])"
-                                class="fa-solid fa-1x fa-circle-plus"
+                                class="pi pi-plus-circle"
                             />
                         </button>
                     </div>
-                    <label :data-cy="dataTestLabel + '-' + index + '-error-text'" class="text-danger text-center col-12 pt-1" style="font-size: 0.9em; white-space: pre-wrap;">{{errorMessages[index]}}</label>
+                    <label :data-cy="dataTestLabel + '-' + index + '-error-text'" class="pt-error">{{errorMessages[index]}}</label>
                 </div>
             </div>
-            <div 
+            <div
                 v-if="showConfiguration"
-                class="col-3"
+                class="pt-config"
             >
                 <ElementFromList
-                    class="col-12 mb-1 text-start"
+                    class="pt-config-row"
                     :dataTestLabel="dataTestLabel + '-GraphsSelector'"
                     :name="'xAxisMode'"
                     :titleSameRow="false"
@@ -393,8 +400,6 @@ export default {
                     :modelValue="propertiesConfiguration"
                     @update:modelValue="propertiesConfiguration = $event"
                     :options="availableModes"
-                    :labelWidthProportionClass="'col-12'"
-                    :selectStyleClass="'col-12'"
                     :valueFontSize="valueFontSize"
                     :labelFontSize="labelFontSize"
                     :labelBgColor="labelBgColor"
@@ -403,7 +408,7 @@ export default {
                     @update="axisModeChanged"
                 />
                 <ElementFromList
-                    class="col-12 mb-1 text-start"
+                    class="pt-config-row"
                     :dataTestLabel="dataTestLabel + '-GraphsSelector'"
                     :name="'yAxisMode'"
                     :titleSameRow="false"
@@ -411,8 +416,6 @@ export default {
                     :modelValue="propertiesConfiguration"
                     @update:modelValue="propertiesConfiguration = $event"
                     :options="availableModes"
-                    :labelWidthProportionClass="'col-12'"
-                    :selectStyleClass="'col-12'"
                     :valueFontSize="valueFontSize"
                     :labelFontSize="labelFontSize"
                     :labelBgColor="labelBgColor"
@@ -421,24 +424,21 @@ export default {
                     @update="axisModeChanged"
                 />
             </div>
-            <span 
+            <span
                 v-if="data.length > 0 && data[selectedPropertyToEdit].data.x.length == 0"
-                class="col-12 my-2"
+                class="pt-missing"
             >
-                <label
-                    class="text-danger pt-1 mx-3 "
-                    style="font-size: 1em"
-                >            
+                <label class="pt-missing-label">
                     {{'Property is missing'}}
                 </label>
-                <button class="btn btn-primary" @click="addFirstValue()">Add values</button>
+                <button class="pt-add-btn" @click="addFirstValue()">Add values</button>
             </span>
-            <div 
+            <div
                 v-if="!showEditor"
-                :class="showEditor || showConfiguration? 'col-9' : 'col-12'"
-                class="pe-3"
+                class="pt-graph-area"
+                :class="showEditor || showConfiguration? 'pt-graph-area-narrow' : ''"
             >
-                <LineVisualizer 
+                <LineVisualizer
                     v-if="showGraph"
                     v-show="!loading"
                     :data="data"
@@ -448,6 +448,8 @@ export default {
                     :forceUpdate="forceUpdate"
                     :chartStyle="chartStyle"
                     :showPoints="showPoints"
+                    :showArea="showArea"
+                    :tooltipTrigger="tooltipTrigger"
                     :toolbox="false"
                     :bgColor="visualizerBgColor"
                     :lineColor="visualizerLineColor"
@@ -455,10 +457,10 @@ export default {
                     :chartPaddings="chartPaddings"
                     :linePaddings="{top: 1.1, left: 1.1, right: 1.1, bottom: 1.1}"
                 />
-                <DimensionReadOnly 
+                <DimensionReadOnly
                     v-else
                     v-if="data.length > 0 && data[selectedPropertyToEdit].data.x.length > 0"
-                    class="col-12 mt-2 px-0 mx-0"
+                    class="pt-scalar"
                     :name="'Value'"
                     :replaceTitle="''"
                     :unit="propertiesConfiguration.yAxisUnit"
@@ -467,8 +469,6 @@ export default {
                     :value="scalarValue"
                     :useTitleCase="false"
                     :disableShortenLabels="true"
-                    :labelWidthProportionClass="'col-1'"
-                    :valueWidthProportionClass="'col-12'"
                     :valueFontSize="scalarFontSize"
                     :labelFontSize="scalarFontSize"
                     :labelBgColor="labelBgColor"
@@ -476,7 +476,177 @@ export default {
                     :textColor="textColor"
                 />
             </div>
-            
         </div>
     </div>
 </template>
+
+<style scoped>
+.pt-container {
+    width: 100%;
+    border: 1px solid var(--p-surface-300, #dee2e6);
+    border-radius: var(--p-border-radius, 4px);
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    box-sizing: border-box;
+}
+
+.pt-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.pt-title {
+    flex: 1 1 auto;
+}
+
+.pt-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.pt-icon-btn {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--p-border-radius);
+    color: var(--p-text-color);
+    transition: background-color 0.2s;
+}
+
+.pt-icon-btn:hover {
+    background-color: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
+}
+
+.pt-icon-btn-active {
+    background-color: color-mix(in srgb, var(--p-primary-color) 20%, transparent);
+}
+
+.pt-body {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.pt-editor {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.pt-property-selector {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+}
+
+.pt-property-selector > * {
+    flex: 0 1 80%;
+    text-align: start;
+}
+
+.pt-point-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 1rem 0 0;
+    flex-wrap: wrap;
+}
+
+.pt-point-row-divider {
+    border-bottom: 1px solid var(--p-surface-200, #e9ecef);
+}
+
+.pt-point-pair {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pt-point-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 0.25rem;
+}
+
+.pt-circle-btn {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pt-circle-btn:hover {
+    background-color: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
+}
+
+.pt-error {
+    flex: 1 1 100%;
+    text-align: center;
+    color: var(--p-red-400, #dc3545);
+    font-size: 0.9em;
+    padding-top: 0.25rem;
+    white-space: pre-wrap;
+}
+
+.pt-config {
+    flex: 0 0 25%;
+    min-width: 0;
+    text-align: start;
+}
+
+.pt-config-row {
+    margin-bottom: 0.25rem;
+}
+
+.pt-missing {
+    flex: 1 1 100%;
+    margin: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.pt-missing-label {
+    color: var(--p-red-400, #dc3545);
+    padding-top: 0.25rem;
+    margin: 0 1rem;
+    font-size: 1em;
+}
+
+.pt-add-btn {
+    background-color: var(--p-primary-color);
+    color: var(--p-primary-contrast-color);
+    border: 0;
+    padding: 0.5rem 1rem;
+    border-radius: var(--p-border-radius);
+    cursor: pointer;
+    font-family: var(--p-font-family);
+}
+
+.pt-add-btn:hover {
+    background-color: var(--p-primary-hover-color);
+}
+
+.pt-graph-area {
+    flex: 1 1 100%;
+    min-width: 0;
+    padding-right: 1rem;
+}
+
+.pt-graph-area-narrow {
+    flex: 1 1 75%;
+}
+
+.pt-scalar {
+    margin: 0.5rem 0 0 0;
+    padding: 0;
+}
+</style>

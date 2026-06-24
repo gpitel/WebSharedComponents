@@ -48,31 +48,31 @@ export default {
         },
         labelWidthProportionClass:{
             type: String,
-            default: 'col-xs-12 col-md-7'
+            default: ''
         },
         valueWidthProportionClass:{
             type: String,
-            default: 'col-xs-8 col-md-5'
+            default: ''
         },
         valueFontSize: {
             type: [String, Object],
-            default: 'fs-6'
+            default: () => ({ fontSize: '0.875rem' })
         },
         labelFontSize: {
             type: [String, Object],
-            default: 'fs-6'
+            default: () => ({ fontSize: '0.875rem' })
         },
         labelBgColor: {
             type: [String, Object],
-            default: "bg-dark",
+            default: () => ({ backgroundColor: 'transparent' })
         },
         valueBgColor: {
             type: [String, Object],
-            default: "bg-light",
+            default: () => ({ backgroundColor: 'var(--p-form-field-background, var(--p-white))', border: '1px solid var(--p-form-field-border-color, #ced4da)' })
         },
         textColor: {
             type: [String, Object],
-            default: "text-white",
+            default: () => ({ color: 'var(--p-form-field-color, #333333)' })
         },
         unitExtraStyleClass:{
             type: String,
@@ -127,9 +127,9 @@ export default {
 
 
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex">
-        <div class="row">
-            <Dimension class="col-5 offset-1 mb-1 text-start"
+    <div :data-cy="dataTestLabel + '-container'" class="pod-container">
+        <div class="pod-row">
+            <Dimension class="pod-dim"
                 :name="names[0]"
                 :replaceTitle="replaceTitle[0] == null? toTitleCase(names[0]) : replaceTitle[0]"
                 :unit="units[0]"
@@ -151,7 +151,7 @@ export default {
                 :textColor='textColor'
                 :unitExtraStyleClass='unitExtraStyleClass'
             />
-            <Dimension class="col-5 offset-1 mb-1 text-start"
+            <Dimension class="pod-dim"
                 :name="names[1]"
                 :replaceTitle="replaceTitle[1] == null? toTitleCase(names[1]) : replaceTitle[1]"
                 :unit="units[1]"
@@ -176,5 +176,25 @@ export default {
         </div>
     </div>
 </template>
+
+<style scoped>
+.pod-container:not([class*="col-"]) {
+    width: 100%;
+}
+
+.pod-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pod-dim {
+    flex: 1 1 calc(50% - 0.75rem);
+    min-width: 0;
+    text-align: start;
+    margin-bottom: 0.25rem;
+}
+</style>
 
 

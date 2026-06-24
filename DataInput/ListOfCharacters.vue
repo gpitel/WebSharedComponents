@@ -1,195 +1,115 @@
 <script setup>
-import { toTitleCase, getMultiplier, combinedStyle, combinedClass } from '../assets/js/utils.js'
-import * as Utils from '../assets/js/utils.js'
+import { toTitleCase } from '../assets/js/utils.js'
+import InputText from 'primevue/inputtext'
 </script>
-
 <script>
 export default {
+    components: { InputText },
+    emits: ['hasError', 'updateModelValue', 'update'],
     props: {
-        name:{
-            type: String,
-            required: true
-        },
-        replaceTitle:{
-            type: String,
-            default: null
-        },
-        modelValue:{
-            type: String,
-            required: true
-        },
-        dataTestLabel: {
-            type: String,
-            default: '',
-        },
-        allowedCharacters: {
-            type: String,
-            required: true,
-        },
-        allowConsecutive: {
-            type: Boolean,
-            default: false,
-        },
-        allowMissing: {
-            type: Boolean,
-            default: false,
-        },
-        valueFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelFontSize:{
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelBgColor: {
-            type: [String, Object],
-            default: "bg-dark",
-        },
-        valueBgColor: {
-            type: [String, Object],
-            default: "bg-light",
-        },
-        textColor: {
-            type: [String, Object],
-            default: "text-white",
-        },
-        disabled: {
-            type: Boolean,
-            default: false,
-        },
+        name: { type: String, required: true },
+        replaceTitle: { type: String, default: null },
+        modelValue: { type: String, required: true },
+        dataTestLabel: { type: String, default: '' },
+        allowedCharacters: { type: String, required: true },
+        allowConsecutive: { type: Boolean, default: false },
+        allowMissing: { type: Boolean, default: false },
+        valueFontSize: { type: [String, Object], default: () => ({}) },
+        labelFontSize: { type: [String, Object], default: () => ({}) },
+        labelBgColor: { type: [String, Object], default: () => ({}) },
+        valueBgColor: { type: [String, Object], default: () => ({}) },
+        textColor: { type: [String, Object], default: () => ({}) },
+        disabled: { type: Boolean, default: false },
     },
     data() {
-        let localData = "";
-
-        if (this.modelValue != null) {
-            localData = this.modelValue;
-        }
-
-        const errorMessages = ''
-
-        return {
-            localData,
-            errorMessages
-        }
-    },
-    computed: {
+        return { localData: this.modelValue || '', errorMessages: '' }
     },
     watch: {
-        'modelValue': {
-            handler(newValue, oldValue) {
-                this.changeText(newValue);
-            },
-            deep: true
+        modelValue: {
+            handler(newValue) { this.changeText(newValue) },
+            deep: true,
         },
     },
-    mounted() {
-    },
     methods: {
+        toTitleCase,
         changeText(newValue) {
-            const newValueArray = newValue.split('');
-            const allowedCharactersArray = this.allowedCharacters.split('');
+            const newValueArray = String(newValue).split('')
+            const allowedCharactersArray = this.allowedCharacters.split('')
+            this.localData = newValueArray.filter(c => allowedCharactersArray.includes(c)).join('')
 
-            this.localData = "";
-            newValueArray.forEach((newChar) => {
-                let found = false;
-                allowedCharactersArray.forEach((allowedChar) => {
-                    if (allowedChar == newChar) {
-                        found = true;
-                    }
-                });
-                if (found) {
-                    this.localData += newChar;
-                }
-            });
+            let missingValue = ''
+            const missingValues = !this.allowMissing && allowedCharactersArray.some(allowedChar => {
+                if (!newValueArray.includes(allowedChar)) { missingValue = allowedChar; return true }
+                return false
+            })
+            const consecutiveValues = !this.allowConsecutive && newValueArray.some((c, i) => i > 0 && c === newValueArray[i - 1])
 
-            let missingValues = false;
-            let missingValue = "";
-            if (!this.allowMissing) {
-                allowedCharactersArray.forEach((allowedChar) => {
-                    let found = false;
-                    newValueArray.forEach((newChar) => {
-                        if (allowedChar == newChar) {
-                            found = true;
-                        }
-                    });
-                    if (!found) {
-                        missingValue = allowedChar;
-                        missingValues = true;
-                    }
-                });
+            if (this.localData === '') {
+                this.errorMessages = 'Field cannot be empty'
+                this.$emit('hasError')
+            } else if (consecutiveValues) {
+                this.errorMessages = 'Field cannot have repeated consecutive values'
+                this.$emit('hasError')
+            } else if (missingValues) {
+                this.errorMessages = 'Field cannot have missing values. Missing ' + missingValue
+                this.$emit('hasError')
+            } else {
+                this.errorMessages = ''
+                this.$emit('updateModelValue', this.localData)
+                this.$emit('update')
             }
-
-            let consecutiveValues = false;
-            if (!this.allowConsecutive) {
-                for (let i = 0; i < newValueArray.length - 1; i++) {
-                    if (newValueArray[i] == newValueArray[i + 1]) {
-                        consecutiveValues = true;
-                    }
-                }
-            }
-
-            if (this.localData == '') {
-                this.errorMessages = "Field cannot be empty";
-                this.$emit("hasError");
-            }
-            else if (consecutiveValues) {
-                this.errorMessages = "Field cannot have repeated consecutive values";
-                this.$emit("hasError");
-            }
-            else if (missingValues) {
-                this.errorMessages = "Field cannot have missing values. Missing " + missingValue;
-                this.$emit("hasError");
-            }
-            else {
-                this.errorMessages = "";
-                this.$emit('updateModelValue', this.localData);
-                this.$emit('update');
-            }
-        }
-    }
+        },
+    },
 }
 </script>
 
-
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex">
-        <div class="row">
+    <div :data-cy="dataTestLabel + '-container'" class="loc-container">
+        <div class="loc-row">
             <label
-                :style="combinedStyle([labelBgColor, textColor, labelFontSize])"
-                v-if="replaceTitle == null"
+                :style="[labelBgColor, textColor, labelFontSize]"
                 :data-cy="dataTestLabel + '-title'"
                 :for="name + '-text-input'"
-                :class="combinedClass([labelBgColor, textColor, labelFontSize])"
-                class="rounded-2 m-0 col-8"
-            >
-                {{toTitleCase(name)}}
+                class="loc-label">
+                {{ replaceTitle == null ? toTitleCase(name) : replaceTitle }}
             </label>
-            <label
-                :style="combinedStyle([labelBgColor, textColor, labelFontSize])"
-                v-if="replaceTitle != null"
-                :data-cy="dataTestLabel + '-title'"
-                :for="name + '-text-input'"
-                :class="combinedClass([labelBgColor, textColor, labelFontSize])"
-                class="rounded-2 m-0 col-8"
-            >
-                {{replaceTitle}}
-            </label>
-
-            <input
-                :style="combinedStyle([valueBgColor, textColor, valueFontSize])"
+            <InputText
                 :data-cy="dataTestLabel + '-text-input'"
-                type="text"
                 :disabled="disabled"
-                :class="combinedClass([valueBgColor, textColor, valueFontSize])"
-                class="m-0 px-0 col-4"
+                class="loc-input"
                 :id="name + '-text-input'"
                 @change="changeText($event.target.value)"
-                :value="localData"
-            >
-            <label class="text-danger text-center col-12 pt-1" style="font-size: 0.9em; white-space: pre-wrap;">{{errorMessages}}</label>
+                :model-value="localData" />
         </div>
+        <label v-if="errorMessages" class="loc-error">{{ errorMessages }}</label>
     </div>
 </template>
 
-
+<style scoped>
+.loc-container { width: 100%; }
+.loc-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+.loc-label {
+    font-size: 0.875rem;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+.loc-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+}
+.loc-error {
+    color: var(--p-red-400);
+    text-align: center;
+    font-size: 0.85rem;
+    display: block;
+    width: 100%;
+    padding-top: 0.25rem;
+    white-space: pre-wrap;
+}
+</style>

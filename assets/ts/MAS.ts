@@ -10,7 +10,7 @@
 /**
  * All the data structure used in the Magnetic Agnostic Structure
  */
-export type Mas = {
+export interface Mas {
     /**
      * The description of the inputs that can be used to design a Magnetic
      */
@@ -19,6 +19,18 @@ export type Mas = {
      * The description of a magnetic
      */
     magnetic: Magnetic;
+    /**
+     * Optional declaration of which MAS conformance class this document targets. Class A —
+     * Inductor Basic. Class B — Transformer (multi-winding, insulation, isolated topologies).
+     * Class C — Full (all schemas, all topologies). See docs/conformance.md and
+     * schemas/conformance/.
+     */
+    masConformance?: MASConformance;
+    /**
+     * SemVer version of the MAS specification this document conforms to (MAJOR.MINOR.PATCH).
+     * Optional in 0.x; will become required in 1.0.
+     */
+    masVersion?: string;
     /**
      * The description of the outputs that are produced after designing a Magnetic
      */
@@ -29,7 +41,7 @@ export type Mas = {
 /**
  * The description of the inputs that can be used to design a Magnetic
  */
-export type Inputs = {
+export interface Inputs {
     converterInformation?: ConverterInformation;
     /**
      * Data describing the design requirements
@@ -42,20 +54,1343 @@ export type Inputs = {
     [property: string]: any;
 }
 
-export type ConverterInformation = {
+export interface ConverterInformation {
     supportedTopologies?: SupportedTopologies;
     [property: string]: any;
 }
 
-export type SupportedTopologies = {
-    flyback?: Flyback;
+export interface SupportedTopologies {
+    asymmetricHalfBridge?:   AsymmetricHalfBridge;
+    boost?:                  Boost;
+    buck?:                   Buck;
+    cllcResonant?:           CllcResonant;
+    clllcResonant?:          ClllcResonant;
+    commonModeChoke?:        CommonModeChoke;
+    cuk?:                    Cuk;
+    currentTransformer?:     CurrentTransformer;
+    differentialModeChoke?:  DifferentialModeChoke;
+    dualActiveBridge?:       DualActiveBridge;
+    flyback?:                Flyback;
+    forward?:                Forward;
+    fourSwitchBuckBoost?:    FourSwitchBuckBoost;
+    isolatedBuck?:           IsolatedBuck;
+    isolatedBuckBoost?:      IsolatedBuckBoost;
+    llcResonant?:            LlcResonant;
+    phaseShiftedFullBridge?: PhaseShiftedFullBridge;
+    phaseShiftedHalfBridge?: PhaseShiftedHalfBridge;
+    powerFactorCorrection?:  PowerFactorCorrection;
+    pushPull?:               PushPull;
+    sepic?:                  Sepic;
+    seriesResonant?:         SeriesResonant;
+    viennaRectifier?:        ViennaRectifier;
+    weinberg?:               Weinberg;
+    zeta?:                   Zeta;
     [property: string]: any;
+}
+
+/**
+ * The description of an Asymmetric Half-Bridge (AHB) converter (Imbertson-Mohan 1993):
+ * single-leg, two-switch isolated PWM converter with DC-blocking capacitor and
+ * complementary D/(1-D) drive.
+ */
+export interface AsymmetricHalfBridge {
+    /**
+     * Optional explicit DC-blocking capacitance in farads
+     */
+    dcBlockingCapacitance?: number;
+    /**
+     * The voltage drop of the rectifier diode (or SR FET drain-source drop)
+     */
+    diodeVoltageDrop?: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the AHB converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * Optional Vin step magnitude (in volts) used to compute worst-case transient flux excursion
+     */
+    inputVoltageStepRange?: number;
+    /**
+     * Optional explicit primary leakage inductance in henries
+     */
+    leakageInductance?: number;
+    /**
+     * Optional explicit primary magnetizing inductance in henries
+     */
+    magnetizingInductance?: number;
+    /**
+     * Maximum duty cycle of Q1 (chosen branch of non-monotonic gain curve, conventionally <=
+     * 0.5)
+     */
+    maximumDutyCycle?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: AhbOperatingPoint[];
+    /**
+     * Optional explicit output filter inductance in henries
+     */
+    outputInductance?: number;
+    /**
+     * The type of secondary rectifier
+     */
+    rectifierType?: AhbRectifierType;
+    /**
+     * Whether to use transformer leakage inductance for ZVS
+     */
+    useLeakageInductance?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The input voltage of the AHB converter
+ *
+ * The input voltage of the boost
+ *
+ * The input voltage of the buck
+ *
+ * The input voltage (HV side) of the CLLC converter
+ *
+ * The HV-side bus voltage (typically 380-800 V for OBC)
+ *
+ * The LV-side bus voltage (typically 200-500 V for OBC)
+ *
+ * The operating voltage across the choke (line-to-line or line-to-neutral)
+ *
+ * The input voltage of the Cuk
+ *
+ * The input voltage of the filter stage
+ *
+ * The input voltage of the DAB converter
+ *
+ * The input voltage of the flyback
+ *
+ * The input voltage of the forward
+ *
+ * The input voltage of the 4-switch buck-boost (must support a sweep range that crosses
+ * Vo)
+ *
+ * The input voltage of the isolatedBuck
+ *
+ * The input voltage of the isolatedBuckBoost
+ *
+ * The input voltage of the LLC converter
+ *
+ * The input voltage of the PSFB converter
+ *
+ * The input voltage of the PSHB converter
+ *
+ * The AC input voltage (RMS) with tolerance range (e.g., 85-265V universal input)
+ *
+ * The input voltage of the pushPull
+ *
+ * The input voltage of the SEPIC
+ *
+ * The input voltage of the SRC converter
+ *
+ * AC line-to-line RMS voltage (e.g. 400 V for EU, 480 V for US)
+ *
+ * The input voltage of the Weinberg
+ *
+ * The input voltage of the Zeta
+ *
+ * Required values for the altitude
+ *
+ * Voltage RMS of the main supply to which this transformer is connected to.
+ *
+ * Required values for the magnetizing inductance
+ *
+ * Required values for the temperature that the magnetic can reach under operating
+ *
+ * The maximum thickness of the insulation around the wire, in m
+ *
+ * The conducting area of the wire, in m². Used for some rectangular shapes where the area
+ * is smaller than expected due to rounded corners
+ *
+ * The conducting diameter of the wire, in m
+ *
+ * The outer diameter of the wire, in m
+ *
+ * The conducting height of the wire, in m
+ *
+ * The conducting width of the wire, in m
+ *
+ * The outer height of the wire, in m
+ *
+ * The outer width of the wire, in m
+ *
+ * The radius of the edge, in case of rectangular wire, in m
+ *
+ * The outer diameter of the wire. Unit: m.
+ *
+ * Length of one full twist of the litz bundle along the wire axis. Unit: m. Vendors quote
+ * this in mm or as 'lay length'; convert to metres before serialisation. No international
+ * standard exists for litz construction; this field captures the most commonly published
+ * vendor parameter.
+ *
+ * Specific heat capacity value according to manufacturer. Unit: J/(kg*K).
+ *
+ * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
+ *
+ * DC resistance per winding in Ohms. nominal = typical value, maximum = datasheet max.
+ *
+ * Inductance per winding in Henries, with tolerance.
+ *
+ * Leakage inductance in Henries.
+ *
+ * Body diameter in metres (for cylindrical parts).
+ *
+ * Body height in metres.
+ *
+ * Body length in metres.
+ *
+ * Body width in metres.
+ *
+ * Operating temperature in degrees Celsius.
+ *
+ * Value of the leakage inductance between the primary and a secondary winding given by the
+ * position in the array
+ *
+ * Value of the magnetizing inductance. Unit: H. The operating point at which this value
+ * applies (frequency, AC test amplitude, DC bias, temperature) is recorded in the optional
+ * `measurementCondition` block; if absent, small-signal at 0 A DC bias and the ambient
+ * temperature of the operating point is assumed.
+ *
+ * A dimension of with minimum, nominal, and maximum values
+ */
+export interface DimensionWithTolerance {
+    /**
+     * True if the maximum value must be excluded from the range
+     */
+    excludeMaximum?: boolean;
+    /**
+     * True if the minimum value must be excluded from the range
+     */
+    excludeMinimum?: boolean;
+    /**
+     * The maximum value of the dimension
+     */
+    maximum?: number;
+    /**
+     * The minimum value of the dimension
+     */
+    minimum?: number;
+    /**
+     * The nominal value of the dimension
+     */
+    nominal?: number;
+    /**
+     * Optional SI unit string (e.g. 'H', 'F', 'V', 'A', 'Ohm', 'm', 'kg'). When absent, the
+     * unit is implied by the field name.
+     */
+    unit?: string;
+    [property: string]: any;
+}
+
+/**
+ * The description of one AHB operating point
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface AhbOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * Commanded duty cycle of Q1 for this operating point (0 < D <= 0.5 for the conventional
+     * non-monotonic gain branch). Schema bounds 0 <= D <= 1 to permit the upper-branch research
+     * configuration.
+     */
+    dutyCycle: number;
+    [property: string]: any;
+}
+
+/**
+ * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+ * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+ *
+ * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+ * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+ *
+ * Type of value carried in outputCurrents. Defaults to dc.
+ *
+ * Type of value carried in outputVoltages. Defaults to dc.
+ */
+export enum OutputSType {
+    Average = "average",
+    Dc = "dc",
+    Peak = "peak",
+    PeakToPeak = "peakToPeak",
+    RMS = "rms",
+}
+
+/**
+ * The type of secondary rectifier
+ *
+ * The type of secondary rectifier for the AHB
+ */
+export enum AhbRectifierType {
+    AhbFlyback = "ahbFlyback",
+    CenterTapped = "centerTapped",
+    CurrentDoubler = "currentDoubler",
+    FullBridge = "fullBridge",
+}
+
+/**
+ * The description of a Boost converter excitation
+ */
+export interface Boost {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the boost
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface TopologyExcitation {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Buck converter excitation
+ */
+export interface Buck {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the buck
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * CLLC Bidirectional Resonant converter excitation. Schema v2 adds asymmetric-tank ratios
+ * (a, b), bridge-type selection (full/half) and leakage-integration flags so that Lr1, Lr2
+ * can be either discrete components or absorbed into transformer leakage. The pre-v2
+ * boolean `symmetricDesign` is retained as a derived alias (true iff a==1 && b==1). See
+ * Infineon AN-2024-06 §2.3 for the canonical 11-step design procedure and the asymmetric
+ * design rationale of Min et al., IEEE TPE 36(6) 2021.
+ */
+export interface CllcResonant {
+    /**
+     * Whether the converter operates in bidirectional mode (active synchronous rectifier on the
+     * secondary side, capable of reverse power flow). When false the secondary still uses SR
+     * for efficiency but reverse mode is not exercised.
+     */
+    bidirectional?: boolean;
+    /**
+     * Bridge topology of the primary inverter. Full-bridge gives bridge-voltage factor 1.0
+     * (peak Vpri = Vin); half-bridge gives 0.5 (peak Vpri = Vin/2). Most CLLC > 1 kW use full
+     * bridge; sub-1 kW server / V2L designs use half-bridge.
+     */
+    bridgeType?: LlcBridgeType;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage (HV side) of the CLLC converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * If true, the primary resonant inductor Lr1 is realised as transformer primary leakage (no
+     * discrete inductor). When false, Lr1 is a discrete component placed in series with the
+     * primary winding.
+     */
+    integratedResonantInductor1?: boolean;
+    /**
+     * If true, the secondary resonant inductor Lr2 is realised as transformer secondary
+     * leakage. When false, Lr2 is a discrete component placed in series with the secondary
+     * winding (CLLLC layout).
+     */
+    integratedResonantInductor2?: boolean;
+    /**
+     * The maximum switching frequency for regulation
+     */
+    maxSwitchingFrequency: number;
+    /**
+     * The minimum switching frequency for regulation
+     */
+    minSwitchingFrequency: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: CllcOperatingPoint[];
+    /**
+     * Quality factor of the resonant tank, Infineon convention Q = sqrt(Lr/Cr) / Ro. Two other
+     * conventions exist in the literature (Steigerwald uses 1/Q, Erickson uses Ro/sqrt(Lr/Cr));
+     * the Infineon convention is documented in the class header.
+     */
+    qualityFactor?: number;
+    /**
+     * Asymmetric-tank ratio b = Cr2 / (n^2 * Cr1). Symmetric tank: b = 1. Typical asymmetric
+     * battery-charger design: b ~= 1.052 so that fr1 = fr2 (a*b ~ 1).
+     */
+    resonantCapacitorRatio?: number;
+    /**
+     * Asymmetric-tank ratio a = n^2 * Lr2 / Lr1. Symmetric tank: a = 1. Typical asymmetric
+     * battery-charger design (Min IEEE TPE 2021): a ~= 0.95.
+     */
+    resonantInductorRatio?: number;
+    /**
+     * DEPRECATED - retained for v1 compatibility. True iff resonantInductorRatio==1 &&
+     * resonantCapacitorRatio==1. New code should set the ratio fields directly.
+     */
+    symmetricDesign?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * Bridge topology of the primary inverter. Full-bridge gives bridge-voltage factor 1.0
+ * (peak Vpri = Vin); half-bridge gives 0.5 (peak Vpri = Vin/2). Most CLLC > 1 kW use full
+ * bridge; sub-1 kW server / V2L designs use half-bridge.
+ *
+ * CLLC primary bridge topology selector
+ *
+ * The HV-side bridge topology
+ *
+ * The type of bridge for CLLLC
+ *
+ * The LV-side bridge topology
+ *
+ * The type of primary bridge
+ *
+ * The type of primary bridge for LLC
+ */
+export enum LlcBridgeType {
+    FullBridge = "fullBridge",
+    HalfBridge = "halfBridge",
+}
+
+/**
+ * The description of one CLLC operating point
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface CllcOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * The power flow direction.
+     */
+    powerFlow: CllcPowerFlow;
+    [property: string]: any;
+}
+
+/**
+ * The power flow direction.
+ *
+ * The power flow direction
+ *
+ * The power flow direction for one CLLLC operating point
+ *
+ * Power-flow direction. Forward = source -> load via L1; reverse = load -> source via L2.
+ *
+ * Power-flow direction for one operating point of a bidirectional Cuk (ignored when
+ * bidirectional=false).
+ */
+export enum CllcPowerFlow {
+    Forward = "forward",
+    Reverse = "reverse",
+}
+
+/**
+ * The description of a CLLLC bidirectional symmetric resonant converter excitation
+ */
+export interface ClllcResonant {
+    /**
+     * The HV-side bridge topology
+     */
+    bridgeTypePrimary?: LlcBridgeType;
+    /**
+     * The LV-side bridge topology
+     */
+    bridgeTypeSecondary?: LlcBridgeType;
+    /**
+     * How the controller modulates frequency vs phase-shift
+     */
+    controlStrategy?: ClllcControlStrategy;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The HV-side bus voltage (typically 380-800 V for OBC)
+     */
+    highVoltageBusVoltage: DimensionWithTolerance;
+    /**
+     * K = Lm/Lr1, the magnetizing-to-series-inductance ratio
+     */
+    inductanceRatioK?: number;
+    /**
+     * If true, Lr1 and Lr2 are integrated as transformer leakage on each side
+     */
+    integratedResonantInductors?: boolean;
+    /**
+     * The LV-side bus voltage (typically 200-500 V for OBC)
+     */
+    lowVoltageBusVoltage: DimensionWithTolerance;
+    /**
+     * The maximum switching frequency for regulation
+     */
+    maxSwitchingFrequency: number;
+    /**
+     * The minimum switching frequency for regulation
+     */
+    minSwitchingFrequency: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: ClllcOperatingPoint[];
+    /**
+     * Optional explicit primary-side resonant capacitor (Cr1) in F. Overrides Q/K/fr derivation
+     * when set.
+     */
+    primaryResonantCapacitance?: number;
+    /**
+     * f_r1 = 1/(2*pi*sqrt(Lr1*Cr1)). Optional; computed if absent.
+     */
+    primaryResonantFrequency?: number;
+    /**
+     * Optional explicit primary-side resonant inductor (Lr1) in H. Overrides Q/K/fr derivation
+     * when set.
+     */
+    primarySeriesInductance?: number;
+    /**
+     * The quality factor of the resonant tank
+     */
+    qualityFactor?: number;
+    /**
+     * (Lr2/(n^2*Lr1)) * (Cr2*n^2/Cr1). 1.0 = perfectly symmetric.
+     */
+    tankSymmetryRatio?: number;
+    [property: string]: any;
+}
+
+/**
+ * How the controller modulates frequency vs phase-shift
+ *
+ * The CLLLC control strategy
+ */
+export enum ClllcControlStrategy {
+    FixedFrequencyPhaseShift = "fixedFrequencyPhaseShift",
+    HybridPfmPSM = "hybridPfmPsm",
+    PSM = "psm",
+    Pfm = "pfm",
+}
+
+/**
+ * The description of one CLLLC operating point
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface ClllcOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * Inter-bridge phase shift; only used by psm or hybridPfmPsm
+     */
+    phaseShiftDegrees?: number;
+    /**
+     * The power flow direction.
+     */
+    powerFlowDirection?: CllcPowerFlow;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Common Mode Choke (CMC) for EMI filtering. Common mode chokes use
+ * coupled inductors wound on a toroidal core to suppress common mode noise while passing
+ * differential signals. The choke presents high impedance to common mode currents (both
+ * lines with same phase) and low impedance to differential mode currents (opposite phase).
+ */
+export interface CommonModeChoke {
+    /**
+     * The ambient temperature for the application
+     */
+    ambientTemperature: number;
+    /**
+     * The mains/line frequency in Hz (50 or 60 Hz typically). This is the frequency of the
+     * differential mode current that causes magnetic excitation.
+     */
+    lineFrequency: number;
+    /**
+     * The characteristic line impedance (typically 50 ohms for LISN measurements)
+     */
+    lineImpedance?: number;
+    /**
+     * Maximum allowable DC resistance per winding in ohms
+     */
+    maximumDcResistance?: number;
+    /**
+     * Maximum allowable leakage inductance in henries (for tight coupling)
+     */
+    maximumLeakageInductance?: number;
+    /**
+     * The minimum impedance requirements at specified frequencies
+     */
+    minimumImpedance: ImpedanceAtFrequency[];
+    /**
+     * The nominal operating current through each winding (differential mode current)
+     */
+    operatingCurrent: number;
+    /**
+     * The operating voltage across the choke (line-to-line or line-to-neutral)
+     */
+    operatingVoltage: DimensionWithTolerance;
+    /**
+     * Target insertion loss in dB at specified frequencies (optional, alternative to impedance
+     * specification)
+     */
+    targetInsertionLoss?: InsertionLossAtFrequency[];
+    [property: string]: any;
+}
+
+/**
+ * An impedance value pinned to a specific frequency. The impedance is a structured
+ * impedancePoint with magnitude, phase and real/imaginary parts. Bare-magnitude callers
+ * populate magnitude only and leave phase / real / imaginary unset.
+ */
+export interface ImpedanceAtFrequency {
+    /**
+     * Frequency at which the impedance applies. Unit: Hz.
+     */
+    frequency: number;
+    impedance: ImpedancePoint;
+}
+
+/**
+ * Data describing one impendance value
+ *
+ * Impedance value. Uses the same impedancePoint structure as designRequirements.
+ */
+export interface ImpedancePoint {
+    imaginaryPart?: number;
+    /**
+     * Magnitude of the impedance, in Ohm
+     */
+    magnitude: number;
+    phase?:    number;
+    realPart?: number;
+    [property: string]: any;
+}
+
+/**
+ * Insertion loss requirement at a specific frequency
+ */
+export interface InsertionLossAtFrequency {
+    /**
+     * The frequency in Hz
+     */
+    frequency: number;
+    /**
+     * The target insertion loss in dB at this frequency
+     */
+    insertionLoss: number;
+    [property: string]: any;
+}
+
+/**
+ * Cuk converter excitation. Five wiring variants are supported via the boolean flags below:
+ * V1 non-isolated (defaults), V2 coupled-inductor zero-ripple (coupledInductor=true), V3
+ * transformer-isolated (isolated=true), V4 synchronous (synchronous=true), V5 bidirectional
+ * (bidirectional=true, V4 implied). For V1/V2/V4/V5 the magnetic returned by
+ * process_design_requirements is the input inductor L1 (V2: a 2-winding coupled inductor);
+ * for V3 it is a 2-winding transformer. The remaining reactive elements (L2, C1, Co, plus
+ * Ca/Cb in V3) are emitted via get_extra_components_inputs.
+ */
+export interface Cuk {
+    /**
+     * If true, both switches are active and the converter can transfer power in either
+     * direction depending on operatingPoint.powerFlow. Implies synchronous=true.
+     */
+    bidirectional?: boolean;
+    /**
+     * If true, L1 and L2 are wound on the same core with coupling coefficient
+     * couplingCoefficient (Cuk's zero-ripple trick when k = sqrt(L1/L2)). The magnetic returned
+     * is a 2-winding coupled inductor. Mutually exclusive with isolated=true.
+     */
+    coupledInductor?: boolean;
+    /**
+     * Secondary-side coupling capacitance Cb in farads (used only when isolated=true). If
+     * absent, Cb defaults to Ca scaled by turnsRatio^2 to balance V*s on each side.
+     */
+    couplingCapacitanceSecondary?: number;
+    /**
+     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
+     * Zero-ripple condition: k * sqrt(L2/L1) = 1.
+     */
+    couplingCoefficient?: number;
+    /**
+     * The maximum input-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the diode (ignored when synchronous=true)
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the Cuk
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * If true, the coupling capacitor is split into Ca/Cb and an isolation transformer is
+     * inserted between them. The magnetic returned is the transformer (2 windings, isolation
+     * sides PRIMARY and SECONDARY); L1 and L2 become extra components.
+     */
+    isolated?: boolean;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: CukOperatingPoint[];
+    /**
+     * If true, the catch diode D1 is replaced by an actively-driven synchronous switch S2.
+     * Reduces conduction loss; mandatory for bidirectional=true.
+     */
+    synchronous?: boolean;
+    /**
+     * Transformer turns ratio Np:Ns for isolated=true (used as Vo/Vin step targeting). Ignored
+     * for non-isolated variants.
+     */
+    turnsRatio?: number;
+    [property: string]: any;
+}
+
+/**
+ * The description of one Cuk operating point. NOTE: outputVoltages magnitudes are passed
+ * positive here; Vo is signed negative internally per Cuk polarity convention. powerFlow is
+ * required only when the parent Cuk has bidirectional=true.
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface CukOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * Power-flow direction. Forward = source -> load via L1; reverse = load -> source via L2.
+     */
+    powerFlow?: CllcPowerFlow;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Current Transformer excitation
+ */
+export interface CurrentTransformer {
+    /**
+     * The ambient temperature of the operating point
+     */
+    ambientTemperature: number;
+    /**
+     * The value of the burden resistor in the measuring circuit
+     */
+    burdenResistor: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * Frequency of the input
+     */
+    frequency: number;
+    /**
+     * The maximum duty cycle in the input
+     */
+    maximumDutyCycle: number;
+    /**
+     * The maximum current peak in the input
+     */
+    maximumPrimaryCurrentPeak: number;
+    /**
+     * Waveform of the signal to measure
+     */
+    waveformLabel: WaveformLabel;
+    [property: string]: any;
+}
+
+/**
+ * Waveform of the signal to measure
+ *
+ * Label of the waveform, if applicable. Used for common waveforms
+ */
+export enum WaveformLabel {
+    BipolarRectangular = "bipolarRectangular",
+    BipolarTriangular = "bipolarTriangular",
+    Custom = "custom",
+    FlybackPrimary = "flybackPrimary",
+    FlybackSecondary = "flybackSecondary",
+    FlybackSecondaryWithDeadtime = "flybackSecondaryWithDeadtime",
+    Rectangular = "rectangular",
+    RectangularDCM = "rectangularDCM",
+    RectangularWithDeadtime = "rectangularWithDeadtime",
+    SecondaryRectangular = "secondaryRectangular",
+    SecondaryRectangularWithDeadtime = "secondaryRectangularWithDeadtime",
+    Sinusoidal = "sinusoidal",
+    Triangular = "triangular",
+    TriangularWithDeadtime = "triangularWithDeadtime",
+    UnipolarRectangular = "unipolarRectangular",
+    UnipolarTriangular = "unipolarTriangular",
+}
+
+/**
+ * The description of a Differential Mode Choke (DMC) for EMI filtering. Differential mode
+ * chokes use an inductor to attenuate differential mode noise (noise between line and
+ * neutral or between lines). Unlike CMCs, DMCs present impedance to differential signals
+ * and are typically used in combination with capacitors to form LC filters.
+ */
+export interface DifferentialModeChoke {
+    /**
+     * The ambient temperature for the application
+     */
+    ambientTemperature: number;
+    /**
+     * The DMC configuration type
+     */
+    configuration?: Configuration;
+    /**
+     * The filter capacitance in Farads (for LC filter design)
+     */
+    filterCapacitance?: number;
+    /**
+     * The input voltage of the filter stage
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The mains/line frequency in Hz (50 or 60 Hz typically). This is the frequency of the load
+     * current that causes magnetic excitation.
+     */
+    lineFrequency: number;
+    /**
+     * Maximum allowable temperature rise due to core and winding losses
+     */
+    maximumCoreTemperatureRise?: number;
+    /**
+     * Maximum allowable DC resistance in ohms
+     */
+    maximumDcResistance?: number;
+    /**
+     * The minimum impedance requirements at specified frequencies
+     */
+    minimumImpedance?: ImpedanceAtFrequency[];
+    /**
+     * The minimum required inductance in henries for the filter cutoff frequency
+     */
+    minimumInductance?: number;
+    /**
+     * The nominal operating current through the choke
+     */
+    operatingCurrent: number;
+    /**
+     * The peak current including ripple
+     */
+    peakCurrent?: number;
+    /**
+     * The switching frequency of the converter being filtered
+     */
+    switchingFrequency?: number;
+    /**
+     * Target attenuation in dB at specified frequencies
+     */
+    targetAttenuation?: AttenuationAtFrequency[];
+    [property: string]: any;
+}
+
+/**
+ * The DMC configuration type
+ */
+export enum Configuration {
+    SinglePhase = "singlePhase",
+    SinglePhaseBalanced = "singlePhaseBalanced",
+    ThreePhase = "threePhase",
+    ThreePhaseWithNeutral = "threePhaseWithNeutral",
+}
+
+/**
+ * Attenuation requirement at a specific frequency
+ */
+export interface AttenuationAtFrequency {
+    /**
+     * The target attenuation in dB at this frequency
+     */
+    attenuation: number;
+    /**
+     * The frequency in Hz
+     */
+    frequency: number;
+    [property: string]: any;
+}
+
+/**
+ * Dual Active Bridge (DAB) DC-DC converter excitation. Modulation parameters follow the
+ * standard Triple Phase Shift (TPS) convention: D1 = primary-bridge intra-leg shift, D2 =
+ * secondary-bridge intra-leg shift, D3 = inter-bridge (outer) shift. See Huang et al.,
+ * Energies 11(9):2419 (2018) and Maniktala & Rosano, 'Power Supplies A to Z', 3rd ed. (Ch.
+ * 2).
+ */
+export interface DualActiveBridge {
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the DAB converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: DabOperatingPoint[];
+    /**
+     * Optional per-secondary leakage inductance in H, one entry per output. Required for
+     * physically meaningful multi-output DAB simulation; if absent, all secondaries share the
+     * same series inductance.
+     */
+    perSecondaryLeakage?: number[];
+    /**
+     * The series inductance for power transfer control. If 0, uses transformer leakage
+     * inductance
+     */
+    seriesInductance?: number;
+    /**
+     * Whether to use transformer leakage inductance as the series inductor
+     */
+    useLeakageInductance?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * One DAB operating point. Modulation is parameterised by three phase-shift variables D1,
+ * D2, D3 (Huang et al. 2018 convention): D1 and D2 are intra-bridge (leg-to-leg) shifts
+ * that control each bridge's effective duty cycle, and D3 is the outer inter-bridge shift
+ * that controls power transfer. SPS uses D3 only (D1=D2=0). EPS uses D3 + one inner shift
+ * (D1, with D2=0). DPS uses D3 + one symmetric inner shift (D1=D2). TPS uses all three
+ * independently.
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface DabOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * D1 in degrees
+     */
+    innerPhaseShift1?: number;
+    /**
+     * D2 in degrees
+     */
+    innerPhaseShift2?: number;
+    /**
+     * D3 in degrees
+     */
+    innerPhaseShift3?: number;
+    /**
+     * DAB modulation scheme. SPS (only D3), EPS (D1>0, D2=0), DPS (D1=D2>0), TPS (independent).
+     * Ref: Huang et al., Energies 11(9):2419 (2018).
+     */
+    modulationType?: ModulationType;
+    [property: string]: any;
+}
+
+/**
+ * DAB modulation scheme. SPS (only D3), EPS (D1>0, D2=0), DPS (D1=D2>0), TPS (independent).
+ * Ref: Huang et al., Energies 11(9):2419 (2018).
+ */
+export enum ModulationType {
+    Dps = "DPS",
+    Eps = "EPS",
+    Sps = "SPS",
+    Tps = "TPS",
 }
 
 /**
  * The description of a Flyback converter excitation
  */
-export type Flyback = {
+export interface Flyback {
     /**
      * The maximum current ripple allowed in the output
      */
@@ -88,110 +1423,1065 @@ export type Flyback = {
 }
 
 /**
- * The input voltage of the flyback
- *
- * Required values for the altitude
- *
- * Voltage RMS of the main supply to which this transformer is connected to.
- *
- * Required values for the magnetizing inductance
- *
- * Required values for the temperature that the magnetic can reach under operating
- *
- * The maximum thickness of the insulation around the wire, in m
- *
- * The conducting area of the wire, in m². Used for some rectangular shapes where the area
- * is smaller than expected due to rounded corners
- *
- * The conducting diameter of the wire, in m
- *
- * The outer diameter of the wire, in m
- *
- * The conducting height of the wire, in m
- *
- * The conducting width of the wire, in m
- *
- * The outer height of the wire, in m
- *
- * The outer width of the wire, in m
- *
- * The radius of the edge, in case of rectangular wire, in m
- *
- * Heat capacity value according to manufacturer, in J/Kg/K
- *
- * Heat conductivity value according to manufacturer, in W/m/K
- *
- * Data a two dimensional matrix, created as an array of array, where the first coordinate
- * in the X and the second the Y
- *
- * Value of the leakage inductance between the primary and a secondary winding given by the
- * position in the array
- *
- * Value of the magnetizing inductance
- *
- * A dimension of with minimum, nominal, and maximum values
+ * The description of one flyback operating point. Flyback does not require
+ * switchingFrequency at the schema level: when omitted, it is inferred from the conduction
+ * mode, see docs/inputs.md.
  */
-export type DimensionWithTolerance = {
+export interface FlybackOperatingPoint {
     /**
-     * True is the maximum value must be excluded from the range
-     */
-    excludeMaximum?: boolean;
-    /**
-     * True is the minimum value must be excluded from the range
-     */
-    excludeMinimum?: boolean;
-    /**
-     * The maximum value of the dimension
-     */
-    maximum?: number;
-    /**
-     * The minimum value of the dimension
-     */
-    minimum?: number;
-    /**
-     * The nominal value of the dimension
-     */
-    nominal?: number;
-    [property: string]: any;
-}
-
-/**
- * The descriptionof one flyback operating point
- */
-export type FlybackOperatingPoint = {
-    /**
-     * The ambient temperature of the operating point
+     * Ambient temperature of the operating point. Unit: Celsius.
      */
     ambientTemperature: number;
     /**
-     * The mode of the operating point
+     * The conduction mode of the operating point.
      */
     mode?: FlybackModes;
     /**
-     * A list of output currents, one per output
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default: dc).
      */
     outputCurrents: number[];
     /**
-     * A list of output voltages, one per output
+     * Type of value carried in outputCurrents. Defaults to dc.
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default: dc).
      */
     outputVoltages: number[];
     /**
-     * The switching frequency of the operating point
+     * Type of value carried in outputVoltages. Defaults to dc.
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. Optional for flyback when mode is
+     * supplied.
      */
     switchingFrequency?: number;
     [property: string]: any;
 }
 
 /**
- * The mode of the operating point
+ * The conduction mode of the operating point.
  *
  * The conduction mode of the Flyback
  */
 export enum FlybackModes {
-    BoundaryModeOperation = "Boundary Mode Operation",
-    ContinuousConductionMode = "Continuous Conduction Mode",
-    DiscontinuousConductionMode = "Discontinuous Conduction Mode",
-    QuasiResonantMode = "Quasi Resonant Mode",
+    BoundaryModeOperation = "boundaryModeOperation",
+    ContinuousConductionMode = "continuousConductionMode",
+    DiscontinuousConductionMode = "discontinuousConductionMode",
+    QuasiResonantMode = "quasiResonantMode",
+}
+
+/**
+ * The description of a Forward converter excitation
+ */
+export interface Forward {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * Duty cycle for the converter, maximum 50%
+     */
+    dutyCycle?: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the forward
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * 4-Switch Buck-Boost (also called non-inverting buck-boost, H-bridge buck-boost, FSBB)
+ * excitation. Single inductor with two half-bridges (Q1/Q2 buck leg, Q3/Q4 boost leg). The
+ * controller selects one of three operating regions per Vin value: BUCK (Vo/Vin <
+ * 1-hysteresis: Q3 always-on, Q1/Q2 PWM), BOOST (Vo/Vin > 1+hysteresis: Q1 always-on, Q3/Q4
+ * PWM), or BUCK_BOOST (transition band: all four switches modulate). The magnetic returned
+ * by process_design_requirements is the single inductor sized for the worst-case region
+ * across the Vin sweep (max(L_buck@VinMax, L_boost@VinMin)). Cin and Co are emitted via
+ * get_extra_components_inputs. References: TI SLVA535B, TI LM5175/LM5176, ADI LT8390,
+ * Restrepo IEEE 8986423.
+ */
+export interface FourSwitchBuckBoost {
+    /**
+     * If true, controller allows reverse power flow (V2G / battery / 12V<->48V mild-hybrid)
+     */
+    bidirectional?: boolean;
+    /**
+     * Controller duty-assignment strategy in the buck-boost region (peakCurrent: TI LM5176,
+     * peakBuckPeakBoost: ADI LT8390, averageCurrent: USB-PD, voltageMode: legacy)
+     */
+    controlMode?: ControlMode;
+    /**
+     * The maximum inductor current ripple ratio (delta-IL / IL_avg)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the 4-switch buck-boost (must support a sweep range that crosses Vo)
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through any of the four switches
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * The output voltage ripple ratio (delta-Vo / Vo)
+     */
+    outputVoltageRippleRatio?: number;
+    /**
+     * Number of interleaved phases (default 1; >1 for automotive 12V<->48V)
+     */
+    phaseCount?: number;
+    /**
+     * Width of the buck-boost band as |1 - Vo/Vin| (default 0.15 per LM5176)
+     */
+    transitionHysteresisRatio?: number;
+    /**
+     * Buck-boost-region modulation: 'simultaneous' (Mode 1, Q1+Q3 ON together) or 'splitPwm'
+     * (Mode 2, sequential split-PWM, LM5176/LT8390 default)
+     */
+    transitionMode?: TransitionMode;
+    [property: string]: any;
+}
+
+/**
+ * Controller duty-assignment strategy in the buck-boost region (peakCurrent: TI LM5176,
+ * peakBuckPeakBoost: ADI LT8390, averageCurrent: USB-PD, voltageMode: legacy)
+ */
+export enum ControlMode {
+    AverageCurrent = "averageCurrent",
+    PeakBuckPeakBoost = "peakBuckPeakBoost",
+    PeakCurrent = "peakCurrent",
+    VoltageMode = "voltageMode",
+}
+
+/**
+ * Buck-boost-region modulation: 'simultaneous' (Mode 1, Q1+Q3 ON together) or 'splitPwm'
+ * (Mode 2, sequential split-PWM, LM5176/LT8390 default)
+ */
+export enum TransitionMode {
+    Simultaneous = "simultaneous",
+    SplitPwm = "splitPwm",
+}
+
+/**
+ * The description of a Isolated Buck / Flybuck converter excitation
+ */
+export interface IsolatedBuck {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the isolatedBuck
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * The description of a Isolated BuckBoost / FlyBuck - Boost converter excitation
+ */
+export interface IsolatedBuckBoost {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the isolatedBuckBoost
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * The description of an LLC Resonant converter excitation
+ */
+export interface LlcResonant {
+    /**
+     * The type of primary bridge
+     */
+    bridgeType?: LlcBridgeType;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The inductance ratio between Lm/Ls
+     */
+    inductanceRatio?: number;
+    /**
+     * The input voltage of the LLC converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * Whether the resonant inductor is integrated in the transformer (leakage)
+     */
+    integratedResonantInductor?: boolean;
+    /**
+     * The maximum switching frequency for regulation
+     */
+    maxSwitchingFrequency: number;
+    /**
+     * The minimum switching frequency for regulation
+     */
+    minSwitchingFrequency: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * The quality factor of the resonant tank
+     */
+    qualityFactor?: number;
+    /**
+     * Optional explicit resonant capacitor (Cr) value in F. Overrides the Q/Ln/fr derivation
+     * when set.
+     */
+    resonantCapacitance?: number;
+    /**
+     * The resonant frequency of the tank (optional, will be calculated if not provided)
+     */
+    resonantFrequency?: number;
+    /**
+     * Optional explicit resonant inductor (Ls) value in H. Overrides the Q/Ln/fr derivation
+     * when set.
+     */
+    seriesInductance?: number;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Phase Shift Full Bridge (PSFB) converter excitation
+ */
+export interface PhaseShiftedFullBridge {
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the PSFB converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum phase shift as ratio of half period (0-1)
+     */
+    maximumPhaseShift?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: PsfbOperatingPoint[];
+    /**
+     * The output filter inductance
+     */
+    outputInductance?: number;
+    /**
+     * The type of secondary rectifier
+     */
+    rectifierType?: BRectifierType;
+    /**
+     * The series inductance for ZVS and duty cycle control. If 0, uses transformer leakage
+     * inductance
+     */
+    seriesInductance?: number;
+    /**
+     * Whether to use transformer leakage inductance as the series inductor
+     */
+    useLeakageInductance?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The description of one PSFB operating point
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface PsfbOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * Phase shift in degrees
+     */
+    phaseShift: number;
+    [property: string]: any;
+}
+
+/**
+ * The type of secondary rectifier
+ */
+export enum BRectifierType {
+    CenterTapped = "centerTapped",
+    CurrentDoubler = "currentDoubler",
+    FullBridge = "fullBridge",
+}
+
+/**
+ * The description of a Phase Shifted Half Bridge (PSHB) converter excitation. PSHB uses a
+ * single 3-level Neutral-Point-Clamped (NPC) leg with split-capacitor input bus, producing
+ * a 3-level primary voltage waveform (±Vin/2 / 0). The configuration fields mirror those of
+ * phaseShiftFullBridge for now, but the topology, switch count, and primary-voltage
+ * amplitude differ — see the corresponding C++ class documentation for details.
+ */
+export interface PhaseShiftedHalfBridge {
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the PSHB converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum phase shift as ratio of half period (0-1). For the single-leg NPC
+     * implementation this is interpreted as the maximum effective duty cycle of the active
+     * sub-interval.
+     */
+    maximumPhaseShift?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: PshbOperatingPoint[];
+    /**
+     * The output filter inductance
+     */
+    outputInductance?: number;
+    /**
+     * The type of secondary rectifier
+     */
+    rectifierType?: BRectifierType;
+    /**
+     * The series inductance for ZVS and duty cycle control. If 0, uses transformer leakage
+     * inductance
+     */
+    seriesInductance?: number;
+    /**
+     * Whether to use transformer leakage inductance as the series inductor
+     */
+    useLeakageInductance?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The description of one PSHB operating point. The phaseShift field is mapped internally to
+ * an effective duty cycle Deff = phaseShift/180 for the single-leg 3-level NPC
+ * implementation.
+ *
+ * Base fields common to all topology operating points
+ *
+ * The description of one boost operating point
+ *
+ * The description of one buck operating point
+ *
+ * The description of one forward operating point
+ *
+ * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one isolatedBuck operating point
+ *
+ * The description of one isolatedBuckBoost operating point
+ *
+ * The description of one LLC operating point
+ *
+ * The description of one pushPull operating point
+ *
+ * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
+ * positive).
+ *
+ * The description of one SRC operating point
+ *
+ * The description of one Vienna rectifier operating point
+ *
+ * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
+ * positive); positive Iout flows through the load to GND.
+ *
+ * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
+ */
+export interface PshbOperatingPoint {
+    /**
+     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
+     */
+    ambientTemperature: number;
+    /**
+     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputCurrents: number[];
+    /**
+     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputCurrentsType?: OutputSType;
+    /**
+     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
+     * dc). See docs/normative-references.md.
+     */
+    outputVoltages: number[];
+    /**
+     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
+     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
+     */
+    outputVoltagesType?: OutputSType;
+    /**
+     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
+     */
+    switchingFrequency: number;
+    /**
+     * Phase shift in degrees
+     */
+    phaseShift: number;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Power Factor Correction (PFC) stage. PFC converters shape the input
+ * current to follow the input voltage waveform, achieving near-unity power factor. The
+ * inductor operates with a triangular current ripple superimposed on a half-sinusoidal
+ * envelope. This topology covers both continuous (CCM) and discontinuous (DCM) conduction
+ * modes across the standard single-phase and three-phase variants (boost, bridgeless,
+ * totem-pole, interleaved boost, Vienna, etc.).
+ */
+export interface PowerFactorCorrection {
+    /**
+     * The ambient temperature for the application
+     */
+    ambientTemperature: number;
+    /**
+     * The DC bus bulk capacitance in farads. Used by the operating-point synthesis to compute
+     * the twice-line-frequency bus-voltage ripple: ΔVbus ≈ Pout / (2·π·f_line·Cbus·Vbus). Sized
+     * in practice from hold-up-time requirements (~1–4 µF/W of output power for 230 Vrms input,
+     * 400 V bus, 20 ms hold-up).
+     */
+    bulkCapacitance?: number;
+    /**
+     * The peak-to-peak current ripple as a ratio of the average current (typically 0.2-0.4 for
+     * CCM)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the boost diode
+     */
+    diodeVoltageDrop?: number;
+    /**
+     * The target efficiency of the PFC stage
+     */
+    efficiency?: number;
+    /**
+     * The AC input voltage (RMS) with tolerance range (e.g., 85-265V universal input)
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The AC line frequency (50 or 60 Hz)
+     */
+    lineFrequency?: number;
+    /**
+     * Maximum allowable temperature rise
+     */
+    maximumCoreTemperatureRise?: number;
+    /**
+     * The maximum current rating of the switch (optional constraint)
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * The conduction mode of the PFC
+     */
+    mode?: PfcModes;
+    /**
+     * Number of parallel phases / interleaved cells. 1 for boost/bridgeless/totemPole/buck
+     * variants; 2 or 3 for interleavedBoost; 3 for vienna.
+     */
+    numberOfPhases?: number;
+    /**
+     * The output power in watts
+     */
+    outputPower: number;
+    /**
+     * The DC output voltage (typically 385-400V for universal input)
+     */
+    outputVoltage: number;
+    /**
+     * The switching frequency of the PFC stage
+     */
+    switchingFrequency: number;
+    /**
+     * The PFC topology variant. 'boost' is the classical single-phase boost PFC (full-bridge
+     * rectifier + boost stage), the default. 'bridgeless' / 'semiBridgeless' / 'totemPole'
+     * eliminate the input rectifier bridge for higher efficiency. 'interleavedBoost' uses N>=2
+     * parallel boost cells phase-shifted for ripple cancellation. 'vienna' is the 3-phase
+     * 3-level rectifier used in telecom and EV chargers. 'buck' / 'buckBoost' / 'sepic' / 'cuk'
+     * are step-down or buck-boost variants used in low-power LED drivers and isolated PFC
+     * stages.
+     */
+    topologyVariant?: PfcTopologyVariants;
+    /**
+     * Whether the active switches are wide-bandgap (GaN/SiC) devices. Required true for
+     * totem-pole CCM PFC (Si MOSFET body-diode reverse recovery makes CCM totem-pole
+     * infeasible).
+     */
+    wideBandgapSwitch?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The conduction mode of the PFC
+ */
+export enum PfcModes {
+    ContinuousConductionMode = "continuousConductionMode",
+    CriticalConductionMode = "criticalConductionMode",
+    DiscontinuousConductionMode = "discontinuousConductionMode",
+    TransitionMode = "transitionMode",
+}
+
+/**
+ * The PFC topology variant. 'boost' is the classical single-phase boost PFC (full-bridge
+ * rectifier + boost stage), the default. 'bridgeless' / 'semiBridgeless' / 'totemPole'
+ * eliminate the input rectifier bridge for higher efficiency. 'interleavedBoost' uses N>=2
+ * parallel boost cells phase-shifted for ripple cancellation. 'vienna' is the 3-phase
+ * 3-level rectifier used in telecom and EV chargers. 'buck' / 'buckBoost' / 'sepic' / 'cuk'
+ * are step-down or buck-boost variants used in low-power LED drivers and isolated PFC
+ * stages.
+ *
+ * The PFC topology variant. See `topologyVariant` field for descriptions.
+ */
+export enum PfcTopologyVariants {
+    Boost = "boost",
+    Bridgeless = "bridgeless",
+    Buck = "buck",
+    BuckBoost = "buckBoost",
+    Cuk = "cuk",
+    InterleavedBoost = "interleavedBoost",
+    SemiBridgeless = "semiBridgeless",
+    Sepic = "sepic",
+    TotemPole = "totemPole",
+    Vienna = "vienna",
+}
+
+/**
+ * The description of a Push-Pull excitation
+ */
+export interface PushPull {
+    /**
+     * The maximum current ripple allowed in the output
+     */
+    currentRippleRatio: number;
+    /**
+     * The voltage drop on the diode
+     */
+    diodeVoltageDrop: number;
+    /**
+     * Duty cycle for the converter, maximum 50%
+     */
+    dutyCycle?: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the pushPull
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum drain-source voltage in the selected switch
+     */
+    maximumDrainSourceVoltage?: number;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    [property: string]: any;
+}
+
+/**
+ * SEPIC (Single-Ended Primary-Inductor Converter) excitation. Non-inverting fourth-order
+ * DC-DC converter with capacitive energy transfer through the coupling capacitor Cs between
+ * L1 and L2. Two wiring variants are supported via the boolean flags below: V1 uncoupled
+ * (defaults; L1 and L2 are independent inductors) and V2 coupled-inductor
+ * (coupledInductor=true; L1 and L2 share one core, ripple-steering per TI SLYT411).
+ * Optional synchronousRectifier replaces the catch diode with a low-side MOSFET. The
+ * magnetic returned by process_design_requirements is the input inductor L1 (or, when
+ * coupledInductor=true, a 2-winding coupled inductor). The remaining reactive elements (L2,
+ * Cs, Co) are emitted via get_extra_components_inputs.
+ */
+export interface Sepic {
+    /**
+     * If true, L1 and L2 are wound on the same core (1:1 coupled) with coupling coefficient
+     * couplingCoefficient. Ripple-steering per TI SLYT411 reduces input-current ripple. The
+     * magnetic returned is a 2-winding coupled inductor.
+     */
+    coupledInductor?: boolean;
+    /**
+     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
+     * Typical values 0.95-0.999.
+     */
+    couplingCoefficient?: number;
+    /**
+     * The maximum input-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the SEPIC
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * If true, the catch diode is replaced by an actively-driven low-side synchronous MOSFET.
+     * Reduces conduction loss; common at low Vout.
+     */
+    synchronousRectifier?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The description of a Series Resonant Converter (SRC) excitation. Two-element series Lr+Cr
+ * tank with no Lm branch. Gain M <= 1 (step-down only). Steigerwald 1988; Kazimierczuk Ch.
+ * 4. See src/converter_models/SRC_PLAN.md for the full design rationale.
+ */
+export interface SeriesResonant {
+    /**
+     * The type of primary bridge
+     */
+    bridgeType?: SrcBridgeType;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the SRC converter
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * Whether the converter has an isolation transformer between the resonant tank and the
+     * rectifier. When false, the tank drives the rectifier directly (non-isolated SRC).
+     */
+    isolated?: boolean;
+    /**
+     * The maximum switching frequency for regulation
+     */
+    maxSwitchingFrequency: number;
+    /**
+     * The minimum switching frequency for regulation
+     */
+    minSwitchingFrequency: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * The quality factor Q = sqrt(Lr/Cr) / Rload of the resonant tank. Determines gain-curve
+     * sharpness and Cr peak voltage stress (Vcr_peak ~ Q*Vin/pi at resonance for half-bridge).
+     */
+    qualityFactor?: number;
+    /**
+     * The secondary rectifier topology
+     */
+    rectifierType?: SrcRectifierType;
+    /**
+     * Optional explicit resonant capacitor (Cr) value in F. Overrides Q/fr derivation when set.
+     */
+    resonantCapacitance?: number;
+    /**
+     * The resonant frequency fr = 1/(2*pi*sqrt(Lr*Cr)) of the tank (optional, will be
+     * calculated if not provided)
+     */
+    resonantFrequency?: number;
+    /**
+     * Optional explicit resonant inductor (Lr) value in H. Overrides Q/fr derivation when set.
+     */
+    seriesInductance?: number;
+    /**
+     * Whether the secondary rectifier uses synchronous MOSFETs instead of diodes
+     */
+    useSynchronousRectifier?: boolean;
+    [property: string]: any;
+}
+
+/**
+ * The type of primary bridge
+ *
+ * The type of primary bridge for the SRC
+ */
+export enum SrcBridgeType {
+    FullBridge = "fullBridge",
+    FullBridgePhaseShift = "fullBridgePhaseShift",
+    HalfBridge = "halfBridge",
+}
+
+/**
+ * The secondary rectifier topology
+ *
+ * The secondary rectifier topology for the SRC
+ */
+export enum SrcRectifierType {
+    CenterTappedDiode = "centerTappedDiode",
+    CurrentDoubler = "currentDoubler",
+    FullBridgeDiode = "fullBridgeDiode",
+}
+
+/**
+ * The description of a Vienna rectifier (3-phase 3-level boost-type PFC, unidirectional).
+ * Three identical line-frequency boost inductors carry pure-AC line current. Switch
+ * blocking voltage = Vdc/2 (3-level advantage). Originally Kolar & Zach 1994; modern SiC
+ * industrial implementations: TI TIDA-010257, ST STDES-VIENNARECT, Microchip
+ * MSCSICPFC-REF5. See src/converter_models/VIENNA_PLAN.md for the full design rationale.
+ */
+export interface ViennaRectifier {
+    /**
+     * DeltaI_L,pp / I_pk at peak-of-line (typical 0.2-0.3)
+     */
+    currentRippleRatio?: number;
+    /**
+     * Target efficiency
+     */
+    efficiency?: number;
+    /**
+     * Line frequency in Hz (typically 50 or 60)
+     */
+    lineFrequency?: number;
+    /**
+     * AC line-to-line RMS voltage (e.g. 400 V for EU, 480 V for US)
+     */
+    lineToLineVoltage: DimensionWithTolerance;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * Total DC bus voltage Vdc = Vdc+ + |Vdc-| (typical 700-800 V)
+     */
+    outputDcVoltage: number;
+    /**
+     * Number of interleaved Vienna channels in parallel (1 = single Vienna, >1 = multi-channel
+     * for >50 kW)
+     */
+    phaseCount?: number;
+    /**
+     * Target input power factor (typically >= 0.99)
+     */
+    powerFactor?: number;
+    /**
+     * How the line-cycle envelope is sampled: peakOfLineOnly = single sample at omega*t = pi/2
+     * (cheapest); peakOfLinePlusSectors = peak + 30/60-degree sector samples; fullLineCycle =
+     * 36 samples per cycle (THD validation only)
+     */
+    samplingStrategy?: ViennaSamplingStrategy;
+    /**
+     * Per-leg switching frequency in Hz
+     */
+    switchingFrequency: number;
+    /**
+     * How each per-leg bidirectional switch is realised: tType (modern SiC default, two
+     * anti-series MOSFETs to neutral); backToBackMosfet; singleMosfetIn4DiodeBridge (Kolar 1994
+     * classic)
+     */
+    switchType?: ViennaSwitchType;
+    /**
+     * If true, the 6 fast rectifier diodes are replaced with MOSFETs
+     */
+    synchronousRectifier?: boolean;
+    /**
+     * Vienna switch arrangement: viennaI = single bidirectional switch per leg (3 switches
+     * total, classic Kolar 1994); viennaII = two switches per leg (reduced conduction loss at
+     * >30 kW)
+     */
+    viennaVariant?: ViennaVariant;
+    [property: string]: any;
+}
+
+/**
+ * How the line-cycle envelope is sampled: peakOfLineOnly = single sample at omega*t = pi/2
+ * (cheapest); peakOfLinePlusSectors = peak + 30/60-degree sector samples; fullLineCycle =
+ * 36 samples per cycle (THD validation only)
+ *
+ * Line-cycle envelope sampling strategy
+ */
+export enum ViennaSamplingStrategy {
+    FullLineCycle = "fullLineCycle",
+    PeakOfLineOnly = "peakOfLineOnly",
+    PeakOfLinePlusSectors = "peakOfLinePlusSectors",
+}
+
+/**
+ * How each per-leg bidirectional switch is realised: tType (modern SiC default, two
+ * anti-series MOSFETs to neutral); backToBackMosfet; singleMosfetIn4DiodeBridge (Kolar 1994
+ * classic)
+ *
+ * Per-leg bidirectional switch realisation
+ */
+export enum ViennaSwitchType {
+    BackToBackMOSFET = "backToBackMosfet",
+    SingleMOSFETIn4DiodeBridge = "singleMosfetIn4DiodeBridge",
+    TType = "tType",
+}
+
+/**
+ * Vienna switch arrangement: viennaI = single bidirectional switch per leg (3 switches
+ * total, classic Kolar 1994); viennaII = two switches per leg (reduced conduction loss at
+ * >30 kW)
+ *
+ * Vienna switch arrangement variant
+ */
+export enum ViennaVariant {
+    ViennaI = "viennaI",
+    ViennaII = "viennaII",
+}
+
+/**
+ * Weinberg DC-DC converter (current-fed push-pull-derivative, isolated, boost-capable).
+ * Spacecraft-heritage topology featuring a 1:1 input coupled inductor L1 with
+ * energy-recovery diode D3 to Vin, plus a center-tapped main transformer with center-tapped
+ * full-wave secondary rectifier. Intrinsically supports switch overlap above D=0.5 (boost
+ * regime) without needing a freewheel switch. Variants supported: V1 classic (push-pull
+ * primary, 2 switches) and V2 bridge (H-bridge primary, 4 switches) via the `variant` flag;
+ * optional synchronousRectifier replaces secondary diodes with active SR MOSFETs. The
+ * magnetic returned by process_design_requirements is the main 2-winding transformer (n =
+ * Np_total/Ns_total); the input coupled inductor L1 and output capacitor Co are emitted via
+ * get_extra_components_inputs.
+ */
+export interface Weinberg {
+    /**
+     * Magnetic coupling coefficient k between the two L1 windings (1:1 input coupled inductor).
+     * Typical values 0.99-0.999.
+     */
+    couplingCoefficientInput?: number;
+    /**
+     * Magnetic coupling coefficient k for the main transformer (4-way coupling among Lpri_a,
+     * Lpri_b, Lsec_a, Lsec_b). Typical values 0.95-0.99 (some leakage required for SPICE
+     * convergence and ZCS).
+     */
+    couplingCoefficientMain?: number;
+    /**
+     * The maximum input-coupled-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg per
+     * winding)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the Weinberg
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * If true, the secondary CT-FW diodes (D_pos, D_neg) are replaced by actively-driven
+     * synchronous MOSFETs (S_pos, S_neg) gated complementary to the primary switches.
+     */
+    synchronousRectifier?: boolean;
+    /**
+     * Primary topology variant: 'classic' (V1 push-pull, 2 switches; switch V_DS = 2*Vin/(1-D))
+     * or 'bridge' (V2 H-bridge, 4 switches; switch V_DS = Vin).
+     */
+    variant?: Variant;
+    [property: string]: any;
+}
+
+/**
+ * Primary topology variant: 'classic' (V1 push-pull, 2 switches; switch V_DS = 2*Vin/(1-D))
+ * or 'bridge' (V2 H-bridge, 4 switches; switch V_DS = Vin).
+ */
+export enum Variant {
+    Bridge = "bridge",
+    Classic = "classic",
+}
+
+/**
+ * Zeta excitation. Non-inverting fourth-order DC-DC converter — the dual of SEPIC: same
+ * gain M = D/(1-D), but the LC filter is on the OUTPUT side (so output-voltage ripple is
+ * small and there is no right-half-plane zero in CCM). The switch is HIGH-SIDE (PFET by
+ * default in the SPICE model). Two wiring variants are supported via the boolean flags
+ * below: V1 uncoupled (defaults; L1 magnetizing and L2 output filter are independent
+ * inductors) and V2 coupled-inductor (coupledInductor=true; L1 and L2 share one core,
+ * ripple-steering per TI SLYT411 — same condition as coupled-SEPIC because both inductors
+ * see identical voltages during both subintervals). Optional synchronousRectifier replaces
+ * the catch diode with a low-side MOSFET. The magnetic returned by
+ * process_design_requirements is L1 (or, when coupledInductor=true, a 2-winding coupled
+ * inductor). The remaining reactive elements (L2, Cc, Co) are emitted via
+ * get_extra_components_inputs.
+ */
+export interface Zeta {
+    /**
+     * If true, L1 and L2 are wound on the same core (1:1 coupled) with coupling coefficient
+     * couplingCoefficient. Ripple-steering per TI SLYT411 reduces input-current ripple. The
+     * magnetic returned is a 2-winding coupled inductor.
+     */
+    coupledInductor?: boolean;
+    /**
+     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
+     * Typical values 0.95-0.999.
+     */
+    couplingCoefficient?: number;
+    /**
+     * The maximum magnetizing-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
+     */
+    currentRippleRatio?: number;
+    /**
+     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
+     */
+    diodeVoltageDrop: number;
+    /**
+     * The target efficiency
+     */
+    efficiency?: number;
+    /**
+     * The input voltage of the Zeta
+     */
+    inputVoltage: DimensionWithTolerance;
+    /**
+     * The maximum current that can go through the selected switch
+     */
+    maximumSwitchCurrent?: number;
+    /**
+     * A list of operating points
+     */
+    operatingPoints: TopologyExcitation[];
+    /**
+     * If true, the catch diode is replaced by an actively-driven low-side synchronous MOSFET.
+     * Reduces conduction loss; common at low Vout.
+     */
+    synchronousRectifier?: boolean;
+    [property: string]: any;
 }
 
 /**
@@ -199,8 +2489,9 @@ export enum FlybackModes {
  *
  * The list of requirement that must comply a given magnetic
  */
-export type DesignRequirements = {
-    insulation?: InsulationRequirements;
+export interface DesignRequirements {
+    application?: Application;
+    insulation?:  InsulationRequirements;
     /**
      * Isolation side where each winding is connected to.
      */
@@ -241,6 +2532,7 @@ export type DesignRequirements = {
      * Required values for the stray capacitance
      */
     strayCapacitance?: DimensionWithTolerance[];
+    subApplication?:   SubApplication;
     /**
      * Type of the terminal that must be used, per winding
      */
@@ -252,15 +2544,24 @@ export type DesignRequirements = {
     /**
      * Required turns ratios between primary and the rest of windings
      */
-    turnsRatios: DimensionWithTolerance[];
-    /**
-     * Technology that must be used to create the wiring
-     */
+    turnsRatios:       DimensionWithTolerance[];
     wiringTechnology?: WiringTechnology;
     [property: string]: any;
 }
 
-export type InsulationRequirements = {
+/**
+ * Application of the magnetic, can be Power, Signal Processing, or Interference
+ * Suppression
+ *
+ * List of applications a magnetic material can serve
+ */
+export enum Application {
+    InterferenceSuppression = "interferenceSuppression",
+    Power = "power",
+    SignalProcessing = "signalProcessing",
+}
+
+export interface InsulationRequirements {
     /**
      * Required values for the altitude
      */
@@ -268,10 +2569,7 @@ export type InsulationRequirements = {
     /**
      * Required CTI
      */
-    cti?: Cti;
-    /**
-     * Required type of insulation
-     */
+    cti?:            CTI;
     insulationType?: InsulationType;
     /**
      * Voltage RMS of the main supply to which this transformer is connected to.
@@ -286,7 +2584,7 @@ export type InsulationRequirements = {
      */
     pollutionDegree?: PollutionDegree;
     /**
-     * VList of standards that will be taken into account for insulation.
+     * List of standards that will be taken into account for insulation.
      */
     standards?: InsulationStandards[];
     [property: string]: any;
@@ -295,48 +2593,52 @@ export type InsulationRequirements = {
 /**
  * Required CTI
  */
-export enum Cti {
-    GroupI = "Group I",
-    GroupIi = "Group II",
-    GroupIiia = "Group IIIA",
-    GroupIiib = "Group IIIB",
+export enum CTI {
+    GroupI = "groupI",
+    GroupII = "groupII",
+    GroupIIIA = "groupIIIA",
+    GroupIIIB = "groupIIIB",
 }
 
 /**
  * Required type of insulation
+ *
+ * Insulation grade classification as stated in the datasheet (e.g. 'reinforced', 'basic').
+ * Aligns with IEC insulationType vocabulary.
  */
 export enum InsulationType {
-    Basic = "Basic",
-    Double = "Double",
-    Functional = "Functional",
-    Reinforced = "Reinforced",
-    Supplementary = "Supplementary",
+    Basic = "basic",
+    Double = "double",
+    Functional = "functional",
+    Reinforced = "reinforced",
+    Supplementary = "supplementary",
 }
 
 /**
  * Required overvoltage category
  */
 export enum OvervoltageCategory {
-    OvcI = "OVC-I",
-    OvcIi = "OVC-II",
-    OvcIii = "OVC-III",
-    OvcIv = "OVC-IV",
+    I = "I",
+    Ii = "II",
+    Iii = "III",
+    Iv = "IV",
 }
 
 /**
  * Required pollution for the magnetic to work under
  */
 export enum PollutionDegree {
-    P1 = "P1",
-    P2 = "P2",
-    P3 = "P3",
+    Pd1 = "PD1",
+    Pd2 = "PD2",
+    Pd3 = "PD3",
+    Pd4 = "PD4",
 }
 
 export enum InsulationStandards {
-    Iec603351 = "IEC 60335-1",
-    Iec606641 = "IEC 60664-1",
-    Iec615581 = "IEC 61558-1",
-    Iec623681 = "IEC 62368-1",
+    IEC603351 = "IEC 60335-1",
+    IEC606641 = "IEC 60664-1",
+    IEC615581 = "IEC 61558-1",
+    IEC623681 = "IEC 62368-1",
 }
 
 /**
@@ -361,93 +2663,102 @@ export enum IsolationSide {
  * Market where the magnetic will end up being used
  */
 export enum Market {
-    Commercial = "Commercial",
-    Industrial = "Industrial",
-    Medical = "Medical",
-    Military = "Military",
-    Space = "Space",
+    Commercial = "commercial",
+    Industrial = "industrial",
+    Medical = "medical",
+    Military = "military",
+    Space = "space",
 }
 
 /**
  * Maximum dimensions, width, height, and depth, for the designed magnetic, in m
  */
-export type MaximumDimensions = {
+export interface MaximumDimensions {
     depth?:  number;
     height?: number;
     width?:  number;
     [property: string]: any;
 }
 
-export type ImpedanceAtFrequency = {
-    frequency: number;
-    impedance: ImpedancePoint;
-    [property: string]: any;
-}
-
 /**
- * Data describing one impendance value
+ * Sub application of the magnetic, can be Power Filtering, Transforming, Isolation, Common
+ * Mode Noise Filtering, Differential Mode Noise Filtering
  */
-export type ImpedancePoint = {
-    imaginaryPart?: number;
-    /**
-     * Magnitude of the impedance, in Ohm
-     */
-    magnitude: number;
-    phase?:    number;
-    realPart?: number;
-    [property: string]: any;
+export enum SubApplication {
+    CommonModeNoiseFiltering = "commonModeNoiseFiltering",
+    DifferentialModeNoiseFiltering = "differentialModeNoiseFiltering",
+    Isolation = "isolation",
+    PowerFiltering = "powerFiltering",
+    Transforming = "transforming",
 }
 
 /**
  * Type of the terminal
+ *
+ * PCB mounting style. Uses the same connectionType enum as designRequirements.terminalType.
  */
 export enum ConnectionType {
-    FlyingLead = "Flying Lead",
-    Pin = "Pin",
-    Screw = "Screw",
-    Smt = "SMT",
+    Blind = "blind",
+    FlyingLead = "flyingLead",
+    PCBPad = "pcbPad",
+    Pin = "pin",
+    SMT = "smt",
+    Screw = "screw",
+    Tht = "tht",
 }
 
 /**
  * Topology that will use the magnetic
  */
 export enum Topologies {
-    ActiveClampForwardConverter = "Active Clamp Forward Converter",
-    BoostConverter = "Boost Converter",
-    BuckConverter = "Buck Converter",
-    CukConverter = "Cuk Converter",
-    FlybackConverter = "Flyback Converter",
-    FullBridgeConverter = "Full-Bridge Converter",
-    HalfBridgeConverter = "Half-Bridge Converter",
-    InvertingBuckBoostConverter = "Inverting Buck-Boost Converter",
-    IsolatedBuckBoostConverter = "Isolated Buck Boost Converter",
-    IsolatedBuckConverter = "Isolated Buck Converter",
-    PhaseShiftedFullBridgeConverter = "Phase-Shifted Full-Bridge Converter",
-    PushPullConverter = "Push-Pull Converter",
-    Sepic = "SEPIC",
-    SingleSwitchForwardConverter = "Single Switch Forward Converter",
-    TwoSwitchFlybackConverter = "Two Switch Flyback Converter",
-    TwoSwitchForwardConverter = "Two Switch Forward Converter",
-    WeinbergConverter = "Weinberg Converter",
-    ZetaConverter = "Zeta Converter",
+    ActiveClampForwardConverter = "activeClampForwardConverter",
+    AsymmetricHalfBridgeConverter = "asymmetricHalfBridgeConverter",
+    BoostConverter = "boostConverter",
+    BuckConverter = "buckConverter",
+    CllcResonantConverter = "cllcResonantConverter",
+    ClllcResonantConverter = "clllcResonantConverter",
+    CommonModeChoke = "commonModeChoke",
+    CukConverter = "cukConverter",
+    CurrentTransformer = "currentTransformer",
+    DifferentialModeChoke = "differentialModeChoke",
+    DualActiveBridgeConverter = "dualActiveBridgeConverter",
+    FlybackConverter = "flybackConverter",
+    FourSwitchBuckBoostConverter = "fourSwitchBuckBoostConverter",
+    IsolatedBuckBoostConverter = "isolatedBuckBoostConverter",
+    IsolatedBuckConverter = "isolatedBuckConverter",
+    LlcResonantConverter = "llcResonantConverter",
+    PhaseShiftedFullBridgeConverter = "phaseShiftedFullBridgeConverter",
+    PhaseShiftedHalfBridgeConverter = "phaseShiftedHalfBridgeConverter",
+    PowerFactorCorrection = "powerFactorCorrection",
+    PushPullConverter = "pushPullConverter",
+    SepicConverter = "sepicConverter",
+    SeriesResonantConverter = "seriesResonantConverter",
+    SingleSwitchForwardConverter = "singleSwitchForwardConverter",
+    TwoSwitchForwardConverter = "twoSwitchForwardConverter",
+    ViennaRectifierConverter = "viennaRectifierConverter",
+    WeinbergConverter = "weinbergConverter",
+    ZetaConverter = "zetaConverter",
 }
 
 /**
  * Technology that must be used to create the wiring
+ *
+ * Type of the group
  */
 export enum WiringTechnology {
-    Deposition = "Deposition",
-    Printed = "Printed",
-    Wound = "Wound",
+    Deposition = "deposition",
+    Printed = "printed",
+    Stamped = "stamped",
+    Wound = "wound",
 }
 
 /**
  * Data describing one operating point, including the operating conditions and the
  * excitations for all ports
  *
- * Excitation of the current per winding that produced the winding losses
+ * Excitation of the current per winding that produced the winding losses.
  */
-export type OperatingPoint = {
+export interface OperatingPoint {
     conditions:            OperatingConditions;
     excitationsPerWinding: OperatingPointExcitation[];
     /**
@@ -460,7 +2771,7 @@ export type OperatingPoint = {
 /**
  * The description of a magnetic operating conditions
  */
-export type OperatingConditions = {
+export interface OperatingConditions {
     /**
      * Relative Humidity of the ambient where the magnetic will operate
      */
@@ -470,7 +2781,7 @@ export type OperatingConditions = {
      */
     ambientTemperature: number;
     /**
-     * Relative Humidity of the ambient where the magnetic will operate
+     * Cooling method for the magnetic component
      */
     cooling?: Cooling;
     /**
@@ -481,7 +2792,7 @@ export type OperatingConditions = {
 }
 
 /**
- * Relative Humidity of the ambient where the magnetic will operate
+ * Cooling method for the magnetic component
  *
  * Data describing a natural convection cooling
  *
@@ -491,12 +2802,14 @@ export type OperatingConditions = {
  *
  * Data describing a cold plate cooling
  */
-export type Cooling = {
+export interface Cooling {
     /**
      * Name of the fluid used
      */
     fluid?: string;
     /**
+     * Temperature of the fluid, in Celsius. If absent, ambient temperature is assumed.
+     *
      * Temperature of the fluid. To be used only if different from ambient temperature
      */
     temperature?: number;
@@ -512,11 +2825,11 @@ export type Cooling = {
      */
     dimensions?: number[];
     /**
-     * Bulk thermal resistance of the thermal interface used to connect the device to the
-     * heatsink, in W/mK
+     * Thermal resistance of the thermal interface used to connect the device to the heatsink.
+     * Unit: K/W.
      *
-     * Bulk thermal resistance of the thermal interface used to connect the device to the cold
-     * plate, in W/mK
+     * Thermal resistance of the thermal interface used to connect the device to the cold plate.
+     * Unit: K/W.
      */
     interfaceThermalResistance?: number;
     /**
@@ -526,13 +2839,13 @@ export type Cooling = {
      */
     interfaceThickness?: number;
     /**
-     * Bulk thermal resistance of the heat sink, in W/K
+     * Bulk thermal resistance of the heat sink. Unit: K/W.
      *
-     * Bulk thermal resistance of the cold plate, in W/K
+     * Bulk thermal resistance of the cold plate. Unit: K/W.
      */
     thermalResistance?: number;
     /**
-     * Maximum temperature of the cold plate
+     * Maximum temperature of the cold plate. Unit: Celsius.
      */
     maximumTemperature?: number;
     [property: string]: any;
@@ -543,7 +2856,7 @@ export type Cooling = {
  *
  * The description of a magnetic operating point
  */
-export type OperatingPointExcitation = {
+export interface OperatingPointExcitation {
     current?: SignalDescriptor;
     /**
      * Frequency of the waveform, common for all electromagnetic parameters, in Hz
@@ -566,7 +2879,7 @@ export type OperatingPointExcitation = {
  * Structure definining one electromagnetic parameters: current, voltage, magnetic flux
  * density
  */
-export type SignalDescriptor = {
+export interface SignalDescriptor {
     /**
      * Data containing the harmonics of the waveform, defined by a list of amplitudes and a list
      * of frequencies
@@ -581,7 +2894,7 @@ export type SignalDescriptor = {
  * Data containing the harmonics of the waveform, defined by a list of amplitudes and a list
  * of frequencies
  */
-export type Harmonics = {
+export interface Harmonics {
     /**
      * List of amplitudes of the harmonics that compose the waveform
      */
@@ -593,10 +2906,10 @@ export type Harmonics = {
     [property: string]: any;
 }
 
-export type Processed = {
+export interface Processed {
     /**
-     * The effective frequency value of the AC component of the waveform, according to
-     * https://sci-hub.wf/https://ieeexplore.ieee.org/document/750181, Appendix C
+     * Effective (equivalent-sine) frequency of the AC component of the waveform (DC component
+     * removed). Unit: Hz.
      */
     acEffectiveFrequency?: number;
     /**
@@ -612,17 +2925,21 @@ export type Processed = {
      */
     dutyCycle?: number;
     /**
-     * The effective frequency value of the waveform, according to
-     * https://sci-hub.wf/https://ieeexplore.ieee.org/document/750181, Appendix C
+     * Effective (equivalent-sine) frequency of the waveform, defined as the frequency of a
+     * sinusoid with the same RMS rate of change. Unit: Hz.
      */
     effectiveFrequency?: number;
     label:               WaveformLabel;
+    /**
+     * The most-negative value of the waveform (always <= 0 for bipolar signals)
+     */
+    negativePeak?: number;
     /**
      * The offset value of the waveform, referred to 0
      */
     offset: number;
     /**
-     * The maximum positive value of the waveform
+     * The maximum absolute value of the waveform
      */
     peak?: number;
     /**
@@ -633,6 +2950,10 @@ export type Processed = {
      * The phase of the waveform, in degrees
      */
     phase?: number;
+    /**
+     * The maximum positive value of the waveform
+     */
+    positivePeak?: number;
     /**
      * The RMS value of the waveform
      */
@@ -646,33 +2967,12 @@ export type Processed = {
 }
 
 /**
- * Label of the waveform, if applicable. Used for common waveforms
- */
-export enum WaveformLabel {
-    BipolarRectangular = "Bipolar Rectangular",
-    BipolarTriangular = "Bipolar Triangular",
-    Custom = "Custom",
-    FlybackPrimary = "Flyback Primary",
-    FlybackSecondary = "Flyback Secondary",
-    FlybackSecondaryWithDeadtime = "Flyback Secondary With Deadtime",
-    Rectangular = "Rectangular",
-    RectangularDcm = "RectangularDCM",
-    RectangularWithDeadtime = "Rectangular With Deadtime",
-    SecondaryRectangular = "Secondary Rectangular",
-    SecondaryRectangularWithDeadtime = "Secondary Rectangular With Deadtime",
-    Sinusoidal = "Sinusoidal",
-    Triangular = "Triangular",
-    UnipolarRectangular = "Unipolar Rectangular",
-    UnipolarTriangular = "Unipolar Triangular",
-}
-
-/**
  * Data containing the points that define an arbitrary waveform with equidistant points
  *
  * Data containing the points that define an arbitrary waveform with non-equidistant points
  * paired with their time in the period
  */
-export type Waveform = {
+export interface Waveform {
     /**
      * List of values that compose the waveform, at equidistant times form each other
      */
@@ -689,7 +2989,7 @@ export type Waveform = {
 /**
  * The description of a magnetic
  */
-export type Magnetic = {
+export interface Magnetic {
     /**
      * Data describing the coil
      */
@@ -702,6 +3002,10 @@ export type Magnetic = {
      * The lists of distributors of the magnetic
      */
     distributorsInfo?: DistributorInfo[];
+    /**
+     * Manufacturer information for the magnetic. Extends the shared manufacturerInfo with a
+     * datasheetInfo block for catalogue-level data.
+     */
     manufacturerInfo?: MagneticManufacturerInfo;
     /**
      * The rotation of the magnetic, by default the winding column goes vertical
@@ -715,21 +3019,31 @@ export type Magnetic = {
  *
  * The description of a magnetic coil
  */
-export type Coil = {
-    bobbin: Bobbin | string;
+export interface Coil {
     /**
-     * The data from the coil based on its function, in a way that can be used by analytical
-     * models of only Magnetism.
+     * Bobbin(s) for this coil. Scalar (single Bobbin object or name) describes a single bobbin
+     * (typically around the centre column). Array describes per-column bobbins for multi-column
+     * magnetics (e.g. 3-phase transformers). Convention A: bobbins[i] is mounted on
+     * core.columns[i] (index 0 = centre/main column).
+     */
+    bobbin: Array<Bobbin | string> | Bobbin | string;
+    /**
+     * Coil data described in functional terms (the windings, per IEV 151-13-17), in a form
+     * suitable for purely magnetic analytical models.
      */
     functionalDescription: CoilFunctionalDescription[];
+    /**
+     * Coil data at the group level. A group may define a PCB or distinct winding windows.
+     */
+    groupsDescription?: Group[];
     /**
      * The data from the coil at the layer level, in a way that can be used by more advanced
      * analytical and finite element models
      */
     layersDescription?: Layer[];
     /**
-     * The data from the coil at the section level, in a way that can be used by more advanced
-     * analytical and finite element models
+     * Coil data at the section level, suitable for more advanced analytical and finite-element
+     * models.
      */
     sectionsDescription?: Section[];
     /**
@@ -741,21 +3055,22 @@ export type Coil = {
 }
 
 /**
- * The description of a bobbin
+ * Description of a bobbin (the insulating former on which one or more windings are
+ * arranged). The term is industry-conventional; an IEV entry is being proposed by PSMA. See
+ * docs/normative-references.md.
  */
-export type Bobbin = {
+export interface Bobbin {
     /**
-     * The lists of distributors of the magnetic bobbin
+     * List of distributors of this bobbin.
      */
     distributorsInfo?: DistributorInfo[];
     /**
-     * The data from the bobbin based on its function, in a way that can be used by analytical
-     * models.
+     * Bobbin data described in functional terms, in a form suitable for analytical models.
      */
     functionalDescription?: BobbinFunctionalDescription;
     manufacturerInfo?:      ManufacturerInfo;
     /**
-     * The name of bobbin
+     * Name of the bobbin.
      */
     name?:                 string;
     processedDescription?: CoreBobbinProcessedDescription;
@@ -765,17 +3080,17 @@ export type Bobbin = {
 /**
  * Data from the distributor for a given part
  */
-export type DistributorInfo = {
+export interface DistributorInfo {
     /**
-     * The distributor's price for this part
+     * The distributor's price for this part.
      */
-    cost?: number;
+    cost?: Cost;
     /**
      * The country of the distributor of the part
      */
     country?: string;
     /**
-     * The area where the distributor doistributes
+     * Geographical area in which the distributor operates.
      */
     distributedArea?: string;
     /**
@@ -806,43 +3121,59 @@ export type DistributorInfo = {
      * The date that this information was updated
      */
     updatedAt?: string;
-    [property: string]: any;
 }
 
 /**
- * The data from the bobbin based on its function, in a way that can be used by analytical
- * models.
+ * The distributor's price for this part.
+ *
+ * A monetary value with an explicit currency (ISO 4217 code).
+ *
+ * The manufacturer's reference price for this part.
  */
-export type BobbinFunctionalDescription = {
+export interface Cost {
+    /**
+     * ISO 4217 three-letter currency code, e.g. EUR, USD, CNY, JPY.
+     */
+    currency: string;
+    value:    number;
+}
+
+/**
+ * Bobbin data described in functional terms, in a form suitable for analytical models.
+ */
+export interface BobbinFunctionalDescription {
     /**
      * List of connections between windings and pins
      */
-    connections?: PinWIndingConnection[];
+    connections?: PinWindingConnection[];
     /**
-     * The dimensions of a bobbin, keys must be as defined in EN 62317
+     * Bobbin dimensions. Keys are the dimension labels defined in IEC 62317 / IEC 63093 for the
+     * parent core shape.
      */
     dimensions: { [key: string]: number | DimensionWithTolerance };
     /**
-     * The family of a bobbin
+     * Bobbin family, named after the core shape family it is intended to fit. See IEC 62317 /
+     * IEC 63093.
      */
     family: BobbinFamily;
     /**
-     * The subtype of the shape, in case there are more than one
+     * Subtype of the shape, where more than one variant exists in the family.
      */
     familySubtype?: string;
+    material?:      InsulationMaterial | string;
     pinout?:        Pinout;
     /**
-     * The name of a bobbin that this bobbin belongs to
+     * Name of the core shape this bobbin is matched to.
      */
     shape: string;
     /**
-     * The type of a bobbin
+     * Whether the bobbin is a standard catalogue part or a custom design.
      */
     type: FunctionalDescriptionType;
     [property: string]: any;
 }
 
-export type PinWIndingConnection = {
+export interface PinWindingConnection {
     /**
      * The name of the connected pin
      */
@@ -855,7 +3186,8 @@ export type PinWIndingConnection = {
 }
 
 /**
- * The family of a bobbin
+ * Bobbin family, named after the core shape family it is intended to fit. See IEC 62317 /
+ * IEC 63093.
  */
 export enum BobbinFamily {
     E = "e",
@@ -869,13 +3201,173 @@ export enum BobbinFamily {
     Pm = "pm",
     Pq = "pq",
     Rm = "rm",
+    T = "t",
     U = "u",
+}
+
+/**
+ * A material for insulation
+ */
+export interface InsulationMaterial {
+    /**
+     * Alternative names of the material
+     */
+    aliases?: string[];
+    /**
+     * The composition of a insulation material
+     */
+    composition?:       string;
+    dielectricStrength: DielectricStrengthElement[];
+    manufacturerInfo?:  ManufacturerInfo;
+    /**
+     * The melting temperature of the insulation material, in Celsius
+     */
+    meltingPoint?: number;
+    /**
+     * The name of a insulation material
+     */
+    name: string;
+    /**
+     * The dielectric constant of the insulation material
+     */
+    relativePermittivity?: number;
+    /**
+     * Volume resistivity per IEC 60093. Unit: ohm metre (Ohm.m).
+     */
+    resistivity?: ResistivityPoint[];
+    /**
+     * Specific heat capacity of the insulation material. Unit: J/(kg*K).
+     */
+    specificHeat?: number;
+    /**
+     * Surface resistivity per IEC 60093. Unit: ohm per square (Ohm/sq). Relevant to tracking
+     * and creepage assessment per IEC 60112 / IEC 60664-1.
+     */
+    surfaceResistivity?: ResistivityPoint[];
+    /**
+     * Insulation thermal class per IEC 60085. May be expressed as the IEC letter class (Y, A,
+     * E, B, F, H, N, R, 200, 220, 250) or as the numeric maximum continuous operating
+     * temperature in Celsius (the form printed on most magnet-wire spools and IEC 60317
+     * sub-spec datasheets). The two forms are interchangeable per the IEC 60085 mapping. See
+     * docs/normative-references.md.
+     */
+    temperatureClass?: number | TemperatureClassEnum;
+    /**
+     * Thermal conductivity of the insulation material. Unit: W/(m*K).
+     */
+    thermalConductivity?: number;
+    [property: string]: any;
+}
+
+/**
+ * data for describing one point of dielectric strength
+ */
+export interface DielectricStrengthElement {
+    /**
+     * Humidity for the field value, in proportion over 1
+     */
+    humidity?: number;
+    /**
+     * Temperature for the field value, in Celsius.
+     */
+    temperature?: number;
+    /**
+     * Thickness of the material
+     */
+    thickness?: number;
+    /**
+     * Dielectric strength value, in V / m
+     */
+    value: number;
+    [property: string]: any;
+}
+
+/**
+ * Data from the manufacturer for a given part
+ */
+export interface ManufacturerInfo {
+    /**
+     * The manufacturer's reference price for this part.
+     */
+    cost?: Cost;
+    /**
+     * The manufacturer's URL to the datasheet of the product
+     */
+    datasheetUrl?: string;
+    /**
+     * The description of the part according to its manufacturer
+     */
+    description?: string;
+    /**
+     * The family of a magnetic, as defined by the manufacturer
+     */
+    family?: string;
+    /**
+     * Optional International Registration Data Identifier (per ISO/IEC 11179-6) issued by an
+     * authoritative registry such as IEC CDD or ECLASS. When populated, this is the canonical
+     * machine-readable identifier for the part class.
+     */
+    irdi?: string;
+    /**
+     * The name of the manufacturer of the part
+     */
+    name: string;
+    /**
+     * The manufacturer's order code of this part
+     */
+    orderCode?: string;
+    /**
+     * The manufacturer's reference of this part
+     */
+    reference?: string;
+    /**
+     * The production status of a part according to its manufacturer
+     */
+    status?: Status;
+    [property: string]: any;
+}
+
+/**
+ * The production status of a part according to its manufacturer
+ */
+export enum Status {
+    Obsolete = "obsolete",
+    Production = "production",
+    Prototype = "prototype",
+}
+
+/**
+ * data for describing one point of resistivity
+ */
+export interface ResistivityPoint {
+    /**
+     * Temperature for the field value, in Celsius.
+     */
+    temperature?: number;
+    /**
+     * Resistivity value, in Ohm * m
+     */
+    value: number;
+}
+
+export enum TemperatureClassEnum {
+    A = "A",
+    B = "B",
+    E = "E",
+    F = "F",
+    H = "H",
+    N = "N",
+    R = "R",
+    The200 = "200",
+    The220 = "220",
+    The250 = "250",
+    Y = "Y",
 }
 
 /**
  * Data describing the pinout of a bobbin
  */
-export type Pinout = {
+export interface Pinout {
     /**
      * The distance between central pins
      */
@@ -893,10 +3385,7 @@ export type Pinout = {
      */
     numberRows?:    number;
     pinDescription: Pin;
-    /**
-     * The distance between pins, per row, by pin order
-     */
-    pitch: number[];
+    pitch:          number[] | number;
     /**
      * The distance between a row of pins and the center of the bobbin
      */
@@ -907,7 +3396,7 @@ export type Pinout = {
 /**
  * Data describing one pin in a bobbin
  */
-export type Pin = {
+export interface Pin {
     /**
      * The coordinates of the center of the pin, referred to the center of the main column
      */
@@ -953,7 +3442,7 @@ export enum PinDescriptionType {
 }
 
 /**
- * The type of a bobbin
+ * Whether the bobbin is a standard catalogue part or a custom design.
  *
  * The type of a magnetic shape
  */
@@ -962,58 +3451,14 @@ export enum FunctionalDescriptionType {
     Standard = "standard",
 }
 
-/**
- * Data from the manufacturer for a given part
- */
-export type ManufacturerInfo = {
-    /**
-     * The manufacturer's price for this part
-     */
-    cost?: string;
-    /**
-     * The manufacturer's URL to the datasheet of the product
-     */
-    datasheetUrl?: string;
-    /**
-     * The family of a magnetic, as defined by the manufacturer
-     */
-    family?: string;
-    /**
-     * The name of the manufacturer of the part
-     */
-    name: string;
-    /**
-     * The manufacturer's order code of this part
-     */
-    orderCode?: string;
-    /**
-     * The manufacturer's reference of this part
-     */
-    reference?: string;
-    /**
-     * The production status of a part according to its manufacturer
-     */
-    status?: Status;
-    [property: string]: any;
-}
-
-/**
- * The production status of a part according to its manufacturer
- */
-export enum Status {
-    Obsolete = "obsolete",
-    Production = "production",
-    Prototype = "prototype",
-}
-
-export type CoreBobbinProcessedDescription = {
+export interface CoreBobbinProcessedDescription {
     /**
      * The depth of the central column wall, including thickness, in the z axis
      */
     columnDepth: number;
     columnShape: ColumnShape;
     /**
-     * The thicknes of the central column wall, where the wire is wound, in the X axis
+     * The thickness of the central column wall, where the wire is wound, in the X axis
      */
     columnThickness: number;
     /**
@@ -1021,7 +3466,7 @@ export type CoreBobbinProcessedDescription = {
      */
     columnWidth?: number;
     /**
-     * The coordinates of the center of the bobbin central wall, whre the wires are wound,
+     * The coordinates of the center of the bobbin central wall, where the wires are wound,
      * referred to the center of the main column.
      */
     coordinates?: number[];
@@ -1030,7 +3475,7 @@ export type CoreBobbinProcessedDescription = {
      */
     pins?: Pin[];
     /**
-     * The thicknes of the walls that hold the wire on both sides of the column
+     * The thickness of the walls that hold the wire on both sides of the column
      */
     wallThickness: number;
     /**
@@ -1065,7 +3510,7 @@ export enum ColumnShape {
  * will have to fit, and equivalently, where all the current must circulate once, in the
  * case of inductors, or twice, in the case of transformers
  */
-export type WindingWindowElement = {
+export interface WindingWindowElement {
     /**
      * Area of the winding window
      */
@@ -1120,8 +3565,8 @@ export type WindingWindowElement = {
  */
 export enum CoilAlignment {
     Centered = "centered",
-    InnerOrTop = "inner or top",
-    OuterOrBottom = "outer or bottom",
+    InnerOrTop = "innerOrTop",
+    OuterOrBottom = "outerOrBottom",
     Spread = "spread",
 }
 
@@ -1143,48 +3588,64 @@ export enum WindingWindowShape {
 }
 
 /**
- * Data describing one winding associated with a magnetic
+ * One winding (assembly of interconnected turns and/or coils intended for common operation,
+ * per IEV 151-13-17). Examples: primary, secondary, auxiliary.
  */
-export type CoilFunctionalDescription = {
+export interface CoilFunctionalDescription {
     /**
-     * Array on elements, representing the all the pins this winding is connected to
+     * Array of all the pins this winding is connected to.
      */
     connections?:  ConnectionElement[];
     isolationSide: IsolationSide;
     /**
-     * Name given to the winding
+     * Name of the winding (e.g. primary, secondary).
      */
     name: string;
     /**
-     * Number of parallels in winding
+     * Number of parallel-connected conductors making up one electrical turn of the winding.
      */
     numberParallels: number;
     /**
-     * Number of turns in winding
+     * Number of turns (per IEV 151-13-14) in the winding.
      */
     numberTurns: number;
     wire:        Wire | string;
+    /**
+     * List of winding names that are wound together with this winding.
+     */
+    woundWith?: string[];
     [property: string]: any;
 }
 
 /**
- * Data describing the connection of the a wire
+ * Connection of a wire to a terminal.
  */
-export type ConnectionElement = {
+export interface ConnectionElement {
     /**
-     * Length of the connection, counted from the exit of the last turn until the terminal, in m
+     * Direction of the current in the connection.
+     */
+    direction?: Direction;
+    /**
+     * Length of the connection, from the exit of the last turn to the terminal. Unit: m.
      */
     length?: number;
     /**
-     * Metric of the terminal, if applicable
+     * Metric of the terminal, if applicable.
      */
     metric?: number;
     /**
-     * Name of the pin where it is connected, if applicable
+     * Name of the pin where the wire is connected, if applicable.
      */
     pinName?: string;
     type?:    ConnectionType;
-    [property: string]: any;
+}
+
+/**
+ * Direction of the current in the connection.
+ */
+export enum Direction {
+    Input = "input",
+    Output = "output",
 }
 
 /**
@@ -1200,7 +3661,7 @@ export type ConnectionElement = {
  *
  * The description of a solid planar magnet wire
  */
-export type Wire = {
+export interface Wire {
     /**
      * The conducting diameter of the wire, in m
      */
@@ -1208,6 +3669,8 @@ export type Wire = {
     material?:           WireMaterial | string;
     /**
      * The outer diameter of the wire, in m
+     *
+     * The outer diameter of the wire. Unit: m.
      */
     outerDiameter?: DimensionWithTolerance;
     coating?:       InsulationWireCoating | string;
@@ -1258,13 +3721,20 @@ export type Wire = {
      * The wire used as strands
      */
     strand?: WireRound | string;
+    /**
+     * Length of one full twist of the litz bundle along the wire axis. Unit: m. Vendors quote
+     * this in mm or as 'lay length'; convert to metres before serialisation. No international
+     * standard exists for litz construction; this field captures the most commonly published
+     * vendor parameter.
+     */
+    twistPitch?: DimensionWithTolerance;
     [property: string]: any;
 }
 
 /**
  * A coating for a wire
  */
-export type InsulationWireCoating = {
+export interface InsulationWireCoating {
     /**
      * The minimum voltage that causes a portion of an insulator to experience electrical
      * breakdown and become electrically conductive, in V
@@ -1299,92 +3769,6 @@ export type InsulationWireCoating = {
 }
 
 /**
- * A material for insulation
- */
-export type InsulationMaterial = {
-    /**
-     * Alternative names of the material
-     */
-    aliases?: string[];
-    /**
-     * The composition of a insulation material
-     */
-    composition?:       string;
-    dielectricStrength: DielectricStrengthElement[];
-    /**
-     * The manufacturer of the insulation material
-     */
-    manufacturer?: string;
-    /**
-     * The melting temperature of the insulation material, in Celsius
-     */
-    meltingPoint?: number;
-    /**
-     * The name of a insulation material
-     */
-    name: string;
-    /**
-     * The dielectric constant of the insulation material
-     */
-    relativePermittivity?: number;
-    /**
-     * Resistivity value according to manufacturer
-     */
-    resistivity?: ResistivityPoint[];
-    /**
-     * The specific heat of the insulation material, in J / (Kg * K)
-     */
-    specificHeat?: number;
-    /**
-     * The temperature class of the insulation material, in Celsius
-     */
-    temperatureClass?: number;
-    /**
-     * The thermal conductivity of the insulation material, in W / (m * K)
-     */
-    thermalConductivity?: number;
-    [property: string]: any;
-}
-
-/**
- * data for describing one point of dieletric strength
- */
-export type DielectricStrengthElement = {
-    /**
-     * Humidity for the field value, in proportion over 1
-     */
-    humidity?: number;
-    /**
-     * Temperature for the field value, in Celsius
-     */
-    temperature?: number;
-    /**
-     * Thickness of the material
-     */
-    thickness?: number;
-    /**
-     * Dieletric strength value, in V / m
-     */
-    value: number;
-    [property: string]: any;
-}
-
-/**
- * data for describing one point of resistivity
- */
-export type ResistivityPoint = {
-    /**
-     * temperature for the field value, in Celsius
-     */
-    temperature?: number;
-    /**
-     * Resistivity value, in Ohm * m
-     */
-    value: number;
-    [property: string]: any;
-}
-
-/**
  * The type of the coating
  */
 export enum InsulationWireCoatingType {
@@ -1399,7 +3783,7 @@ export enum InsulationWireCoatingType {
 /**
  * A material for wire
  */
-export type WireMaterial = {
+export interface WireMaterial {
     /**
      * The name of a wire material
      */
@@ -1416,7 +3800,7 @@ export type WireMaterial = {
 /**
  * data for describing the resistivity of a wire
  */
-export type Resistivity = {
+export interface Resistivity {
     /**
      * Temperature reference value, in Celsius
      */
@@ -1435,13 +3819,13 @@ export type Resistivity = {
 /**
  * data for describing one point of thermal conductivity
  */
-export type ThermalConductivityElement = {
+export interface ThermalConductivityElement {
     /**
-     * Temperature for the field value, in Celsius
+     * Temperature for the field value, in Celsius.
      */
     temperature: number;
     /**
-     * Thermal conductivity value, in W / m * K
+     * Thermal conductivity value. Unit: W/(m*K).
      */
     value: number;
     [property: string]: any;
@@ -1451,8 +3835,8 @@ export type ThermalConductivityElement = {
  * The standard of wire
  */
 export enum WireStandard {
-    Iec60317 = "IEC 60317",
-    Ipc6012 = "IPC-6012",
+    IEC60317 = "IEC 60317",
+    IPC6012 = "IPC-6012",
     NemaMw1000C = "NEMA MW 1000 C",
 }
 
@@ -1461,7 +3845,7 @@ export enum WireStandard {
  *
  * The description of a basic magnet wire
  */
-export type WireRound = {
+export interface WireRound {
     /**
      * The conducting diameter of the wire, in m
      */
@@ -1510,9 +3894,73 @@ export enum WireType {
 }
 
 /**
+ * Data describing one group in a magnetic, which can include several sections. Ideally this
+ * is used for PCB or different winding windows
+ */
+export interface Group {
+    /**
+     * The coordinates of the center of the section, referred to the center of the main column
+     */
+    coordinates: number[];
+    /**
+     * System in which dimension and coordinates are in
+     */
+    coordinateSystem?: CoordinateSystem;
+    /**
+     * Dimensions of the rectangle defining the group
+     */
+    dimensions: number[];
+    /**
+     * Name given to the group
+     */
+    name: string;
+    /**
+     * List of partial windings in this group
+     */
+    partialWindings: PartialWinding[];
+    /**
+     * Way in which the sections are oriented inside the winding window
+     */
+    sectionsOrientation: WindingOrientation;
+    /**
+     * Type of the group
+     */
+    type: WiringTechnology;
+    [property: string]: any;
+}
+
+/**
+ * System in which dimension and coordinates are in
+ */
+export enum CoordinateSystem {
+    Cartesian = "cartesian",
+    Cylindrical = "cylindrical",
+    Polar = "polar",
+}
+
+/**
+ * One part of a winding, described by the proportion of each parallel that is contained
+ * here.
+ */
+export interface PartialWinding {
+    /**
+     * Two-element array representing the input and output connections of this partial winding.
+     */
+    connections?: ConnectionElement[];
+    /**
+     * Per-parallel proportion of turns contained in this part.
+     */
+    parallelsProportion: number[];
+    /**
+     * Name of the winding that this part belongs to.
+     */
+    winding: string;
+}
+
+/**
  * Data describing one layer in a magnetic
  */
-export type Layer = {
+export interface Layer {
     /**
      * List of additional coordinates of the center of the layer, referred to the center of the
      * main column, in case the layer is not symmetrical, as in toroids
@@ -1570,36 +4018,9 @@ export type Layer = {
 }
 
 /**
- * System in which dimension and coordinates are in
- */
-export enum CoordinateSystem {
-    Cartesian = "cartesian",
-    Polar = "polar",
-}
-
-/**
- * Data describing one part of winding, described by a list with the proportion of each
- * parallel in the winding that is contained here
- */
-export type PartialWinding = {
-    /**
-     * Array on two elements, representing the input and output connection for this partial
-     * winding
-     */
-    connections?: ConnectionElement[];
-    /**
-     * Number of parallels in winding
-     */
-    parallelsProportion: number[];
-    /**
-     * The name of the winding that this part belongs to
-     */
-    winding: string;
-    [property: string]: any;
-}
-
-/**
  * Type of the layer
+ *
+ * Type of the section
  */
 export enum ElectricalType {
     Conduction = "conduction",
@@ -1620,7 +4041,7 @@ export enum WindingStyle {
 /**
  * Data describing one section in a magnetic
  */
-export type Section = {
+export interface Section {
     /**
      * The coordinates of the center of the section, referred to the center of the main column
      */
@@ -1638,6 +4059,10 @@ export type Section = {
      */
     fillingFactor?: number;
     /**
+     * The name of the group that this section belongs to
+     */
+    group?: string;
+    /**
      * Way in which the layers are aligned inside the section
      */
     layersAlignment?: CoilAlignment;
@@ -1646,20 +4071,24 @@ export type Section = {
      */
     layersOrientation: WindingOrientation;
     /**
-     * Defines the distance in extremes of the section that is reserved to be filled with margin
-     * tape. It is an array os two elements from inner or top, to outer or bottom
+     * Defines the distance at the extremes of the section reserved for margin tape. Two-element
+     * array, from 'inner or top' to 'outer or bottom'.
      */
-    margin?: number[];
+    margin?: number[] | MarginInfo;
     /**
      * Name given to the winding
      */
     name: string;
     /**
+     * Optional field to force how many layers must fit in a section
+     */
+    numberLayers?: number;
+    /**
      * List of partial windings in this section
      */
     partialWindings: PartialWinding[];
     /**
-     * Type of the layer
+     * Type of the section
      */
     type: ElectricalType;
     /**
@@ -1670,9 +4099,37 @@ export type Section = {
 }
 
 /**
+ * Data describing the information about the margin of a section
+ */
+export interface MarginInfo {
+    /**
+     * Width of the margin in the bottom or right side of the section, along where the clearance
+     * would happen. Also the width of the tape to implement it.
+     */
+    bottomOrRightWidth: number;
+    /**
+     * In case of insulating layer, the material used
+     */
+    insulationMaterial?: InsulationMaterial | string;
+    /**
+     * Thickness of the layers used to implement the margin.
+     */
+    layerThickness: number;
+    /**
+     * Number of layers to implement the margin
+     */
+    numberLayers: number;
+    /**
+     * Width of the margin in the top or left side of the section, along where the clearance
+     * would happen. Also the width of the tape to implement it.
+     */
+    topOrLeftWidth: number;
+}
+
+/**
  * Data describing one turn in a magnetic
  */
-export type Turn = {
+export interface Turn {
     /**
      * List of additional coordinates of the center of the turn, referred to the center of the
      * main column, in case the turn is not symmetrical, as in toroids
@@ -1689,7 +4146,8 @@ export type Turn = {
     /**
      * System in which dimension and coordinates are in
      */
-    coordinateSystem?: CoordinateSystem;
+    coordinateSystem?:    CoordinateSystem;
+    crossSectionalShape?: TurnCrossSectionalShape;
     /**
      * Dimensions of the rectangle defining the turn
      */
@@ -1729,6 +4187,12 @@ export type Turn = {
     [property: string]: any;
 }
 
+export enum TurnCrossSectionalShape {
+    Oval = "oval",
+    Rectangular = "rectangular",
+    Round = "round",
+}
+
 /**
  * Way in which the turn is wound
  */
@@ -1742,7 +4206,7 @@ export enum TurnOrientation {
  *
  * The description of a magnetic core
  */
-export type MagneticCore = {
+export interface MagneticCore {
     /**
      * The lists of distributors of the magnetic core
      */
@@ -1773,7 +4237,7 @@ export type MagneticCore = {
  * The data from the core based on its function, in a way that can be used by analytical
  * models.
  */
-export type CoreFunctionalDescription = {
+export interface CoreFunctionalDescription {
     /**
      * The coating of the core
      */
@@ -1806,13 +4270,13 @@ export enum Coating {
 /**
  * A gap for the magnetic cores
  */
-export type CoreGap = {
+export interface CoreGap {
     /**
      * Geometrical area of the gap
      */
     area?: number;
     /**
-     * The coordinates of the center of the gap, referred to the center of the main column
+     * The coordinates of the center of the gap, referred to the center of the main column.
      */
     coordinates?: number[];
     /**
@@ -1853,8 +4317,13 @@ export enum GapType {
 /**
  * A material for the magnetic cores
  */
-export type CoreMaterial = {
-    bhCycle?: BhCycleElement[];
+export interface CoreMaterial {
+    /**
+     * A list of alternative materials that could replace this one
+     */
+    alternatives?: string[];
+    application?:  Application[];
+    bhCycle?:      BhCycleElement[];
     /**
      * BH Cycle points where the magnetic flux density is 0
      */
@@ -1864,7 +4333,7 @@ export type CoreMaterial = {
      */
     commercialName?: string;
     /**
-     * The temperature at which this material losses all ferromagnetism
+     * The temperature at which this material loses all ferromagnetism. Unit: Celsius.
      */
     curieTemperature?: number;
     /**
@@ -1876,22 +4345,26 @@ export type CoreMaterial = {
      */
     family?: string;
     /**
-     * Heat capacity value according to manufacturer, in J/Kg/K
+     * Specific heat capacity value according to manufacturer. Unit: J/(kg*K).
      */
     heatCapacity?: DimensionWithTolerance;
     /**
-     * Heat conductivity value according to manufacturer, in W/m/K
+     * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
      */
     heatConductivity?: DimensionWithTolerance;
     manufacturerInfo:  ManufacturerInfo;
     /**
-     * The data regarding the mass losses of a magnetic material
+     * Mass-specific core losses. Values throughout this block are in watts per kilogram (W/kg).
+     * Note: this is the per-mass form used for tape-wound, amorphous and nanocrystalline
+     * materials; the per-volume form lives in `volumetricLosses` and uses W/m^3. The two are
+     * NOT interchangeable without the material density. See docs/units.md and
+     * docs/normative-references.md.
      */
-    massLosses?: { [key: string]: Array<MassLossesPoint[] | MagneticsCoreLossesMethodData> };
+    massLosses?: { [key: string]: Array<MassLossesPoint[] | MagnetecCoreLossesMethodData> };
     /**
      * The composition of a magnetic material
      */
-    material: MaterialEnum;
+    material: MaterialType;
     /**
      * The composition of a magnetic material
      */
@@ -1901,9 +4374,16 @@ export type CoreMaterial = {
      */
     name: string;
     /**
-     * The data regarding the relative permeability of a magnetic material
+     * Relative permeability of the magnetic material, broken down by which kind of permeability
+     * was measured. At minimum `initial` is required for materials that have one (essentially
+     * all ferrites and tape-wound alloys). Each entry uses permeabilityPoint, which pins
+     * frequency, temperature, AC peak flux density and DC bias per measurement.
      */
     permeability: Permeabilities;
+    /**
+     * Manufacturer recommended operating conditions for this material
+     */
+    recommendations?: CoreMaterialRecommendations;
     /**
      * BH Cycle points where the magnetic field is 0
      */
@@ -1913,8 +4393,10 @@ export type CoreMaterial = {
      */
     resistivity: ResistivityPoint[];
     /**
-     * BH Cycle points where a non-negligible increase in magnetic field produces a negligible
-     * increase of magnetic flux density
+     * BH curve points characterising the saturation flux density of the material. By
+     * convention, saturation is reported at the field strength at which the relative
+     * differential permeability has fallen to approximately 10 % of the initial permeability.
+     * See docs/normative-references.md.
      */
     saturation: BhCycleElement[];
     /**
@@ -1922,58 +4404,59 @@ export type CoreMaterial = {
      */
     type: CoreMaterialType;
     /**
-     * The data regarding the volumetric losses of a magnetic material
+     * Volumetric core losses. Values throughout this block are in watts per cubic metre
+     * (W/m^3). Coefficient-based methods (Steinmetz, Roshen, ...) assume the same unit system:
+     * P in W/m^3, f in Hz, B in T (peak). See docs/units.md and docs/normative-references.md.
      */
     volumetricLosses: { [key: string]: Array<VolumetricLossesPoint[] | CoreLossesMethodData> };
     [property: string]: any;
 }
 
 /**
- * data for describing one point of the BH cycle
+ * One point of the BH cycle.
  */
-export type BhCycleElement = {
+export interface BhCycleElement {
     /**
-     * magnetic field value, in A/m
+     * Magnetic field strength value. Unit: A/m.
      */
     magneticField: number;
     /**
-     * magnetic flux density value, in T
+     * Magnetic flux density value. Unit: T.
      */
     magneticFluxDensity: number;
     /**
-     * temperature for the field value, in Celsius
+     * Temperature for the field value, in Celsius.
      */
     temperature: number;
-    [property: string]: any;
 }
 
 /**
  * List of mass losses points
  *
- * data for describing the mass losses at a given point of magnetic flux density, frequency
- * and temperature
+ * Mass-specific losses at a given point of magnetic flux density, frequency and
+ * temperature. Unit: W/kg.
  */
-export type MassLossesPoint = {
+export interface MassLossesPoint {
     magneticFluxDensity: OperatingPointExcitation;
     /**
      * origin of the data
      */
     origin: string;
     /**
-     * temperature value, in Celsius
+     * Temperature value, in Celsius.
      */
     temperature: number;
     /**
-     * mass losses value, in W/Kg
+     * Mass-specific losses value. Unit: W/kg.
      */
     value: number;
     [property: string]: any;
 }
 
 /**
- * Magnetic method for estimating mass losses
+ * Magnetec method for estimating mass losses
  */
-export type MagneticsCoreLossesMethodData = {
+export interface MagnetecCoreLossesMethodData {
     /**
      * Name of this method
      */
@@ -1988,7 +4471,7 @@ export enum MassCoreLossesMethodType {
 /**
  * The composition of a magnetic material
  */
-export enum MaterialEnum {
+export enum MaterialType {
     Amorphous = "amorphous",
     ElectricalSteel = "electricalSteel",
     Ferrite = "ferrite",
@@ -2000,36 +4483,62 @@ export enum MaterialEnum {
  * The composition of a magnetic material
  */
 export enum MaterialComposition {
-    CarbonylIron = "Carbonyl Iron",
+    CarbonylIron = "carbonylIron",
     FeMo = "FeMo",
-    FeNi = "FeNi",
-    FeNiMo = "FeNiMo",
+    FeNI = "FeNi",
+    FeNIMo = "FeNiMo",
     FeSi = "FeSi",
     FeSiAl = "FeSiAl",
-    Iron = "Iron",
+    Iron = "iron",
     MgZn = "MgZn",
     MnZn = "MnZn",
-    NiZn = "NiZn",
-    Proprietary = "Proprietary",
+    NIZn = "NiZn",
+    Proprietary = "proprietary",
 }
 
 /**
- * The data regarding the relative permeability of a magnetic material
+ * Relative permeability of the magnetic material, broken down by which kind of permeability
+ * was measured. At minimum `initial` is required for materials that have one (essentially
+ * all ferrites and tape-wound alloys). Each entry uses permeabilityPoint, which pins
+ * frequency, temperature, AC peak flux density and DC bias per measurement.
  */
-export type Permeabilities = {
+export interface Permeabilities {
+    /**
+     * Amplitude relative permeability mu_a. The secant slope of the BH curve at a specified
+     * peak AC flux density on a defined geometry. Each point pins B_peak, frequency and
+     * temperature.
+     */
     amplitude?: PermeabilityPoint[] | PermeabilityPoint;
     /**
-     * The data regarding the complex permeability of a magnetic material
+     * Complex relative permeability (mu' + j*mu''), used for high-frequency loss modelling.
      */
     complex?: ComplexPermeabilityData;
-    initial:  PermeabilityPoint[] | PermeabilityPoint;
+    /**
+     * Incremental relative permeability mu_delta. The slope of a small AC excursion
+     * superimposed on a non-zero DC bias H. Each point pins magneticFieldDcBias and the AC
+     * magneticFluxDensityPeak. Required to model inductors operating under DC bias (PFC chokes,
+     * output filters, flyback primaries).
+     */
+    incremental?: PermeabilityPoint[] | PermeabilityPoint;
+    /**
+     * Initial relative permeability mu_i. Measured at near-zero AC excitation (e.g. B < 0.25
+     * mT) and low frequency (typically <= 10 kHz) at the material's reference temperature, per
+     * the IEC 60401-3 catalogue convention.
+     */
+    initial: PermeabilityPoint[] | PermeabilityPoint;
+    /**
+     * Reversible relative permeability mu_rev. The limit of mu_delta as the AC excursion tends
+     * to zero. Tabulated vs magneticFieldDcBias; used for small-signal AC analysis around a DC
+     * operating point.
+     */
+    reversible?: PermeabilityPoint[] | PermeabilityPoint;
     [property: string]: any;
 }
 
 /**
- * data for describing one point of permebility
+ * data for describing one point of permeability
  */
-export type PermeabilityPoint = {
+export interface PermeabilityPoint {
     /**
      * Frequency of the Magnetic field, in Hz
      */
@@ -2043,7 +4552,8 @@ export type PermeabilityPoint = {
      */
     magneticFluxDensityPeak?: number;
     /**
-     * The initial permeability of a magnetic material according to its manufacturer
+     * Per-manufacturer factor blocks applied to the base permeability value to account for DC
+     * bias, frequency and temperature dependence.
      */
     modifiers?: { [key: string]: InitialPermeabilitModifier };
     /**
@@ -2069,9 +4579,14 @@ export type PermeabilityPoint = {
  *
  * Coefficients given by Micrometals in order to calculate the permeability of their cores
  *
- * Coefficients given by Fair-Rite in order to calculate the permeability of their materials
+ * Coefficients given by Fair-Rite in order to calculate the permeability of their
+ * materials
+ *
+ * Coefficients given by Poco in order to calculate the permeability of their materials
+ *
+ * Coefficients given by TDG in order to calculate the permeability of their materials
  */
-export type InitialPermeabilitModifier = {
+export interface InitialPermeabilitModifier {
     /**
      * Field with the coefficients used to calculate how much the permeability decreases with
      * the frequency, as factor = a + b * f + c * pow(f, 2) + d * pow(f, 3) + e * pow(f, 4)
@@ -2086,6 +4601,9 @@ export type InitialPermeabilitModifier = {
      *
      * Field with the coefficients used to calculate how much the permeability decreases with
      * the H DC bias, as factor = a + b * pow(H, c) + d
+     *
+     * Field with the coefficients used to calculate how much the permeability decreases with
+     * the H DC bias, as factor = 1 / (a + b * pow(H, c))
      */
     magneticFieldDcBiasFactor?: MagneticFieldDcBiasFactor;
     /**
@@ -2119,7 +4637,7 @@ export type InitialPermeabilitModifier = {
  * Field with the coefficients used to calculate how much the permeability decreases with
  * the frequency, as factor = 1 / (a + b * pow(f, c) ) + d
  */
-export type FrequencyFactor = {
+export interface FrequencyFactor {
     a:  number;
     b:  number;
     c:  number;
@@ -2134,8 +4652,11 @@ export type FrequencyFactor = {
  *
  * Field with the coefficients used to calculate how much the permeability decreases with
  * the H DC bias, as factor = a + b * pow(H, c) + d
+ *
+ * Field with the coefficients used to calculate how much the permeability decreases with
+ * the H DC bias, as factor = 1 / (a + b * pow(H, c))
  */
-export type MagneticFieldDcBiasFactor = {
+export interface MagneticFieldDcBiasFactor {
     a:  number;
     b:  number;
     c:  number;
@@ -2147,7 +4668,7 @@ export type MagneticFieldDcBiasFactor = {
  * Field with the coefficients used to calculate how much the permeability decreases with
  * the B field, as factor = = 1 / ( 1 / ( a + b * pow(B,c)) + 1 / (d * pow(B, e) ) + 1 / f )
  */
-export type MagneticFluxDensityFactor = {
+export interface MagneticFluxDensityFactor {
     a: number;
     b: number;
     c: number;
@@ -2161,6 +4682,8 @@ export enum InitialPermeabilitModifierMethod {
     FairRite = "fair-rite",
     Magnetics = "magnetics",
     Micrometals = "micrometals",
+    Poco = "poco",
+    Tdg = "tdg",
 }
 
 /**
@@ -2174,7 +4697,7 @@ export enum InitialPermeabilitModifierMethod {
  * Field with the coefficients used to calculate how much the permeability decreases with
  * the temperature, as either factor = a
  */
-export type TemperatureFactor = {
+export interface TemperatureFactor {
     a:  number;
     b?: number;
     c?: number;
@@ -2184,11 +4707,42 @@ export type TemperatureFactor = {
 }
 
 /**
- * The data regarding the complex permeability of a magnetic material
+ * Complex relative permeability (mu' + j*mu''), used for high-frequency loss modelling.
  */
-export type ComplexPermeabilityData = {
+export interface ComplexPermeabilityData {
     imaginary: PermeabilityPoint[] | PermeabilityPoint;
     real:      PermeabilityPoint[] | PermeabilityPoint;
+    [property: string]: any;
+}
+
+/**
+ * Manufacturer recommended operating conditions for this material
+ */
+export interface CoreMaterialRecommendations {
+    /**
+     * Maximum recommended operating frequency in Hz
+     */
+    maximumFrequency?: number;
+    /**
+     * Maximum recommended AC flux density, in T
+     */
+    maximumMagneticFluxDensity?: number;
+    /**
+     * Maximum recommended operating temperature in Celsius
+     */
+    maximumOperatingTemperature?: number;
+    /**
+     * Minimum recommended operating frequency in Hz
+     */
+    minimumFrequency?: number;
+    /**
+     * Typical applications per manufacturer
+     */
+    typicalApplications?: string[];
+    /**
+     * Recommended converter topologies
+     */
+    typicalTopologies?: string[];
     [property: string]: any;
 }
 
@@ -2206,10 +4760,10 @@ export enum CoreMaterialType {
  *
  * List of volumetric losses points
  */
-export type VolumetricLossesPoint = {
+export interface VolumetricLossesPoint {
     magneticFluxDensity: OperatingPointExcitation;
     /**
-     * origin of the data
+     * Origin of the data (datasheet, measurement, simulation, fitted).
      */
     origin: string;
     /**
@@ -2217,14 +4771,18 @@ export type VolumetricLossesPoint = {
      */
     temperature: number;
     /**
-     * volumetric losses value, in W/m3
+     * Volumetric losses value. Unit: W/m^3.
      */
     value: number;
     [property: string]: any;
 }
 
 /**
- * Steinmetz coefficients for estimating volumetric losses in a given frequency range
+ * Steinmetz coefficients for estimating volumetric losses in a given frequency range. The
+ * model is P = k * f^alpha * B^beta. By normative convention in MAS, P is in W/m^3, f in Hz
+ * and B in T (peak); k therefore has units of W/(m^3 * Hz^alpha * T^beta). Datasheets that
+ * publish coefficients in scaled units (kW/m^3, mW/cm^3, kHz, mT) must be converted before
+ * serialisation.
  *
  * Roshen coefficients for estimating volumetric losses
  *
@@ -2232,9 +4790,13 @@ export type VolumetricLossesPoint = {
  *
  * Magnetics method for estimating volumetric losses
  *
+ * Poco method for estimating volumetric losses
+ *
+ * TDG method for estimating volumetric losses
+ *
  * Loss factor method for estimating volumetric losses
  */
-export type CoreLossesMethodData = {
+export interface CoreLossesMethodData {
     /**
      * Name of this method
      */
@@ -2261,7 +4823,7 @@ export type CoreLossesMethodData = {
  * List of coefficients for taking into account the excess losses and the dependencies of
  * the resistivity
  */
-export type RoshenAdditionalCoefficients = {
+export interface RoshenAdditionalCoefficients {
     excessLossesCoefficient:                   number;
     resistivityFrequencyCoefficient:           number;
     resistivityMagneticFluxDensityCoefficient: number;
@@ -2273,7 +4835,7 @@ export type RoshenAdditionalCoefficients = {
 /**
  * Data for describing the loss factor at a given frequency and temperature
  */
-export type LossFactorPoint = {
+export interface LossFactorPoint {
     /**
      * Frequency of the field, in Hz
      */
@@ -2293,11 +4855,13 @@ export enum VolumetricCoreLossesMethodType {
     LossFactor = "lossFactor",
     Magnetics = "magnetics",
     Micrometals = "micrometals",
+    Poco = "poco",
     Roshen = "roshen",
     Steinmetz = "steinmetz",
+    Tdg = "tdg",
 }
 
-export type SteinmetzCoreLossesMethodRangeDatum = {
+export interface SteinmetzCoreLossesMethodRangeDatum {
     /**
      * frequency power coefficient alpha
      */
@@ -2336,13 +4900,14 @@ export type SteinmetzCoreLossesMethodRangeDatum = {
 /**
  * A shape for the magnetic cores
  */
-export type CoreShape = {
+export interface CoreShape {
     /**
      * Alternative names of a magnetic shape
      */
     aliases?: string[];
     /**
-     * The dimensions of a magnetic shape, keys must be as defined in EN 62317
+     * The dimensions of a magnetic shape. Keys are the dimension labels defined in IEC 62317
+     * (and the modernised IEC 63093 series for planar cores).
      */
     dimensions?: { [key: string]: number | DimensionWithTolerance };
     /**
@@ -2389,9 +4954,9 @@ export enum CoreShapeFamily {
     H = "h",
     Lp = "lp",
     P = "p",
-    PlanarE = "planar e",
-    PlanarEl = "planar el",
-    PlanarEr = "planar er",
+    PlanarE = "planarE",
+    PlanarEL = "planarEL",
+    PlanarER = "planarER",
     Pm = "pm",
     Pq = "pq",
     Pqi = "pqi",
@@ -2399,7 +4964,7 @@ export enum CoreShapeFamily {
     Rod = "rod",
     T = "t",
     U = "u",
-    Ui = "ui",
+    UI = "ui",
     Ur = "ur",
     Ut = "ut",
 }
@@ -2417,10 +4982,10 @@ export enum MagneticCircuit {
  * The type of core
  */
 export enum CoreType {
-    ClosedShape = "closed shape",
-    PieceAndPlate = "piece and plate",
+    ClosedShape = "closedShape",
+    PieceAndPlate = "pieceAndPlate",
     Toroidal = "toroidal",
-    TwoPieceSet = "two-piece set",
+    TwoPieceSet = "twoPieceSet",
 }
 
 /**
@@ -2431,7 +4996,7 @@ export enum CoreType {
  *
  * Data describing the spacer used to separate cores in additive gaps
  */
-export type CoreGeometricalDescriptionElement = {
+export interface CoreGeometricalDescriptionElement {
     /**
      * The coordinates of the top of the piece, referred to the center of the main column
      *
@@ -2466,7 +5031,7 @@ export type CoreGeometricalDescriptionElement = {
 /**
  * Data describing the machining applied to a piece
  */
-export type Machining = {
+export interface Machining {
     /**
      * The coordinates of the start of the machining, referred to the top of the main column of
      * the piece
@@ -2486,7 +5051,7 @@ export type Machining = {
  */
 export enum CoreGeometricalDescriptionElementType {
     Closed = "closed",
-    HalfSet = "half set",
+    HalfSet = "halfSet",
     Plate = "plate",
     Sheet = "sheet",
     Spacer = "spacer",
@@ -2496,7 +5061,7 @@ export enum CoreGeometricalDescriptionElementType {
 /**
  * The data from the core after been processed, and ready to use by the analytical models
  */
-export type CoreProcessedDescription = {
+export interface CoreProcessedDescription {
     /**
      * List of columns in the core
      */
@@ -2529,7 +5094,7 @@ export type CoreProcessedDescription = {
 /**
  * Data describing a column of the core
  */
-export type ColumnElement = {
+export interface ColumnElement {
     /**
      * Area of the section column, normal to the magnetic flux direction
      */
@@ -2579,7 +5144,7 @@ export enum ColumnType {
 /**
  * Effective data of the magnetic core
  */
-export type EffectiveParameters = {
+export interface EffectiveParameters {
     /**
      * This is the equivalent section that the magnetic flux traverses, because the shape of the
      * core is not uniform and its section changes along the path
@@ -2601,24 +5166,43 @@ export type EffectiveParameters = {
     [property: string]: any;
 }
 
-export type MagneticManufacturerInfo = {
+/**
+ * Manufacturer information for the magnetic. Extends the shared manufacturerInfo with a
+ * datasheetInfo block for catalogue-level data.
+ *
+ * Data from the manufacturer for a given part
+ */
+export interface MagneticManufacturerInfo {
     /**
-     * The manufacturer's price for this part
+     * The manufacturer's reference price for this part.
      */
-    cost?: string;
+    cost?: Cost;
     /**
      * The manufacturer's URL to the datasheet of the product
      */
     datasheetUrl?: string;
     /**
+     * The description of the part according to its manufacturer
+     */
+    description?: string;
+    /**
      * The family of a magnetic, as defined by the manufacturer
      */
     family?: string;
     /**
+     * Optional International Registration Data Identifier (per ISO/IEC 11179-6) issued by an
+     * authoritative registry such as IEC CDD or ECLASS. When populated, this is the canonical
+     * machine-readable identifier for the part class.
+     */
+    irdi?: string;
+    /**
      * The name of the manufacturer of the part
      */
-    name:             string;
-    recommendations?: MagneticManufacturerRecommendations;
+    name: string;
+    /**
+     * The manufacturer's order code of this part
+     */
+    orderCode?: string;
     /**
      * The manufacturer's reference of this part
      */
@@ -2627,37 +5211,313 @@ export type MagneticManufacturerInfo = {
      * The production status of a part according to its manufacturer
      */
     status?: Status;
+    /**
+     * All values extracted directly from the component datasheet, organised by domain.
+     */
+    datasheetInfo?: DatasheetInfo;
     [property: string]: any;
 }
 
-export type MagneticManufacturerRecommendations = {
+/**
+ * All values extracted directly from the component datasheet, organised by domain.
+ */
+export interface DatasheetInfo {
     /**
-     * The manufacturer's rated current for this part
+     * Application parameters published by the manufacturer — describes the circuit this
+     * component was designed for, not the component's intrinsic electrical properties.
+     */
+    application?: MagneticDatasheetApplication;
+    /**
+     * Packaging and supply-chain information from the datasheet or product page.
+     */
+    business?: Business;
+    /**
+     * Electrical characteristics as stated in the datasheet.
+     */
+    electrical?: Electrical;
+    /**
+     * Physical dimensions and mounting style from the datasheet.
+     */
+    mechanical?: Mechanical;
+    /**
+     * Basic part identification from the datasheet.
+     */
+    part?: Part;
+    /**
+     * Operating temperature range from the datasheet.
+     */
+    thermal?: Thermal;
+}
+
+/**
+ * Application parameters published by the manufacturer — describes the circuit this
+ * component was designed for, not the component's intrinsic electrical properties.
+ *
+ * Application parameters published by the manufacturer in the datasheet. These describe the
+ * circuit the component was designed for, not the component's intrinsic electrical
+ * properties.
+ */
+export interface MagneticDatasheetApplication {
+    /**
+     * Auxiliary winding voltage in Volts.
+     */
+    auxiliaryVoltage?: number;
+    /**
+     * Input voltage range for which this component is designed, in Volts.
+     */
+    inputVoltage?: number | DimensionWithTolerance;
+    /**
+     * Output currents per secondary winding in Amperes.
+     */
+    outputCurrents?: number[];
+    /**
+     * Output voltages per secondary winding in Volts.
+     */
+    outputVoltages?: number[];
+    /**
+     * Nominal switching frequency in Hz for which this component is designed.
+     */
+    switchingFrequency?: number;
+}
+
+/**
+ * Packaging and supply-chain information from the datasheet or product page.
+ *
+ * Packaging and supply-chain information.
+ */
+export interface Business {
+    /**
+     * Packaging format (e.g. 'Tape & Reel', 'Bulk', 'Tray').
+     */
+    packaging?: string;
+}
+
+/**
+ * Electrical characteristics as stated in the datasheet.
+ */
+export interface Electrical {
+    /**
+     * Common-mode filter performance figures from the datasheet.
+     */
+    commonModeFilter?: CommonModeFilter;
+    /**
+     * Magnetic coupling coefficient k (0–1).
+     */
+    couplingCoefficient?: number;
+    /**
+     * DC resistance per winding in Ohms. nominal = typical value, maximum = datasheet max.
+     */
+    dcResistance?: DimensionWithTolerance;
+    /**
+     * DC resistance per winding for multi-winding parts. Use dcResistance for single-winding
+     * parts.
+     */
+    dcResistances?: DcResistance[];
+    /**
+     * Impedance vs. frequency points from the datasheet. Uses the same impedanceAtFrequency
+     * structure as designRequirements.minimumImpedance.
+     */
+    impedancePoints?: DatasheetImpedancePoint[];
+    /**
+     * Inductance per winding in Henries, with tolerance.
+     */
+    inductance?: DimensionWithTolerance;
+    /**
+     * Minimum insulation resistance between windings in Ohms.
+     */
+    insulationResistance?: number;
+    /**
+     * Hi-pot / dielectric withstand test voltage (AC RMS) in Volts.
+     */
+    insulationTestVoltageAC?: number;
+    /**
+     * Leakage inductance in Henries.
+     */
+    leakageInductance?: DimensionWithTolerance;
+    /**
+     * Peak / maximum impedance magnitude in Ohms (frequency not specified in datasheet).
+     */
+    maximumImpedance?: number;
+    /**
+     * Rated DC current per winding in Amperes.
      */
     ratedCurrent?: number;
     /**
-     * The temperature rise for which the rated current is calculated
+     * Maximum rated AC voltage (RMS) between windings in Volts.
      */
-    ratedCurrentTemperatureRise?: number;
+    ratedVoltageAC?: number;
     /**
-     * The manufacturer's rated magnetic flux or volt-seconds for this part
+     * Maximum rated DC voltage between any two terminals in Volts.
      */
-    ratedMagneticFlux?: number;
+    ratedVoltageDC?: number;
     /**
-     * The manufacturer's saturation current for this part
+     * Peak saturation current in Amperes (I_sat from datasheet).
      */
-    saturationCurrent?: number;
+    saturationCurrentPeak?: number;
     /**
-     * Percentage of inductance drop at saturation current
+     * Self-resonant frequency in Hz.
      */
-    saturationCurrentInductanceDrop?: number;
-    [property: string]: any;
+    selfResonantFrequency?: number;
+    /**
+     * Turns ratio (e.g. 100 means 1:100) for coupled inductors / transformers.
+     */
+    turnsRatio?: number;
+}
+
+/**
+ * Common-mode filter performance figures from the datasheet.
+ *
+ * Common-mode filter performance figures.
+ */
+export interface CommonModeFilter {
+    /**
+     * Common-mode insertion-loss / attenuation value from the datasheet in dB.
+     */
+    attenuation?: number;
+    /**
+     * Test condition string for the attenuation figure (e.g. '100 MHz, 50 Ω').
+     */
+    attenuationTestCondition?: string;
+    /**
+     * -3 dB cut-off frequency of the common-mode filter in Hz.
+     */
+    cutOffFrequency?: number;
+}
+
+export interface DcResistance {
+    resistance: number;
+    winding:    string;
+}
+
+export interface DatasheetImpedancePoint {
+    /**
+     * Frequency in Hz.
+     */
+    frequency: number;
+    /**
+     * Impedance value. Uses the same impedancePoint structure as designRequirements.
+     */
+    impedance: ImpedancePoint;
+}
+
+/**
+ * Physical dimensions and mounting style from the datasheet.
+ *
+ * Physical dimensions and mounting style.
+ */
+export interface Mechanical {
+    /**
+     * Body diameter in metres (for cylindrical parts).
+     */
+    diameter?: DimensionWithTolerance;
+    /**
+     * Body height in metres.
+     */
+    height?: DimensionWithTolerance;
+    /**
+     * Body length in metres.
+     */
+    length?: DimensionWithTolerance;
+    /**
+     * PCB mounting style. Uses the same connectionType enum as designRequirements.terminalType.
+     */
+    mounting?: ConnectionType;
+    /**
+     * Body width in metres.
+     */
+    width?: DimensionWithTolerance;
+}
+
+/**
+ * Basic part identification from the datasheet.
+ *
+ * Basic part identification.
+ */
+export interface Part {
+    /**
+     * True if the part is qualified for automotive applications (AEC-Q200 or equivalent).
+     */
+    automotive?: boolean;
+    /**
+     * Case or package code / size reference (e.g. '0805', 'SMD-4P').
+     */
+    caseCode?: string;
+    /**
+     * Human-readable product description as given in the datasheet or catalogue.
+     */
+    description?: string;
+    /**
+     * Product family or series name (e.g. WE-CMB, WE-CNSW).
+     */
+    family?: string;
+    /**
+     * Insulation grade classification as stated in the datasheet (e.g. 'reinforced', 'basic').
+     * Aligns with IEC insulationType vocabulary.
+     */
+    insulationGrade?: InsulationType;
+    /**
+     * Internal match / order code used by the manufacturer.
+     */
+    matchCode?: string;
+    /**
+     * Core material designation as given in the datasheet (e.g. NiZn, MnZn).
+     */
+    material?: string;
+    /**
+     * Total number of electrically independent windings.
+     */
+    numberOfWindings?: number;
+    /**
+     * Manufacturer part number.
+     */
+    partNumber?: string;
+    /**
+     * True if the component has a shielded construction.
+     */
+    shielded?: boolean;
+    /**
+     * Winding construction style (e.g. bifilar, sectional, trifilar).
+     */
+    windingStyle?: string;
+}
+
+/**
+ * Operating temperature range from the datasheet.
+ *
+ * Operating temperature range.
+ */
+export interface Thermal {
+    /**
+     * Operating temperature in degrees Celsius.
+     */
+    operatingTemperature?: DimensionWithTolerance;
+    /**
+     * Maximum temperature rise above ambient. Unit: K (numerically equivalent to a Celsius
+     * difference).
+     */
+    temperatureRise?: number;
+    /**
+     * Thermal resistance. Unit: K/W (numerically equivalent to °C/W).
+     */
+    thermalResistance?: number;
+}
+
+/**
+ * Optional declaration of which MAS conformance class this document targets. Class A —
+ * Inductor Basic. Class B — Transformer (multi-winding, insulation, isolated topologies).
+ * Class C — Full (all schemas, all topologies). See docs/conformance.md and
+ * schemas/conformance/.
+ */
+export enum MASConformance {
+    A = "A",
+    B = "B",
+    C = "C",
 }
 
 /**
  * The description of the outputs that result of simulating a Magnetic
  */
-export type Outputs = {
+export interface Outputs {
     /**
      * Data describing the output core losses
      */
@@ -2667,6 +5527,10 @@ export type Outputs = {
      */
     impedance?: ImpedanceOutput;
     /**
+     * Data describing the output inductance
+     */
+    inductance?: InductanceOutput;
+    /**
      * Data describing the output insulation that the magnetic has
      */
     insulation?: DielectricVoltage[];
@@ -2674,14 +5538,6 @@ export type Outputs = {
      * Data describing the output insulation coordination that the magnetic has
      */
     insulationCoordination?: InsulationCoordinationOutput;
-    /**
-     * Data describing the output leakage inductance
-     */
-    leakageInductance?: LeakageInductanceOutput;
-    /**
-     * Data describing the output magnetizing inductance
-     */
-    magnetizingInductance?: MagnetizingInductanceOutput;
     /**
      * Data describing the output stray capacitance
      */
@@ -2695,9 +5551,9 @@ export type Outputs = {
      */
     windingLosses?: WindingLossesOutput;
     /**
-     * Data describing the output current field
+     * Data describing the output current density field
      */
-    windingWindowCurrentDensityField?: WindingWindowCurrentFieldOutput;
+    windingWindowCurrentDensityField?: WindingWindowCurrentDensityFieldOutput;
     /**
      * Data describing the output current field
      */
@@ -2714,17 +5570,17 @@ export type Outputs = {
  *
  * Data describing the core losses and the intermediate inputs used to calculate them
  */
-export type CoreLossesOutput = {
+export interface CoreLossesOutput {
     /**
-     * Value of the core losses
+     * Total core losses. Unit: W.
      */
     coreLosses: number;
     /**
-     * Part of the core losses due to eddy currents
+     * Part of the core losses due to eddy currents. Unit: W.
      */
     eddyCurrentCoreLosses?: number;
     /**
-     * Part of the core losses due to hysteresis
+     * Part of the core losses due to hysteresis. Unit: W.
      */
     hysteresisCoreLosses?: number;
     /**
@@ -2732,7 +5588,7 @@ export type CoreLossesOutput = {
      */
     magneticFluxDensity?: SignalDescriptor;
     /**
-     * Mass value of the core losses
+     * Mass-specific value of the core losses. Unit: W/kg.
      */
     massLosses?: number;
     /**
@@ -2744,9 +5600,9 @@ export type CoreLossesOutput = {
     /**
      * temperature in the core that produced the core losses
      */
-    temperature?: number;
+    temperature: number;
     /**
-     * Volumetric value of the core losses
+     * Volumetric value of the core losses. Unit: W/m^3.
      */
     volumetricLosses?: number;
     [property: string]: any;
@@ -2764,17 +5620,17 @@ export enum ResultOrigin {
 /**
  * Data describing the output impedance
  *
- * Data describing the impendance and the intermediate inputs used to calculate them
+ * Data describing the impedance and the intermediate inputs used to calculate it
  */
-export type ImpedanceOutput = {
+export interface ImpedanceOutput {
     /**
      * List of impedance matrix per frequency
      */
-    impedanceMatrix?: ImpedanceMatrixAtFrequency[];
+    impedanceMatrix?: ComplexMatrixAtFrequency[];
     /**
      * List of inductance matrix per frequency
      */
-    inductanceMatrix: InductanceMatrixAtFrequency[];
+    inductanceMatrix: ScalarMatrixAtFrequency[];
     /**
      * Model used to calculate the impedance in the case of simulation, or method used to
      * measure it
@@ -2784,35 +5640,167 @@ export type ImpedanceOutput = {
     /**
      * List of resistance matrix per frequency
      */
-    resistanceMatrix: ResistanceMatrixAtFrequency[];
+    resistanceMatrix: ScalarMatrixAtFrequency[];
     [property: string]: any;
 }
 
-export type ImpedanceMatrixAtFrequency = {
+export interface ComplexMatrixAtFrequency {
     /**
-     * Frequency of the inductance matrix
+     * Frequency of the matrix
      */
     frequency: number;
-    magnitude: Array<DimensionWithTolerance[]>;
-    phase:     Array<DimensionWithTolerance[]>;
+    magnitude: { [key: string]: { [key: string]: DimensionWithTolerance } };
+    phase:     { [key: string]: { [key: string]: DimensionWithTolerance } };
     [property: string]: any;
 }
 
-export type InductanceMatrixAtFrequency = {
+export interface ScalarMatrixAtFrequency {
     /**
-     * Frequency of the inductance matrix
+     * Frequency of the matrix
      */
     frequency: number;
-    magnitude: Array<DimensionWithTolerance[]>;
+    magnitude: { [key: string]: { [key: string]: DimensionWithTolerance } };
     [property: string]: any;
 }
 
-export type ResistanceMatrixAtFrequency = {
+/**
+ * Data describing the output inductance
+ *
+ * Data describing the inductance
+ */
+export interface InductanceOutput {
     /**
-     * Frequency of the resitance matrix
+     * List of coupling coefficients matrix per frequency
      */
-    frequency: number;
-    magnitude: Array<DimensionWithTolerance[]>;
+    couplingCoefficientsMatrix?: ScalarMatrixAtFrequency[];
+    /**
+     * List of inductance matrix per frequency
+     */
+    inductanceMatrix?:     ScalarMatrixAtFrequency[];
+    leakageInductance?:    LeakageInductanceOutput;
+    magnetizingInductance: MagnetizingInductanceOutput;
+    [property: string]: any;
+}
+
+/**
+ * Data describing the leakage inductance and the intermediate inputs used to calculate them
+ */
+export interface LeakageInductanceOutput {
+    leakageInductancePerWinding: DimensionWithTolerance[];
+    /**
+     * Model used to calculate the leakage inductance in the case of simulation, or method used
+     * to measure it
+     */
+    methodUsed: string;
+    origin:     ResultOrigin;
+    [property: string]: any;
+}
+
+/**
+ * Data describing the magnetizing inductance and the intermediate inputs used to calculate
+ * them
+ */
+export interface MagnetizingInductanceOutput {
+    /**
+     * Value of the reluctance of the core
+     */
+    coreReluctance: number;
+    /**
+     * Value of the reluctance of the gaps
+     */
+    gappingReluctance?: number;
+    /**
+     * Value of the magnetizing inductance. Unit: H. The operating point at which this value
+     * applies (frequency, AC test amplitude, DC bias, temperature) is recorded in the optional
+     * `measurementCondition` block; if absent, small-signal at 0 A DC bias and the ambient
+     * temperature of the operating point is assumed.
+     */
+    magnetizingInductance: DimensionWithTolerance;
+    /**
+     * Maximum value of the fringing of the gaps
+     */
+    maximumFringingFactor?: number;
+    /**
+     * Value of the maximum magnetic energy storable in the core
+     */
+    maximumMagneticEnergyCore?: number;
+    /**
+     * Value of the maximum magnetic energy storable in the gaps
+     */
+    maximumStorableMagneticEnergyGapping?: number;
+    /**
+     * Operating point at which `magnetizingInductance` was measured or computed. All fields
+     * optional; absence implies the conventional small-signal default. See
+     * docs/normative-references.md.
+     */
+    measurementCondition?: InductanceMeasurementCondition;
+    /**
+     * Model used to calculate the magnetizing inductance in the case of simulation, or method
+     * used to measure it
+     */
+    methodUsed: string;
+    origin:     ResultOrigin;
+    /**
+     * Reluctance per gap in the magnetic core
+     */
+    reluctancePerGap?: AirGapReluctanceOutput[];
+    /**
+     * Value of the reluctance of the core
+     */
+    ungappedCoreReluctance?: number;
+    [property: string]: any;
+}
+
+/**
+ * Operating point at which `magnetizingInductance` was measured or computed. All fields
+ * optional; absence implies the conventional small-signal default. See
+ * docs/normative-references.md.
+ */
+export interface InductanceMeasurementCondition {
+    /**
+     * RMS test current through the winding. Unit: A.
+     */
+    currentRms?: number;
+    /**
+     * DC bias current through the winding at which this inductance was measured. Unit: A.
+     */
+    dcBiasCurrent?: number;
+    /**
+     * Test frequency. Unit: Hz.
+     */
+    frequency?: number;
+    /**
+     * Temperature at which this inductance was measured. Unit: Celsius.
+     */
+    temperature?: number;
+    /**
+     * RMS test voltage applied across the winding (small-signal characterisation). Unit: V.
+     */
+    voltageRms?: number;
+}
+
+/**
+ * Data describing the reluctance of an air gap
+ */
+export interface AirGapReluctanceOutput {
+    /**
+     * Value of the Fringing Factor
+     */
+    fringingFactor: number;
+    /**
+     * Value of the maximum magnetic energy storable in the gap
+     */
+    maximumStorableMagneticEnergy: number;
+    /**
+     * Model used to calculate the magnetizing inductance in the case of simulation, or method
+     * used to measure it
+     */
+    methodUsed: string;
+    origin:     ResultOrigin;
+    /**
+     * Value of the reluctance of the gap
+     */
+    reluctance: number;
     [property: string]: any;
 }
 
@@ -2821,9 +5809,9 @@ export type ResistanceMatrixAtFrequency = {
  *
  * List of voltages that the magnetic can withstand
  */
-export type DielectricVoltage = {
+export interface DielectricVoltage {
     /**
-     * Duration of the voltate, or undefined if the field is not present
+     * Duration of the voltage test, or undefined if the field is not present
      */
     duration?: number;
     /**
@@ -2848,9 +5836,11 @@ export type DielectricVoltage = {
 
 /**
  * Type of the voltage
+ *
+ * Type of the voltage.
  */
 export enum VoltageType {
-    Ac = "AC",
+    AC = "AC",
     Dc = "DC",
 }
 
@@ -2859,120 +5849,32 @@ export enum VoltageType {
  *
  * List of voltages that the magnetic can withstand
  */
-export type InsulationCoordinationOutput = {
+export interface InsulationCoordinationOutput {
     /**
-     * Clearance required for this magnetic
+     * Clearance required for this magnetic. Unit: m.
      */
     clearance: number;
     /**
-     * Creepage distance required for this magnetic
+     * Creepage distance required for this magnetic. Unit: m.
      */
     creepageDistance: number;
     /**
-     * Distance through insulation required for this magnetic
+     * Distance through insulation required for this magnetic. Unit: m.
      */
     distanceThroughInsulation: number;
     /**
-     * Voltage that the magnetic withstands
+     * Voltage that the magnetic withstands. Unit: V.
      */
     withstandVoltage: number;
     /**
-     * Duration of the voltate, or undefined if the field is not present
+     * Duration of the voltage test. Unit: s. Absent if the test specification does not require
+     * a fixed duration.
      */
     withstandVoltageDuration?: number;
     /**
-     * Type of the voltage
+     * Type of the voltage.
      */
     withstandVoltageType?: VoltageType;
-    [property: string]: any;
-}
-
-/**
- * Data describing the output leakage inductance
- *
- * Data describing the leakage inductance and the intermediate inputs used to calculate them
- */
-export type LeakageInductanceOutput = {
-    leakageInductancePerWinding: DimensionWithTolerance[];
-    /**
-     * Model used to calculate the leakage inductance in the case of simulation, or method used
-     * to measure it
-     */
-    methodUsed: string;
-    origin:     ResultOrigin;
-    [property: string]: any;
-}
-
-/**
- * Data describing the output magnetizing inductance
- *
- * Data describing the magnetizing inductance and the intermediate inputs used to calculate
- * them
- */
-export type MagnetizingInductanceOutput = {
-    /**
-     * Value of the reluctance of the core
-     */
-    coreReluctance: number;
-    /**
-     * Value of the reluctance of the gaps
-     */
-    gappingReluctance?: number;
-    /**
-     * Value of the magnetizing inductance
-     */
-    magnetizingInductance: DimensionWithTolerance;
-    /**
-     * Maximum value of the fringing of the gaps
-     */
-    maximumFringingFactor?: number;
-    /**
-     * Value of the maximum magnetic energy storable in the core
-     */
-    maximumMagneticEnergyCore?: number;
-    /**
-     * Value of the maximum magnetic energy storable in the gaps
-     */
-    maximumStorableMagneticEnergyGapping?: number;
-    /**
-     * Model used to calculate the magnetizing inductance in the case of simulation, or method
-     * used to measure it
-     */
-    methodUsed: string;
-    origin:     ResultOrigin;
-    /**
-     * Value of the maximum magnetic energy storable in the gaps
-     */
-    reluctancePerGap?: AirGapReluctanceOutput[];
-    /**
-     * Value of the reluctance of the core
-     */
-    ungappedCoreReluctance?: number;
-    [property: string]: any;
-}
-
-/**
- * Data describing the reluctance of an air gap
- */
-export type AirGapReluctanceOutput = {
-    /**
-     * Value of the Fringing Factor
-     */
-    fringingFactor: number;
-    /**
-     * Value of the maximum magnetic energy storable in the gap
-     */
-    maximumStorableMagneticEnergy: number;
-    /**
-     * Model used to calculate the magnetizing inductance in the case of simulation, or method
-     * used to measure it
-     */
-    methodUsed: string;
-    origin:     ResultOrigin;
-    /**
-     * Value of the reluctance of the gap
-     */
-    reluctance: number;
     [property: string]: any;
 }
 
@@ -2981,7 +5883,27 @@ export type AirGapReluctanceOutput = {
  *
  * Data describing the stray capacitance and the intermediate inputs used to calculate them
  */
-export type StrayCapacitanceOutput = {
+export interface StrayCapacitanceOutput {
+    /**
+     * Capacitance among all pair of adjacent turns
+     */
+    capacitanceAmongTurns?: { [key: string]: { [key: string]: number } };
+    /**
+     * Capacitance among all windings
+     */
+    capacitanceAmongWindings?: { [key: string]: { [key: string]: number } };
+    /**
+     * List of capacitance matrix per frequency
+     */
+    capacitanceMatrix?: { [key: string]: { [key: string]: ScalarMatrixAtFrequency } };
+    /**
+     * Electric energy among all pair of adjacent turns
+     */
+    electricEnergyAmongTurns?: { [key: string]: { [key: string]: number } };
+    /**
+     * List of Maxwell capacitance matrix per frequency
+     */
+    maxwellCapacitanceMatrix?: ScalarMatrixAtFrequency[];
     /**
      * Model used to calculate the stray capacitance in the case of simulation, or method used
      * to measure it
@@ -2995,12 +5917,12 @@ export type StrayCapacitanceOutput = {
      * Network of six equivalent capacitors that describe the capacitance between two given
      * windings
      */
-    sixCapacitorNetworkPerWinding?: SixCapacitorNetworkPerWinding;
+    sixCapacitorNetworkPerWinding?: { [key: string]: { [key: string]: SixCapacitorNetworkPerWinding } };
     /**
      * The three values of a three input electrostatic multipole that describe the capacitance
      * between two given windings
      */
-    tripoleCapacitancePerWinding?: TripoleCapacitancePerWinding;
+    tripoleCapacitancePerWinding?: { [key: string]: { [key: string]: TripoleCapacitancePerWinding } };
     /**
      * Voltage divider at the end of the physical turn
      */
@@ -3010,34 +5932,30 @@ export type StrayCapacitanceOutput = {
      */
     voltageDividerStartPerTurn?: number[];
     /**
+     * Voltage drop among all pair of adjacent turns
+     */
+    voltageDropAmongTurns?: { [key: string]: { [key: string]: number } };
+    /**
      * Voltage at the beginning of the physical turn
      */
     voltagePerTurn?: number[];
     [property: string]: any;
 }
 
-/**
- * Network of six equivalent capacitors that describe the capacitance between two given
- * windings
- */
-export type SixCapacitorNetworkPerWinding = {
-    c1: number;
-    c2: number;
-    c3: number;
-    c4: number;
-    c5: number;
-    c6: number;
+export interface SixCapacitorNetworkPerWinding {
+    C1: number;
+    C2: number;
+    C3: number;
+    C4: number;
+    C5: number;
+    C6: number;
     [property: string]: any;
 }
 
-/**
- * The three values of a three input electrostatic multipole that describe the capacitance
- * between two given windings
- */
-export type TripoleCapacitancePerWinding = {
-    c1: number;
-    c2: number;
-    c3: number;
+export interface TripoleCapacitancePerWinding {
+    C1: number;
+    C2: number;
+    C3: number;
     [property: string]: any;
 }
 
@@ -3046,9 +5964,9 @@ export type TripoleCapacitancePerWinding = {
  *
  * Data describing the temperature and the intermediate inputs used to calculate them
  */
-export type TemperatureOutput = {
+export interface TemperatureOutput {
     /**
-     * bulk thermal resistance of the whole magnetic
+     * Bulk thermal resistance of the whole magnetic. Unit: K/W.
      */
     bulkThermalResistance?: number;
     /**
@@ -3070,7 +5988,7 @@ export type TemperatureOutput = {
     [property: string]: any;
 }
 
-export type TemperaturePoint = {
+export interface TemperaturePoint {
     /**
      * The coordinates of the temperature point, referred to the center of the main column
      */
@@ -3087,13 +6005,13 @@ export type TemperaturePoint = {
  *
  * Data describing the winding losses and the intermediate inputs used to calculate them
  */
-export type WindingLossesOutput = {
+export interface WindingLossesOutput {
     /**
      * Excitation of the current per physical turn that produced the winding losses
      */
     currentDividerPerTurn?: number[];
     /**
-     * Excitation of the current per winding that produced the winding losses
+     * Excitation of the current per winding that produced the winding losses.
      */
     currentPerWinding?: OperatingPoint;
     /**
@@ -3113,7 +6031,7 @@ export type WindingLossesOutput = {
     /**
      * List of resistance matrix per frequency
      */
-    resistanceMatrix?: ResistanceMatrixAtFrequency[];
+    resistanceMatrix?: ScalarMatrixAtFrequency[];
     /**
      * temperature in the winding that produced the winding losses
      */
@@ -3129,7 +6047,11 @@ export type WindingLossesOutput = {
     [property: string]: any;
 }
 
-export type WindingLossesPerElement = {
+export interface WindingLossesPerElement {
+    /**
+     * Name of the element
+     */
+    name?: string;
     /**
      * List of value of the winding ohmic losses
      */
@@ -3148,7 +6070,7 @@ export type WindingLossesPerElement = {
 /**
  * List of value of the winding ohmic losses
  */
-export type OhmicLosses = {
+export interface OhmicLosses {
     /**
      * Value of the losses
      */
@@ -3173,7 +6095,7 @@ export type OhmicLosses = {
  *
  * List of value of the winding skin losses per harmonic
  */
-export type WindingLossElement = {
+export interface WindingLossElement {
     /**
      * List of frequencies of the harmonics that are producing losses
      */
@@ -3192,24 +6114,25 @@ export type WindingLossElement = {
 }
 
 /**
- * Data describing the output current field
+ * Data describing the output current density field
  *
- * Data describing the curren in the different chunks used in field calculation
+ * Data describing the current in the different chunks used in field calculation
  */
-export type WindingWindowCurrentFieldOutput = {
+export interface WindingWindowCurrentDensityFieldOutput {
     fieldPerFrequency: Field[];
     /**
      * Model used to calculate the current field
      */
     methodUsed: string;
     origin:     ResultOrigin;
+    wires:      Array<Wire | string>;
     [property: string]: any;
 }
 
 /**
  * Data describing a field in a 2D or 3D space
  */
-export type Field = {
+export interface Field {
     /**
      * Value of the magnetizing inductance
      */
@@ -3224,7 +6147,7 @@ export type Field = {
 /**
  * Data describing the value of a field in a 2D or 3D space
  */
-export type FieldPoint = {
+export interface FieldPoint {
     /**
      * If this point has some special significance, can be identified with this label
      */
@@ -3246,16 +6169,30 @@ export type FieldPoint = {
      */
     turnLength?: number;
     /**
-     * Value of the field at this point
+     * Value of the field at this point.
      */
     value: number;
+}
+
+/**
+ * Data describing the output current field
+ *
+ * Data describing the current in the different chunks used in field calculation
+ */
+export interface WindingWindowCurrentFieldOutput {
+    fieldPerFrequency: Field[];
+    /**
+     * Model used to calculate the current field
+     */
+    methodUsed: string;
+    origin:     ResultOrigin;
     [property: string]: any;
 }
 
 /**
  * Data describing the output magnetic strength field
  */
-export type WindingWindowMagneticStrengthFieldOutput = {
+export interface WindingWindowMagneticStrengthFieldOutput {
     fieldPerFrequency: ComplexField[];
     /**
      * Model used to calculate the magnetic strength field
@@ -3268,7 +6205,7 @@ export type WindingWindowMagneticStrengthFieldOutput = {
 /**
  * Data describing a field in a 2D or 3D space
  */
-export type ComplexField = {
+export interface ComplexField {
     /**
      * Value of the magnetizing inductance
      */
@@ -3283,9 +6220,9 @@ export type ComplexField = {
 /**
  * Data describing the complex value of a field in a 2D or 3D space
  */
-export type ComplexFieldPoint = {
+export interface ComplexFieldPoint {
     /**
-     * Imaginary value of the field at this point
+     * Imaginary value of the field at this point.
      */
     imaginary: number;
     /**
@@ -3308,7 +6245,6 @@ export type ComplexFieldPoint = {
      * If this field point is inside of a wire, this is the length of the turn
      */
     turnLength?: number;
-    [property: string]: any;
 }
 
 // Converts JSON strings to/from your types
@@ -3326,792 +6262,16 @@ export class Convert {
         return cast(JSON.parse(json), r("Inputs"));
     }
 
-    public static inputsToJson(value: Inputs): string {
-        return JSON.stringify(uncast(value, r("Inputs")), null, 2);
-    }
-
-    public static toConverterInformation(json: string): ConverterInformation {
-        return cast(JSON.parse(json), r("ConverterInformation"));
-    }
-
-    public static converterInformationToJson(value: ConverterInformation): string {
-        return JSON.stringify(uncast(value, r("ConverterInformation")), null, 2);
-    }
-
-    public static toSupportedTopologies(json: string): SupportedTopologies {
-        return cast(JSON.parse(json), r("SupportedTopologies"));
-    }
-
-    public static supportedTopologiesToJson(value: SupportedTopologies): string {
-        return JSON.stringify(uncast(value, r("SupportedTopologies")), null, 2);
-    }
-
-    public static toFlyback(json: string): Flyback {
-        return cast(JSON.parse(json), r("Flyback"));
-    }
-
-    public static flybackToJson(value: Flyback): string {
-        return JSON.stringify(uncast(value, r("Flyback")), null, 2);
-    }
-
-    public static toDimensionWithTolerance(json: string): DimensionWithTolerance {
-        return cast(JSON.parse(json), r("DimensionWithTolerance"));
-    }
-
-    public static dimensionWithToleranceToJson(value: DimensionWithTolerance): string {
-        return JSON.stringify(uncast(value, r("DimensionWithTolerance")), null, 2);
-    }
-
-    public static toFlybackOperatingPoint(json: string): FlybackOperatingPoint {
-        return cast(JSON.parse(json), r("FlybackOperatingPoint"));
-    }
-
-    public static flybackOperatingPointToJson(value: FlybackOperatingPoint): string {
-        return JSON.stringify(uncast(value, r("FlybackOperatingPoint")), null, 2);
-    }
-
-    public static toDesignRequirements(json: string): DesignRequirements {
-        return cast(JSON.parse(json), r("DesignRequirements"));
-    }
-
-    public static designRequirementsToJson(value: DesignRequirements): string {
-        return JSON.stringify(uncast(value, r("DesignRequirements")), null, 2);
-    }
-
-    public static toInsulationRequirements(json: string): InsulationRequirements {
-        return cast(JSON.parse(json), r("InsulationRequirements"));
-    }
-
-    public static insulationRequirementsToJson(value: InsulationRequirements): string {
-        return JSON.stringify(uncast(value, r("InsulationRequirements")), null, 2);
-    }
-
-    public static toMaximumDimensions(json: string): MaximumDimensions {
-        return cast(JSON.parse(json), r("MaximumDimensions"));
-    }
-
-    public static maximumDimensionsToJson(value: MaximumDimensions): string {
-        return JSON.stringify(uncast(value, r("MaximumDimensions")), null, 2);
-    }
-
-    public static toImpedanceAtFrequency(json: string): ImpedanceAtFrequency {
-        return cast(JSON.parse(json), r("ImpedanceAtFrequency"));
-    }
-
-    public static impedanceAtFrequencyToJson(value: ImpedanceAtFrequency): string {
-        return JSON.stringify(uncast(value, r("ImpedanceAtFrequency")), null, 2);
-    }
-
-    public static toImpedancePoint(json: string): ImpedancePoint {
-        return cast(JSON.parse(json), r("ImpedancePoint"));
-    }
-
-    public static impedancePointToJson(value: ImpedancePoint): string {
-        return JSON.stringify(uncast(value, r("ImpedancePoint")), null, 2);
-    }
-
-    public static toOperatingPoint(json: string): OperatingPoint {
-        return cast(JSON.parse(json), r("OperatingPoint"));
-    }
-
-    public static operatingPointToJson(value: OperatingPoint): string {
-        return JSON.stringify(uncast(value, r("OperatingPoint")), null, 2);
-    }
-
-    public static toOperatingConditions(json: string): OperatingConditions {
-        return cast(JSON.parse(json), r("OperatingConditions"));
-    }
-
-    public static operatingConditionsToJson(value: OperatingConditions): string {
-        return JSON.stringify(uncast(value, r("OperatingConditions")), null, 2);
-    }
-
-    public static toCooling(json: string): Cooling {
-        return cast(JSON.parse(json), r("Cooling"));
-    }
-
-    public static coolingToJson(value: Cooling): string {
-        return JSON.stringify(uncast(value, r("Cooling")), null, 2);
-    }
-
-    public static toOperatingPointExcitation(json: string): OperatingPointExcitation {
-        return cast(JSON.parse(json), r("OperatingPointExcitation"));
-    }
-
-    public static operatingPointExcitationToJson(value: OperatingPointExcitation): string {
-        return JSON.stringify(uncast(value, r("OperatingPointExcitation")), null, 2);
-    }
-
-    public static toSignalDescriptor(json: string): SignalDescriptor {
-        return cast(JSON.parse(json), r("SignalDescriptor"));
-    }
-
-    public static signalDescriptorToJson(value: SignalDescriptor): string {
-        return JSON.stringify(uncast(value, r("SignalDescriptor")), null, 2);
-    }
-
-    public static toHarmonics(json: string): Harmonics {
-        return cast(JSON.parse(json), r("Harmonics"));
-    }
-
-    public static harmonicsToJson(value: Harmonics): string {
-        return JSON.stringify(uncast(value, r("Harmonics")), null, 2);
-    }
-
-    public static toProcessed(json: string): Processed {
-        return cast(JSON.parse(json), r("Processed"));
-    }
-
-    public static processedToJson(value: Processed): string {
-        return JSON.stringify(uncast(value, r("Processed")), null, 2);
-    }
-
-    public static toWaveform(json: string): Waveform {
-        return cast(JSON.parse(json), r("Waveform"));
-    }
-
-    public static waveformToJson(value: Waveform): string {
-        return JSON.stringify(uncast(value, r("Waveform")), null, 2);
-    }
-
     public static toMagnetic(json: string): Magnetic {
         return cast(JSON.parse(json), r("Magnetic"));
-    }
-
-    public static magneticToJson(value: Magnetic): string {
-        return JSON.stringify(uncast(value, r("Magnetic")), null, 2);
     }
 
     public static toCoil(json: string): Coil {
         return cast(JSON.parse(json), r("Coil"));
     }
 
-    public static coilToJson(value: Coil): string {
-        return JSON.stringify(uncast(value, r("Coil")), null, 2);
-    }
-
-    public static toBobbin(json: string): Bobbin {
-        return cast(JSON.parse(json), r("Bobbin"));
-    }
-
-    public static bobbinToJson(value: Bobbin): string {
-        return JSON.stringify(uncast(value, r("Bobbin")), null, 2);
-    }
-
-    public static toDistributorInfo(json: string): DistributorInfo {
-        return cast(JSON.parse(json), r("DistributorInfo"));
-    }
-
-    public static distributorInfoToJson(value: DistributorInfo): string {
-        return JSON.stringify(uncast(value, r("DistributorInfo")), null, 2);
-    }
-
-    public static toBobbinFunctionalDescription(json: string): BobbinFunctionalDescription {
-        return cast(JSON.parse(json), r("BobbinFunctionalDescription"));
-    }
-
-    public static bobbinFunctionalDescriptionToJson(value: BobbinFunctionalDescription): string {
-        return JSON.stringify(uncast(value, r("BobbinFunctionalDescription")), null, 2);
-    }
-
-    public static toPinWIndingConnection(json: string): PinWIndingConnection {
-        return cast(JSON.parse(json), r("PinWIndingConnection"));
-    }
-
-    public static pinWIndingConnectionToJson(value: PinWIndingConnection): string {
-        return JSON.stringify(uncast(value, r("PinWIndingConnection")), null, 2);
-    }
-
-    public static toPinout(json: string): Pinout {
-        return cast(JSON.parse(json), r("Pinout"));
-    }
-
-    public static pinoutToJson(value: Pinout): string {
-        return JSON.stringify(uncast(value, r("Pinout")), null, 2);
-    }
-
-    public static toPin(json: string): Pin {
-        return cast(JSON.parse(json), r("Pin"));
-    }
-
-    public static pinToJson(value: Pin): string {
-        return JSON.stringify(uncast(value, r("Pin")), null, 2);
-    }
-
-    public static toManufacturerInfo(json: string): ManufacturerInfo {
-        return cast(JSON.parse(json), r("ManufacturerInfo"));
-    }
-
-    public static manufacturerInfoToJson(value: ManufacturerInfo): string {
-        return JSON.stringify(uncast(value, r("ManufacturerInfo")), null, 2);
-    }
-
-    public static toCoreBobbinProcessedDescription(json: string): CoreBobbinProcessedDescription {
-        return cast(JSON.parse(json), r("CoreBobbinProcessedDescription"));
-    }
-
-    public static coreBobbinProcessedDescriptionToJson(value: CoreBobbinProcessedDescription): string {
-        return JSON.stringify(uncast(value, r("CoreBobbinProcessedDescription")), null, 2);
-    }
-
-    public static toWindingWindowElement(json: string): WindingWindowElement {
-        return cast(JSON.parse(json), r("WindingWindowElement"));
-    }
-
-    public static windingWindowElementToJson(value: WindingWindowElement): string {
-        return JSON.stringify(uncast(value, r("WindingWindowElement")), null, 2);
-    }
-
-    public static toCoilFunctionalDescription(json: string): CoilFunctionalDescription {
-        return cast(JSON.parse(json), r("CoilFunctionalDescription"));
-    }
-
-    public static coilFunctionalDescriptionToJson(value: CoilFunctionalDescription): string {
-        return JSON.stringify(uncast(value, r("CoilFunctionalDescription")), null, 2);
-    }
-
-    public static toConnectionElement(json: string): ConnectionElement {
-        return cast(JSON.parse(json), r("ConnectionElement"));
-    }
-
-    public static connectionElementToJson(value: ConnectionElement): string {
-        return JSON.stringify(uncast(value, r("ConnectionElement")), null, 2);
-    }
-
     public static toWire(json: string): Wire {
         return cast(JSON.parse(json), r("Wire"));
-    }
-
-    public static wireToJson(value: Wire): string {
-        return JSON.stringify(uncast(value, r("Wire")), null, 2);
-    }
-
-    public static toInsulationWireCoating(json: string): InsulationWireCoating {
-        return cast(JSON.parse(json), r("InsulationWireCoating"));
-    }
-
-    public static insulationWireCoatingToJson(value: InsulationWireCoating): string {
-        return JSON.stringify(uncast(value, r("InsulationWireCoating")), null, 2);
-    }
-
-    public static toInsulationMaterial(json: string): InsulationMaterial {
-        return cast(JSON.parse(json), r("InsulationMaterial"));
-    }
-
-    public static insulationMaterialToJson(value: InsulationMaterial): string {
-        return JSON.stringify(uncast(value, r("InsulationMaterial")), null, 2);
-    }
-
-    public static toDielectricStrengthElement(json: string): DielectricStrengthElement {
-        return cast(JSON.parse(json), r("DielectricStrengthElement"));
-    }
-
-    public static dielectricStrengthElementToJson(value: DielectricStrengthElement): string {
-        return JSON.stringify(uncast(value, r("DielectricStrengthElement")), null, 2);
-    }
-
-    public static toResistivityPoint(json: string): ResistivityPoint {
-        return cast(JSON.parse(json), r("ResistivityPoint"));
-    }
-
-    public static resistivityPointToJson(value: ResistivityPoint): string {
-        return JSON.stringify(uncast(value, r("ResistivityPoint")), null, 2);
-    }
-
-    public static toWireMaterial(json: string): WireMaterial {
-        return cast(JSON.parse(json), r("WireMaterial"));
-    }
-
-    public static wireMaterialToJson(value: WireMaterial): string {
-        return JSON.stringify(uncast(value, r("WireMaterial")), null, 2);
-    }
-
-    public static toResistivity(json: string): Resistivity {
-        return cast(JSON.parse(json), r("Resistivity"));
-    }
-
-    public static resistivityToJson(value: Resistivity): string {
-        return JSON.stringify(uncast(value, r("Resistivity")), null, 2);
-    }
-
-    public static toThermalConductivityElement(json: string): ThermalConductivityElement {
-        return cast(JSON.parse(json), r("ThermalConductivityElement"));
-    }
-
-    public static thermalConductivityElementToJson(value: ThermalConductivityElement): string {
-        return JSON.stringify(uncast(value, r("ThermalConductivityElement")), null, 2);
-    }
-
-    public static toWireRound(json: string): WireRound {
-        return cast(JSON.parse(json), r("WireRound"));
-    }
-
-    public static wireRoundToJson(value: WireRound): string {
-        return JSON.stringify(uncast(value, r("WireRound")), null, 2);
-    }
-
-    public static toLayer(json: string): Layer {
-        return cast(JSON.parse(json), r("Layer"));
-    }
-
-    public static layerToJson(value: Layer): string {
-        return JSON.stringify(uncast(value, r("Layer")), null, 2);
-    }
-
-    public static toPartialWinding(json: string): PartialWinding {
-        return cast(JSON.parse(json), r("PartialWinding"));
-    }
-
-    public static partialWindingToJson(value: PartialWinding): string {
-        return JSON.stringify(uncast(value, r("PartialWinding")), null, 2);
-    }
-
-    public static toSection(json: string): Section {
-        return cast(JSON.parse(json), r("Section"));
-    }
-
-    public static sectionToJson(value: Section): string {
-        return JSON.stringify(uncast(value, r("Section")), null, 2);
-    }
-
-    public static toTurn(json: string): Turn {
-        return cast(JSON.parse(json), r("Turn"));
-    }
-
-    public static turnToJson(value: Turn): string {
-        return JSON.stringify(uncast(value, r("Turn")), null, 2);
-    }
-
-    public static toMagneticCore(json: string): MagneticCore {
-        return cast(JSON.parse(json), r("MagneticCore"));
-    }
-
-    public static magneticCoreToJson(value: MagneticCore): string {
-        return JSON.stringify(uncast(value, r("MagneticCore")), null, 2);
-    }
-
-    public static toCoreFunctionalDescription(json: string): CoreFunctionalDescription {
-        return cast(JSON.parse(json), r("CoreFunctionalDescription"));
-    }
-
-    public static coreFunctionalDescriptionToJson(value: CoreFunctionalDescription): string {
-        return JSON.stringify(uncast(value, r("CoreFunctionalDescription")), null, 2);
-    }
-
-    public static toCoreGap(json: string): CoreGap {
-        return cast(JSON.parse(json), r("CoreGap"));
-    }
-
-    public static coreGapToJson(value: CoreGap): string {
-        return JSON.stringify(uncast(value, r("CoreGap")), null, 2);
-    }
-
-    public static toCoreMaterial(json: string): CoreMaterial {
-        return cast(JSON.parse(json), r("CoreMaterial"));
-    }
-
-    public static coreMaterialToJson(value: CoreMaterial): string {
-        return JSON.stringify(uncast(value, r("CoreMaterial")), null, 2);
-    }
-
-    public static toBhCycleElement(json: string): BhCycleElement {
-        return cast(JSON.parse(json), r("BhCycleElement"));
-    }
-
-    public static bhCycleElementToJson(value: BhCycleElement): string {
-        return JSON.stringify(uncast(value, r("BhCycleElement")), null, 2);
-    }
-
-    public static toMassLossesPoint(json: string): MassLossesPoint {
-        return cast(JSON.parse(json), r("MassLossesPoint"));
-    }
-
-    public static massLossesPointToJson(value: MassLossesPoint): string {
-        return JSON.stringify(uncast(value, r("MassLossesPoint")), null, 2);
-    }
-
-    public static toMagneticsCoreLossesMethodData(json: string): MagneticsCoreLossesMethodData {
-        return cast(JSON.parse(json), r("MagneticsCoreLossesMethodData"));
-    }
-
-    public static magneticsCoreLossesMethodDataToJson(value: MagneticsCoreLossesMethodData): string {
-        return JSON.stringify(uncast(value, r("MagneticsCoreLossesMethodData")), null, 2);
-    }
-
-    public static toPermeabilities(json: string): Permeabilities {
-        return cast(JSON.parse(json), r("Permeabilities"));
-    }
-
-    public static permeabilitiesToJson(value: Permeabilities): string {
-        return JSON.stringify(uncast(value, r("Permeabilities")), null, 2);
-    }
-
-    public static toPermeabilityPoint(json: string): PermeabilityPoint {
-        return cast(JSON.parse(json), r("PermeabilityPoint"));
-    }
-
-    public static permeabilityPointToJson(value: PermeabilityPoint): string {
-        return JSON.stringify(uncast(value, r("PermeabilityPoint")), null, 2);
-    }
-
-    public static toInitialPermeabilitModifier(json: string): InitialPermeabilitModifier {
-        return cast(JSON.parse(json), r("InitialPermeabilitModifier"));
-    }
-
-    public static initialPermeabilitModifierToJson(value: InitialPermeabilitModifier): string {
-        return JSON.stringify(uncast(value, r("InitialPermeabilitModifier")), null, 2);
-    }
-
-    public static toFrequencyFactor(json: string): FrequencyFactor {
-        return cast(JSON.parse(json), r("FrequencyFactor"));
-    }
-
-    public static frequencyFactorToJson(value: FrequencyFactor): string {
-        return JSON.stringify(uncast(value, r("FrequencyFactor")), null, 2);
-    }
-
-    public static toMagneticFieldDcBiasFactor(json: string): MagneticFieldDcBiasFactor {
-        return cast(JSON.parse(json), r("MagneticFieldDcBiasFactor"));
-    }
-
-    public static magneticFieldDcBiasFactorToJson(value: MagneticFieldDcBiasFactor): string {
-        return JSON.stringify(uncast(value, r("MagneticFieldDcBiasFactor")), null, 2);
-    }
-
-    public static toMagneticFluxDensityFactor(json: string): MagneticFluxDensityFactor {
-        return cast(JSON.parse(json), r("MagneticFluxDensityFactor"));
-    }
-
-    public static magneticFluxDensityFactorToJson(value: MagneticFluxDensityFactor): string {
-        return JSON.stringify(uncast(value, r("MagneticFluxDensityFactor")), null, 2);
-    }
-
-    public static toTemperatureFactor(json: string): TemperatureFactor {
-        return cast(JSON.parse(json), r("TemperatureFactor"));
-    }
-
-    public static temperatureFactorToJson(value: TemperatureFactor): string {
-        return JSON.stringify(uncast(value, r("TemperatureFactor")), null, 2);
-    }
-
-    public static toComplexPermeabilityData(json: string): ComplexPermeabilityData {
-        return cast(JSON.parse(json), r("ComplexPermeabilityData"));
-    }
-
-    public static complexPermeabilityDataToJson(value: ComplexPermeabilityData): string {
-        return JSON.stringify(uncast(value, r("ComplexPermeabilityData")), null, 2);
-    }
-
-    public static toVolumetricLossesPoint(json: string): VolumetricLossesPoint {
-        return cast(JSON.parse(json), r("VolumetricLossesPoint"));
-    }
-
-    public static volumetricLossesPointToJson(value: VolumetricLossesPoint): string {
-        return JSON.stringify(uncast(value, r("VolumetricLossesPoint")), null, 2);
-    }
-
-    public static toCoreLossesMethodData(json: string): CoreLossesMethodData {
-        return cast(JSON.parse(json), r("CoreLossesMethodData"));
-    }
-
-    public static coreLossesMethodDataToJson(value: CoreLossesMethodData): string {
-        return JSON.stringify(uncast(value, r("CoreLossesMethodData")), null, 2);
-    }
-
-    public static toRoshenAdditionalCoefficients(json: string): RoshenAdditionalCoefficients {
-        return cast(JSON.parse(json), r("RoshenAdditionalCoefficients"));
-    }
-
-    public static roshenAdditionalCoefficientsToJson(value: RoshenAdditionalCoefficients): string {
-        return JSON.stringify(uncast(value, r("RoshenAdditionalCoefficients")), null, 2);
-    }
-
-    public static toLossFactorPoint(json: string): LossFactorPoint {
-        return cast(JSON.parse(json), r("LossFactorPoint"));
-    }
-
-    public static lossFactorPointToJson(value: LossFactorPoint): string {
-        return JSON.stringify(uncast(value, r("LossFactorPoint")), null, 2);
-    }
-
-    public static toSteinmetzCoreLossesMethodRangeDatum(json: string): SteinmetzCoreLossesMethodRangeDatum {
-        return cast(JSON.parse(json), r("SteinmetzCoreLossesMethodRangeDatum"));
-    }
-
-    public static steinmetzCoreLossesMethodRangeDatumToJson(value: SteinmetzCoreLossesMethodRangeDatum): string {
-        return JSON.stringify(uncast(value, r("SteinmetzCoreLossesMethodRangeDatum")), null, 2);
-    }
-
-    public static toCoreShape(json: string): CoreShape {
-        return cast(JSON.parse(json), r("CoreShape"));
-    }
-
-    public static coreShapeToJson(value: CoreShape): string {
-        return JSON.stringify(uncast(value, r("CoreShape")), null, 2);
-    }
-
-    public static toCoreGeometricalDescriptionElement(json: string): CoreGeometricalDescriptionElement {
-        return cast(JSON.parse(json), r("CoreGeometricalDescriptionElement"));
-    }
-
-    public static coreGeometricalDescriptionElementToJson(value: CoreGeometricalDescriptionElement): string {
-        return JSON.stringify(uncast(value, r("CoreGeometricalDescriptionElement")), null, 2);
-    }
-
-    public static toMachining(json: string): Machining {
-        return cast(JSON.parse(json), r("Machining"));
-    }
-
-    public static machiningToJson(value: Machining): string {
-        return JSON.stringify(uncast(value, r("Machining")), null, 2);
-    }
-
-    public static toCoreProcessedDescription(json: string): CoreProcessedDescription {
-        return cast(JSON.parse(json), r("CoreProcessedDescription"));
-    }
-
-    public static coreProcessedDescriptionToJson(value: CoreProcessedDescription): string {
-        return JSON.stringify(uncast(value, r("CoreProcessedDescription")), null, 2);
-    }
-
-    public static toColumnElement(json: string): ColumnElement {
-        return cast(JSON.parse(json), r("ColumnElement"));
-    }
-
-    public static columnElementToJson(value: ColumnElement): string {
-        return JSON.stringify(uncast(value, r("ColumnElement")), null, 2);
-    }
-
-    public static toEffectiveParameters(json: string): EffectiveParameters {
-        return cast(JSON.parse(json), r("EffectiveParameters"));
-    }
-
-    public static effectiveParametersToJson(value: EffectiveParameters): string {
-        return JSON.stringify(uncast(value, r("EffectiveParameters")), null, 2);
-    }
-
-    public static toMagneticManufacturerInfo(json: string): MagneticManufacturerInfo {
-        return cast(JSON.parse(json), r("MagneticManufacturerInfo"));
-    }
-
-    public static magneticManufacturerInfoToJson(value: MagneticManufacturerInfo): string {
-        return JSON.stringify(uncast(value, r("MagneticManufacturerInfo")), null, 2);
-    }
-
-    public static toMagneticManufacturerRecommendations(json: string): MagneticManufacturerRecommendations {
-        return cast(JSON.parse(json), r("MagneticManufacturerRecommendations"));
-    }
-
-    public static magneticManufacturerRecommendationsToJson(value: MagneticManufacturerRecommendations): string {
-        return JSON.stringify(uncast(value, r("MagneticManufacturerRecommendations")), null, 2);
-    }
-
-    public static toOutputs(json: string): Outputs {
-        return cast(JSON.parse(json), r("Outputs"));
-    }
-
-    public static outputsToJson(value: Outputs): string {
-        return JSON.stringify(uncast(value, r("Outputs")), null, 2);
-    }
-
-    public static toCoreLossesOutput(json: string): CoreLossesOutput {
-        return cast(JSON.parse(json), r("CoreLossesOutput"));
-    }
-
-    public static coreLossesOutputToJson(value: CoreLossesOutput): string {
-        return JSON.stringify(uncast(value, r("CoreLossesOutput")), null, 2);
-    }
-
-    public static toImpedanceOutput(json: string): ImpedanceOutput {
-        return cast(JSON.parse(json), r("ImpedanceOutput"));
-    }
-
-    public static impedanceOutputToJson(value: ImpedanceOutput): string {
-        return JSON.stringify(uncast(value, r("ImpedanceOutput")), null, 2);
-    }
-
-    public static toImpedanceMatrixAtFrequency(json: string): ImpedanceMatrixAtFrequency {
-        return cast(JSON.parse(json), r("ImpedanceMatrixAtFrequency"));
-    }
-
-    public static impedanceMatrixAtFrequencyToJson(value: ImpedanceMatrixAtFrequency): string {
-        return JSON.stringify(uncast(value, r("ImpedanceMatrixAtFrequency")), null, 2);
-    }
-
-    public static toInductanceMatrixAtFrequency(json: string): InductanceMatrixAtFrequency {
-        return cast(JSON.parse(json), r("InductanceMatrixAtFrequency"));
-    }
-
-    public static inductanceMatrixAtFrequencyToJson(value: InductanceMatrixAtFrequency): string {
-        return JSON.stringify(uncast(value, r("InductanceMatrixAtFrequency")), null, 2);
-    }
-
-    public static toResistanceMatrixAtFrequency(json: string): ResistanceMatrixAtFrequency {
-        return cast(JSON.parse(json), r("ResistanceMatrixAtFrequency"));
-    }
-
-    public static resistanceMatrixAtFrequencyToJson(value: ResistanceMatrixAtFrequency): string {
-        return JSON.stringify(uncast(value, r("ResistanceMatrixAtFrequency")), null, 2);
-    }
-
-    public static toDielectricVoltage(json: string): DielectricVoltage {
-        return cast(JSON.parse(json), r("DielectricVoltage"));
-    }
-
-    public static dielectricVoltageToJson(value: DielectricVoltage): string {
-        return JSON.stringify(uncast(value, r("DielectricVoltage")), null, 2);
-    }
-
-    public static toInsulationCoordinationOutput(json: string): InsulationCoordinationOutput {
-        return cast(JSON.parse(json), r("InsulationCoordinationOutput"));
-    }
-
-    public static insulationCoordinationOutputToJson(value: InsulationCoordinationOutput): string {
-        return JSON.stringify(uncast(value, r("InsulationCoordinationOutput")), null, 2);
-    }
-
-    public static toLeakageInductanceOutput(json: string): LeakageInductanceOutput {
-        return cast(JSON.parse(json), r("LeakageInductanceOutput"));
-    }
-
-    public static leakageInductanceOutputToJson(value: LeakageInductanceOutput): string {
-        return JSON.stringify(uncast(value, r("LeakageInductanceOutput")), null, 2);
-    }
-
-    public static toMagnetizingInductanceOutput(json: string): MagnetizingInductanceOutput {
-        return cast(JSON.parse(json), r("MagnetizingInductanceOutput"));
-    }
-
-    public static magnetizingInductanceOutputToJson(value: MagnetizingInductanceOutput): string {
-        return JSON.stringify(uncast(value, r("MagnetizingInductanceOutput")), null, 2);
-    }
-
-    public static toAirGapReluctanceOutput(json: string): AirGapReluctanceOutput {
-        return cast(JSON.parse(json), r("AirGapReluctanceOutput"));
-    }
-
-    public static airGapReluctanceOutputToJson(value: AirGapReluctanceOutput): string {
-        return JSON.stringify(uncast(value, r("AirGapReluctanceOutput")), null, 2);
-    }
-
-    public static toStrayCapacitanceOutput(json: string): StrayCapacitanceOutput {
-        return cast(JSON.parse(json), r("StrayCapacitanceOutput"));
-    }
-
-    public static strayCapacitanceOutputToJson(value: StrayCapacitanceOutput): string {
-        return JSON.stringify(uncast(value, r("StrayCapacitanceOutput")), null, 2);
-    }
-
-    public static toSixCapacitorNetworkPerWinding(json: string): SixCapacitorNetworkPerWinding {
-        return cast(JSON.parse(json), r("SixCapacitorNetworkPerWinding"));
-    }
-
-    public static sixCapacitorNetworkPerWindingToJson(value: SixCapacitorNetworkPerWinding): string {
-        return JSON.stringify(uncast(value, r("SixCapacitorNetworkPerWinding")), null, 2);
-    }
-
-    public static toTripoleCapacitancePerWinding(json: string): TripoleCapacitancePerWinding {
-        return cast(JSON.parse(json), r("TripoleCapacitancePerWinding"));
-    }
-
-    public static tripoleCapacitancePerWindingToJson(value: TripoleCapacitancePerWinding): string {
-        return JSON.stringify(uncast(value, r("TripoleCapacitancePerWinding")), null, 2);
-    }
-
-    public static toTemperatureOutput(json: string): TemperatureOutput {
-        return cast(JSON.parse(json), r("TemperatureOutput"));
-    }
-
-    public static temperatureOutputToJson(value: TemperatureOutput): string {
-        return JSON.stringify(uncast(value, r("TemperatureOutput")), null, 2);
-    }
-
-    public static toTemperaturePoint(json: string): TemperaturePoint {
-        return cast(JSON.parse(json), r("TemperaturePoint"));
-    }
-
-    public static temperaturePointToJson(value: TemperaturePoint): string {
-        return JSON.stringify(uncast(value, r("TemperaturePoint")), null, 2);
-    }
-
-    public static toWindingLossesOutput(json: string): WindingLossesOutput {
-        return cast(JSON.parse(json), r("WindingLossesOutput"));
-    }
-
-    public static windingLossesOutputToJson(value: WindingLossesOutput): string {
-        return JSON.stringify(uncast(value, r("WindingLossesOutput")), null, 2);
-    }
-
-    public static toWindingLossesPerElement(json: string): WindingLossesPerElement {
-        return cast(JSON.parse(json), r("WindingLossesPerElement"));
-    }
-
-    public static windingLossesPerElementToJson(value: WindingLossesPerElement): string {
-        return JSON.stringify(uncast(value, r("WindingLossesPerElement")), null, 2);
-    }
-
-    public static toOhmicLosses(json: string): OhmicLosses {
-        return cast(JSON.parse(json), r("OhmicLosses"));
-    }
-
-    public static ohmicLossesToJson(value: OhmicLosses): string {
-        return JSON.stringify(uncast(value, r("OhmicLosses")), null, 2);
-    }
-
-    public static toWindingLossElement(json: string): WindingLossElement {
-        return cast(JSON.parse(json), r("WindingLossElement"));
-    }
-
-    public static windingLossElementToJson(value: WindingLossElement): string {
-        return JSON.stringify(uncast(value, r("WindingLossElement")), null, 2);
-    }
-
-    public static toWindingWindowCurrentFieldOutput(json: string): WindingWindowCurrentFieldOutput {
-        return cast(JSON.parse(json), r("WindingWindowCurrentFieldOutput"));
-    }
-
-    public static windingWindowCurrentFieldOutputToJson(value: WindingWindowCurrentFieldOutput): string {
-        return JSON.stringify(uncast(value, r("WindingWindowCurrentFieldOutput")), null, 2);
-    }
-
-    public static toField(json: string): Field {
-        return cast(JSON.parse(json), r("Field"));
-    }
-
-    public static fieldToJson(value: Field): string {
-        return JSON.stringify(uncast(value, r("Field")), null, 2);
-    }
-
-    public static toFieldPoint(json: string): FieldPoint {
-        return cast(JSON.parse(json), r("FieldPoint"));
-    }
-
-    public static fieldPointToJson(value: FieldPoint): string {
-        return JSON.stringify(uncast(value, r("FieldPoint")), null, 2);
-    }
-
-    public static toWindingWindowMagneticStrengthFieldOutput(json: string): WindingWindowMagneticStrengthFieldOutput {
-        return cast(JSON.parse(json), r("WindingWindowMagneticStrengthFieldOutput"));
-    }
-
-    public static windingWindowMagneticStrengthFieldOutputToJson(value: WindingWindowMagneticStrengthFieldOutput): string {
-        return JSON.stringify(uncast(value, r("WindingWindowMagneticStrengthFieldOutput")), null, 2);
-    }
-
-    public static toComplexField(json: string): ComplexField {
-        return cast(JSON.parse(json), r("ComplexField"));
-    }
-
-    public static complexFieldToJson(value: ComplexField): string {
-        return JSON.stringify(uncast(value, r("ComplexField")), null, 2);
-    }
-
-    public static toComplexFieldPoint(json: string): ComplexFieldPoint {
-        return cast(JSON.parse(json), r("ComplexFieldPoint"));
-    }
-
-    public static complexFieldPointToJson(value: ComplexFieldPoint): string {
-        return JSON.stringify(uncast(value, r("ComplexFieldPoint")), null, 2);
     }
 }
 
@@ -4271,6 +6431,8 @@ const typeMap: any = {
     "Mas": o([
         { json: "inputs", js: "inputs", typ: r("Inputs") },
         { json: "magnetic", js: "magnetic", typ: r("Magnetic") },
+        { json: "masConformance", js: "masConformance", typ: u(undefined, r("MASConformance")) },
+        { json: "masVersion", js: "masVersion", typ: u(undefined, "") },
         { json: "outputs", js: "outputs", typ: a(r("Outputs")) },
     ], "any"),
     "Inputs": o([
@@ -4282,7 +6444,235 @@ const typeMap: any = {
         { json: "supportedTopologies", js: "supportedTopologies", typ: u(undefined, r("SupportedTopologies")) },
     ], "any"),
     "SupportedTopologies": o([
+        { json: "asymmetricHalfBridge", js: "asymmetricHalfBridge", typ: u(undefined, r("AsymmetricHalfBridge")) },
+        { json: "boost", js: "boost", typ: u(undefined, r("Boost")) },
+        { json: "buck", js: "buck", typ: u(undefined, r("Buck")) },
+        { json: "cllcResonant", js: "cllcResonant", typ: u(undefined, r("CllcResonant")) },
+        { json: "clllcResonant", js: "clllcResonant", typ: u(undefined, r("ClllcResonant")) },
+        { json: "commonModeChoke", js: "commonModeChoke", typ: u(undefined, r("CommonModeChoke")) },
+        { json: "cuk", js: "cuk", typ: u(undefined, r("Cuk")) },
+        { json: "currentTransformer", js: "currentTransformer", typ: u(undefined, r("CurrentTransformer")) },
+        { json: "differentialModeChoke", js: "differentialModeChoke", typ: u(undefined, r("DifferentialModeChoke")) },
+        { json: "dualActiveBridge", js: "dualActiveBridge", typ: u(undefined, r("DualActiveBridge")) },
         { json: "flyback", js: "flyback", typ: u(undefined, r("Flyback")) },
+        { json: "forward", js: "forward", typ: u(undefined, r("Forward")) },
+        { json: "fourSwitchBuckBoost", js: "fourSwitchBuckBoost", typ: u(undefined, r("FourSwitchBuckBoost")) },
+        { json: "isolatedBuck", js: "isolatedBuck", typ: u(undefined, r("IsolatedBuck")) },
+        { json: "isolatedBuckBoost", js: "isolatedBuckBoost", typ: u(undefined, r("IsolatedBuckBoost")) },
+        { json: "llcResonant", js: "llcResonant", typ: u(undefined, r("LlcResonant")) },
+        { json: "phaseShiftedFullBridge", js: "phaseShiftedFullBridge", typ: u(undefined, r("PhaseShiftedFullBridge")) },
+        { json: "phaseShiftedHalfBridge", js: "phaseShiftedHalfBridge", typ: u(undefined, r("PhaseShiftedHalfBridge")) },
+        { json: "powerFactorCorrection", js: "powerFactorCorrection", typ: u(undefined, r("PowerFactorCorrection")) },
+        { json: "pushPull", js: "pushPull", typ: u(undefined, r("PushPull")) },
+        { json: "sepic", js: "sepic", typ: u(undefined, r("Sepic")) },
+        { json: "seriesResonant", js: "seriesResonant", typ: u(undefined, r("SeriesResonant")) },
+        { json: "viennaRectifier", js: "viennaRectifier", typ: u(undefined, r("ViennaRectifier")) },
+        { json: "weinberg", js: "weinberg", typ: u(undefined, r("Weinberg")) },
+        { json: "zeta", js: "zeta", typ: u(undefined, r("Zeta")) },
+    ], "any"),
+    "AsymmetricHalfBridge": o([
+        { json: "dcBlockingCapacitance", js: "dcBlockingCapacitance", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "inputVoltageStepRange", js: "inputVoltageStepRange", typ: u(undefined, 3.14) },
+        { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, 3.14) },
+        { json: "magnetizingInductance", js: "magnetizingInductance", typ: u(undefined, 3.14) },
+        { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("AhbOperatingPoint")) },
+        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
+        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("AhbRectifierType")) },
+        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
+    ], "any"),
+    "DimensionWithTolerance": o([
+        { json: "excludeMaximum", js: "excludeMaximum", typ: u(undefined, true) },
+        { json: "excludeMinimum", js: "excludeMinimum", typ: u(undefined, true) },
+        { json: "maximum", js: "maximum", typ: u(undefined, 3.14) },
+        { json: "minimum", js: "minimum", typ: u(undefined, 3.14) },
+        { json: "nominal", js: "nominal", typ: u(undefined, 3.14) },
+        { json: "unit", js: "unit", typ: u(undefined, "") },
+    ], "any"),
+    "AhbOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "dutyCycle", js: "dutyCycle", typ: 3.14 },
+    ], "any"),
+    "Boost": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "TopologyExcitation": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+    ], "any"),
+    "Buck": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "CllcResonant": o([
+        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
+        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("LlcBridgeType")) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "integratedResonantInductor1", js: "integratedResonantInductor1", typ: u(undefined, true) },
+        { json: "integratedResonantInductor2", js: "integratedResonantInductor2", typ: u(undefined, true) },
+        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
+        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("CllcOperatingPoint")) },
+        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
+        { json: "resonantCapacitorRatio", js: "resonantCapacitorRatio", typ: u(undefined, 3.14) },
+        { json: "resonantInductorRatio", js: "resonantInductorRatio", typ: u(undefined, 3.14) },
+        { json: "symmetricDesign", js: "symmetricDesign", typ: u(undefined, true) },
+    ], "any"),
+    "CllcOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "powerFlow", js: "powerFlow", typ: r("CllcPowerFlow") },
+    ], "any"),
+    "ClllcResonant": o([
+        { json: "bridgeTypePrimary", js: "bridgeTypePrimary", typ: u(undefined, r("LlcBridgeType")) },
+        { json: "bridgeTypeSecondary", js: "bridgeTypeSecondary", typ: u(undefined, r("LlcBridgeType")) },
+        { json: "controlStrategy", js: "controlStrategy", typ: u(undefined, r("ClllcControlStrategy")) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "highVoltageBusVoltage", js: "highVoltageBusVoltage", typ: r("DimensionWithTolerance") },
+        { json: "inductanceRatioK", js: "inductanceRatioK", typ: u(undefined, 3.14) },
+        { json: "integratedResonantInductors", js: "integratedResonantInductors", typ: u(undefined, true) },
+        { json: "lowVoltageBusVoltage", js: "lowVoltageBusVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
+        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("ClllcOperatingPoint")) },
+        { json: "primaryResonantCapacitance", js: "primaryResonantCapacitance", typ: u(undefined, 3.14) },
+        { json: "primaryResonantFrequency", js: "primaryResonantFrequency", typ: u(undefined, 3.14) },
+        { json: "primarySeriesInductance", js: "primarySeriesInductance", typ: u(undefined, 3.14) },
+        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
+        { json: "tankSymmetryRatio", js: "tankSymmetryRatio", typ: u(undefined, 3.14) },
+    ], "any"),
+    "ClllcOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "phaseShiftDegrees", js: "phaseShiftDegrees", typ: u(undefined, 3.14) },
+        { json: "powerFlowDirection", js: "powerFlowDirection", typ: u(undefined, r("CllcPowerFlow")) },
+    ], "any"),
+    "CommonModeChoke": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "lineFrequency", js: "lineFrequency", typ: 3.14 },
+        { json: "lineImpedance", js: "lineImpedance", typ: u(undefined, 3.14) },
+        { json: "maximumDcResistance", js: "maximumDcResistance", typ: u(undefined, 3.14) },
+        { json: "maximumLeakageInductance", js: "maximumLeakageInductance", typ: u(undefined, 3.14) },
+        { json: "minimumImpedance", js: "minimumImpedance", typ: a(r("ImpedanceAtFrequency")) },
+        { json: "operatingCurrent", js: "operatingCurrent", typ: 3.14 },
+        { json: "operatingVoltage", js: "operatingVoltage", typ: r("DimensionWithTolerance") },
+        { json: "targetInsertionLoss", js: "targetInsertionLoss", typ: u(undefined, a(r("InsertionLossAtFrequency"))) },
+    ], "any"),
+    "ImpedanceAtFrequency": o([
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "impedance", js: "impedance", typ: r("ImpedancePoint") },
+    ], false),
+    "ImpedancePoint": o([
+        { json: "imaginaryPart", js: "imaginaryPart", typ: u(undefined, 3.14) },
+        { json: "magnitude", js: "magnitude", typ: 3.14 },
+        { json: "phase", js: "phase", typ: u(undefined, 3.14) },
+        { json: "realPart", js: "realPart", typ: u(undefined, 3.14) },
+    ], "any"),
+    "InsertionLossAtFrequency": o([
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "insertionLoss", js: "insertionLoss", typ: 3.14 },
+    ], "any"),
+    "Cuk": o([
+        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
+        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
+        { json: "couplingCapacitanceSecondary", js: "couplingCapacitanceSecondary", typ: u(undefined, 3.14) },
+        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "isolated", js: "isolated", typ: u(undefined, true) },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("CukOperatingPoint")) },
+        { json: "synchronous", js: "synchronous", typ: u(undefined, true) },
+        { json: "turnsRatio", js: "turnsRatio", typ: u(undefined, 3.14) },
+    ], "any"),
+    "CukOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "powerFlow", js: "powerFlow", typ: u(undefined, r("CllcPowerFlow")) },
+    ], "any"),
+    "CurrentTransformer": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "burdenResistor", js: "burdenResistor", typ: 3.14 },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: 3.14 },
+        { json: "maximumPrimaryCurrentPeak", js: "maximumPrimaryCurrentPeak", typ: 3.14 },
+        { json: "waveformLabel", js: "waveformLabel", typ: r("WaveformLabel") },
+    ], "any"),
+    "DifferentialModeChoke": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "configuration", js: "configuration", typ: u(undefined, r("Configuration")) },
+        { json: "filterCapacitance", js: "filterCapacitance", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "lineFrequency", js: "lineFrequency", typ: 3.14 },
+        { json: "maximumCoreTemperatureRise", js: "maximumCoreTemperatureRise", typ: u(undefined, 3.14) },
+        { json: "maximumDcResistance", js: "maximumDcResistance", typ: u(undefined, 3.14) },
+        { json: "minimumImpedance", js: "minimumImpedance", typ: u(undefined, a(r("ImpedanceAtFrequency"))) },
+        { json: "minimumInductance", js: "minimumInductance", typ: u(undefined, 3.14) },
+        { json: "operatingCurrent", js: "operatingCurrent", typ: 3.14 },
+        { json: "peakCurrent", js: "peakCurrent", typ: u(undefined, 3.14) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
+        { json: "targetAttenuation", js: "targetAttenuation", typ: u(undefined, a(r("AttenuationAtFrequency"))) },
+    ], "any"),
+    "AttenuationAtFrequency": o([
+        { json: "attenuation", js: "attenuation", typ: 3.14 },
+        { json: "frequency", js: "frequency", typ: 3.14 },
+    ], "any"),
+    "DualActiveBridge": o([
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("DabOperatingPoint")) },
+        { json: "perSecondaryLeakage", js: "perSecondaryLeakage", typ: u(undefined, a(3.14)) },
+        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
+        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
+    ], "any"),
+    "DabOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "innerPhaseShift1", js: "innerPhaseShift1", typ: u(undefined, 3.14) },
+        { json: "innerPhaseShift2", js: "innerPhaseShift2", typ: u(undefined, 3.14) },
+        { json: "innerPhaseShift3", js: "innerPhaseShift3", typ: u(undefined, 3.14) },
+        { json: "modulationType", js: "modulationType", typ: u(undefined, r("ModulationType")) },
     ], "any"),
     "Flyback": o([
         { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
@@ -4293,21 +6683,199 @@ const typeMap: any = {
         { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: u(undefined, 3.14) },
         { json: "operatingPoints", js: "operatingPoints", typ: a(r("FlybackOperatingPoint")) },
     ], "any"),
-    "DimensionWithTolerance": o([
-        { json: "excludeMaximum", js: "excludeMaximum", typ: u(undefined, true) },
-        { json: "excludeMinimum", js: "excludeMinimum", typ: u(undefined, true) },
-        { json: "maximum", js: "maximum", typ: u(undefined, 3.14) },
-        { json: "minimum", js: "minimum", typ: u(undefined, 3.14) },
-        { json: "nominal", js: "nominal", typ: u(undefined, 3.14) },
-    ], "any"),
     "FlybackOperatingPoint": o([
         { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
         { json: "mode", js: "mode", typ: u(undefined, r("FlybackModes")) },
         { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
         { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
         { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
     ], "any"),
+    "Forward": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "dutyCycle", js: "dutyCycle", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "FourSwitchBuckBoost": o([
+        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
+        { json: "controlMode", js: "controlMode", typ: u(undefined, r("ControlMode")) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "outputVoltageRippleRatio", js: "outputVoltageRippleRatio", typ: u(undefined, 3.14) },
+        { json: "phaseCount", js: "phaseCount", typ: u(undefined, 0) },
+        { json: "transitionHysteresisRatio", js: "transitionHysteresisRatio", typ: u(undefined, 3.14) },
+        { json: "transitionMode", js: "transitionMode", typ: u(undefined, r("TransitionMode")) },
+    ], "any"),
+    "IsolatedBuck": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "IsolatedBuckBoost": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "LlcResonant": o([
+        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("LlcBridgeType")) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inductanceRatio", js: "inductanceRatio", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "integratedResonantInductor", js: "integratedResonantInductor", typ: u(undefined, true) },
+        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
+        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
+        { json: "resonantCapacitance", js: "resonantCapacitance", typ: u(undefined, 3.14) },
+        { json: "resonantFrequency", js: "resonantFrequency", typ: u(undefined, 3.14) },
+        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
+    ], "any"),
+    "PhaseShiftedFullBridge": o([
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumPhaseShift", js: "maximumPhaseShift", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("PsfbOperatingPoint")) },
+        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
+        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("BRectifierType")) },
+        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
+        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
+    ], "any"),
+    "PsfbOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "phaseShift", js: "phaseShift", typ: 3.14 },
+    ], "any"),
+    "PhaseShiftedHalfBridge": o([
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumPhaseShift", js: "maximumPhaseShift", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("PshbOperatingPoint")) },
+        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
+        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("BRectifierType")) },
+        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
+        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
+    ], "any"),
+    "PshbOperatingPoint": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
+        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
+        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
+        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "phaseShift", js: "phaseShift", typ: 3.14 },
+    ], "any"),
+    "PowerFactorCorrection": o([
+        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
+        { json: "bulkCapacitance", js: "bulkCapacitance", typ: u(undefined, 3.14) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "lineFrequency", js: "lineFrequency", typ: u(undefined, 3.14) },
+        { json: "maximumCoreTemperatureRise", js: "maximumCoreTemperatureRise", typ: u(undefined, 3.14) },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "mode", js: "mode", typ: u(undefined, r("PfcModes")) },
+        { json: "numberOfPhases", js: "numberOfPhases", typ: u(undefined, 0) },
+        { json: "outputPower", js: "outputPower", typ: 3.14 },
+        { json: "outputVoltage", js: "outputVoltage", typ: 3.14 },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "topologyVariant", js: "topologyVariant", typ: u(undefined, r("PfcTopologyVariants")) },
+        { json: "wideBandgapSwitch", js: "wideBandgapSwitch", typ: u(undefined, true) },
+    ], "any"),
+    "PushPull": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "dutyCycle", js: "dutyCycle", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumDrainSourceVoltage", js: "maximumDrainSourceVoltage", typ: u(undefined, 3.14) },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+    ], "any"),
+    "Sepic": o([
+        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
+        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
+    ], "any"),
+    "SeriesResonant": o([
+        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("SrcBridgeType")) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "isolated", js: "isolated", typ: u(undefined, true) },
+        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
+        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
+        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("SrcRectifierType")) },
+        { json: "resonantCapacitance", js: "resonantCapacitance", typ: u(undefined, 3.14) },
+        { json: "resonantFrequency", js: "resonantFrequency", typ: u(undefined, 3.14) },
+        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
+        { json: "useSynchronousRectifier", js: "useSynchronousRectifier", typ: u(undefined, true) },
+    ], "any"),
+    "ViennaRectifier": o([
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "lineFrequency", js: "lineFrequency", typ: u(undefined, 3.14) },
+        { json: "lineToLineVoltage", js: "lineToLineVoltage", typ: r("DimensionWithTolerance") },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "outputDcVoltage", js: "outputDcVoltage", typ: 3.14 },
+        { json: "phaseCount", js: "phaseCount", typ: u(undefined, 0) },
+        { json: "powerFactor", js: "powerFactor", typ: u(undefined, 3.14) },
+        { json: "samplingStrategy", js: "samplingStrategy", typ: u(undefined, r("ViennaSamplingStrategy")) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
+        { json: "switchType", js: "switchType", typ: u(undefined, r("ViennaSwitchType")) },
+        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
+        { json: "viennaVariant", js: "viennaVariant", typ: u(undefined, r("ViennaVariant")) },
+    ], "any"),
+    "Weinberg": o([
+        { json: "couplingCoefficientInput", js: "couplingCoefficientInput", typ: u(undefined, 3.14) },
+        { json: "couplingCoefficientMain", js: "couplingCoefficientMain", typ: u(undefined, 3.14) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
+        { json: "variant", js: "variant", typ: u(undefined, r("Variant")) },
+    ], "any"),
+    "Zeta": o([
+        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
+        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
+        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
+        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
+        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
+        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
+        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
+        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
+    ], "any"),
     "DesignRequirements": o([
+        { json: "application", js: "application", typ: u(undefined, r("Application")) },
         { json: "insulation", js: "insulation", typ: u(undefined, r("InsulationRequirements")) },
         { json: "isolationSides", js: "isolationSides", typ: u(undefined, a(r("IsolationSide"))) },
         { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, a(r("DimensionWithTolerance"))) },
@@ -4319,6 +6887,7 @@ const typeMap: any = {
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "operatingTemperature", js: "operatingTemperature", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "strayCapacitance", js: "strayCapacitance", typ: u(undefined, a(r("DimensionWithTolerance"))) },
+        { json: "subApplication", js: "subApplication", typ: u(undefined, r("SubApplication")) },
         { json: "terminalType", js: "terminalType", typ: u(undefined, a(r("ConnectionType"))) },
         { json: "topology", js: "topology", typ: u(undefined, r("Topologies")) },
         { json: "turnsRatios", js: "turnsRatios", typ: a(r("DimensionWithTolerance")) },
@@ -4326,7 +6895,7 @@ const typeMap: any = {
     ], "any"),
     "InsulationRequirements": o([
         { json: "altitude", js: "altitude", typ: u(undefined, r("DimensionWithTolerance")) },
-        { json: "cti", js: "cti", typ: u(undefined, r("Cti")) },
+        { json: "cti", js: "cti", typ: u(undefined, r("CTI")) },
         { json: "insulationType", js: "insulationType", typ: u(undefined, r("InsulationType")) },
         { json: "mainSupplyVoltage", js: "mainSupplyVoltage", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "overvoltageCategory", js: "overvoltageCategory", typ: u(undefined, r("OvervoltageCategory")) },
@@ -4337,16 +6906,6 @@ const typeMap: any = {
         { json: "depth", js: "depth", typ: u(undefined, 3.14) },
         { json: "height", js: "height", typ: u(undefined, 3.14) },
         { json: "width", js: "width", typ: u(undefined, 3.14) },
-    ], "any"),
-    "ImpedanceAtFrequency": o([
-        { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "impedance", js: "impedance", typ: r("ImpedancePoint") },
-    ], "any"),
-    "ImpedancePoint": o([
-        { json: "imaginaryPart", js: "imaginaryPart", typ: u(undefined, 3.14) },
-        { json: "magnitude", js: "magnitude", typ: 3.14 },
-        { json: "phase", js: "phase", typ: u(undefined, 3.14) },
-        { json: "realPart", js: "realPart", typ: u(undefined, 3.14) },
     ], "any"),
     "OperatingPoint": o([
         { json: "conditions", js: "conditions", typ: r("OperatingConditions") },
@@ -4395,10 +6954,12 @@ const typeMap: any = {
         { json: "dutyCycle", js: "dutyCycle", typ: u(undefined, 3.14) },
         { json: "effectiveFrequency", js: "effectiveFrequency", typ: u(undefined, 3.14) },
         { json: "label", js: "label", typ: r("WaveformLabel") },
+        { json: "negativePeak", js: "negativePeak", typ: u(undefined, 3.14) },
         { json: "offset", js: "offset", typ: 3.14 },
         { json: "peak", js: "peak", typ: u(undefined, 3.14) },
         { json: "peakToPeak", js: "peakToPeak", typ: u(undefined, 3.14) },
         { json: "phase", js: "phase", typ: u(undefined, 3.14) },
+        { json: "positivePeak", js: "positivePeak", typ: u(undefined, 3.14) },
         { json: "rms", js: "rms", typ: u(undefined, 3.14) },
         { json: "thd", js: "thd", typ: u(undefined, 3.14) },
     ], "any"),
@@ -4416,8 +6977,9 @@ const typeMap: any = {
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
     ], "any"),
     "Coil": o([
-        { json: "bobbin", js: "bobbin", typ: u(r("Bobbin"), "") },
+        { json: "bobbin", js: "bobbin", typ: u(a(u(r("Bobbin"), "")), r("Bobbin"), "") },
         { json: "functionalDescription", js: "functionalDescription", typ: a(r("CoilFunctionalDescription")) },
+        { json: "groupsDescription", js: "groupsDescription", typ: u(undefined, a(r("Group"))) },
         { json: "layersDescription", js: "layersDescription", typ: u(undefined, a(r("Layer"))) },
         { json: "sectionsDescription", js: "sectionsDescription", typ: u(undefined, a(r("Section"))) },
         { json: "turnsDescription", js: "turnsDescription", typ: u(undefined, a(r("Turn"))) },
@@ -4430,7 +6992,7 @@ const typeMap: any = {
         { json: "processedDescription", js: "processedDescription", typ: u(undefined, r("CoreBobbinProcessedDescription")) },
     ], "any"),
     "DistributorInfo": o([
-        { json: "cost", js: "cost", typ: u(undefined, 3.14) },
+        { json: "cost", js: "cost", typ: u(undefined, r("Cost")) },
         { json: "country", js: "country", typ: u(undefined, "") },
         { json: "distributedArea", js: "distributedArea", typ: u(undefined, "") },
         { json: "email", js: "email", typ: u(undefined, "") },
@@ -4440,27 +7002,67 @@ const typeMap: any = {
         { json: "quantity", js: "quantity", typ: 3.14 },
         { json: "reference", js: "reference", typ: "" },
         { json: "updatedAt", js: "updatedAt", typ: u(undefined, "") },
-    ], "any"),
+    ], false),
+    "Cost": o([
+        { json: "currency", js: "currency", typ: "" },
+        { json: "value", js: "value", typ: 3.14 },
+    ], false),
     "BobbinFunctionalDescription": o([
-        { json: "connections", js: "connections", typ: u(undefined, a(r("PinWIndingConnection"))) },
+        { json: "connections", js: "connections", typ: u(undefined, a(r("PinWindingConnection"))) },
         { json: "dimensions", js: "dimensions", typ: m(u(3.14, r("DimensionWithTolerance"))) },
         { json: "family", js: "family", typ: r("BobbinFamily") },
         { json: "familySubtype", js: "familySubtype", typ: u(undefined, "") },
+        { json: "material", js: "material", typ: u(undefined, u(r("InsulationMaterial"), "")) },
         { json: "pinout", js: "pinout", typ: u(undefined, r("Pinout")) },
         { json: "shape", js: "shape", typ: "" },
         { json: "type", js: "type", typ: r("FunctionalDescriptionType") },
     ], "any"),
-    "PinWIndingConnection": o([
+    "PinWindingConnection": o([
         { json: "pin", js: "pin", typ: u(undefined, "") },
         { json: "winding", js: "winding", typ: u(undefined, "") },
     ], "any"),
+    "InsulationMaterial": o([
+        { json: "aliases", js: "aliases", typ: u(undefined, a("")) },
+        { json: "composition", js: "composition", typ: u(undefined, "") },
+        { json: "dielectricStrength", js: "dielectricStrength", typ: a(r("DielectricStrengthElement")) },
+        { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("ManufacturerInfo")) },
+        { json: "meltingPoint", js: "meltingPoint", typ: u(undefined, 3.14) },
+        { json: "name", js: "name", typ: "" },
+        { json: "relativePermittivity", js: "relativePermittivity", typ: u(undefined, 3.14) },
+        { json: "resistivity", js: "resistivity", typ: u(undefined, a(r("ResistivityPoint"))) },
+        { json: "specificHeat", js: "specificHeat", typ: u(undefined, 3.14) },
+        { json: "surfaceResistivity", js: "surfaceResistivity", typ: u(undefined, a(r("ResistivityPoint"))) },
+        { json: "temperatureClass", js: "temperatureClass", typ: u(undefined, u(3.14, r("TemperatureClassEnum"))) },
+        { json: "thermalConductivity", js: "thermalConductivity", typ: u(undefined, 3.14) },
+    ], "any"),
+    "DielectricStrengthElement": o([
+        { json: "humidity", js: "humidity", typ: u(undefined, 3.14) },
+        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "thickness", js: "thickness", typ: u(undefined, 3.14) },
+        { json: "value", js: "value", typ: 3.14 },
+    ], "any"),
+    "ManufacturerInfo": o([
+        { json: "cost", js: "cost", typ: u(undefined, r("Cost")) },
+        { json: "datasheetUrl", js: "datasheetUrl", typ: u(undefined, "") },
+        { json: "description", js: "description", typ: u(undefined, "") },
+        { json: "family", js: "family", typ: u(undefined, "") },
+        { json: "irdi", js: "irdi", typ: u(undefined, "") },
+        { json: "name", js: "name", typ: "" },
+        { json: "orderCode", js: "orderCode", typ: u(undefined, "") },
+        { json: "reference", js: "reference", typ: u(undefined, "") },
+        { json: "status", js: "status", typ: u(undefined, r("Status")) },
+    ], "any"),
+    "ResistivityPoint": o([
+        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "value", js: "value", typ: 3.14 },
+    ], false),
     "Pinout": o([
         { json: "centralPitch", js: "centralPitch", typ: u(undefined, 3.14) },
         { json: "numberPins", js: "numberPins", typ: 0 },
         { json: "numberPinsPerRow", js: "numberPinsPerRow", typ: u(undefined, a(0)) },
         { json: "numberRows", js: "numberRows", typ: u(undefined, 0) },
         { json: "pinDescription", js: "pinDescription", typ: r("Pin") },
-        { json: "pitch", js: "pitch", typ: a(3.14) },
+        { json: "pitch", js: "pitch", typ: u(a(3.14), 3.14) },
         { json: "rowDistance", js: "rowDistance", typ: 3.14 },
     ], "any"),
     "Pin": o([
@@ -4470,15 +7072,6 @@ const typeMap: any = {
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
         { json: "shape", js: "shape", typ: r("PinShape") },
         { json: "type", js: "type", typ: r("PinDescriptionType") },
-    ], "any"),
-    "ManufacturerInfo": o([
-        { json: "cost", js: "cost", typ: u(undefined, "") },
-        { json: "datasheetUrl", js: "datasheetUrl", typ: u(undefined, "") },
-        { json: "family", js: "family", typ: u(undefined, "") },
-        { json: "name", js: "name", typ: "" },
-        { json: "orderCode", js: "orderCode", typ: u(undefined, "") },
-        { json: "reference", js: "reference", typ: u(undefined, "") },
-        { json: "status", js: "status", typ: u(undefined, r("Status")) },
     ], "any"),
     "CoreBobbinProcessedDescription": o([
         { json: "columnDepth", js: "columnDepth", typ: 3.14 },
@@ -4508,13 +7101,15 @@ const typeMap: any = {
         { json: "numberParallels", js: "numberParallels", typ: 0 },
         { json: "numberTurns", js: "numberTurns", typ: 0 },
         { json: "wire", js: "wire", typ: u(r("Wire"), "") },
+        { json: "woundWith", js: "woundWith", typ: u(undefined, a("")) },
     ], "any"),
     "ConnectionElement": o([
+        { json: "direction", js: "direction", typ: u(undefined, r("Direction")) },
         { json: "length", js: "length", typ: u(undefined, 3.14) },
         { json: "metric", js: "metric", typ: u(undefined, 0) },
         { json: "pinName", js: "pinName", typ: u(undefined, "") },
         { json: "type", js: "type", typ: u(undefined, r("ConnectionType")) },
-    ], "any"),
+    ], false),
     "Wire": o([
         { json: "conductingDiameter", js: "conductingDiameter", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "material", js: "material", typ: u(undefined, u(r("WireMaterial"), "")) },
@@ -4533,6 +7128,7 @@ const typeMap: any = {
         { json: "outerWidth", js: "outerWidth", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "edgeRadius", js: "edgeRadius", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "strand", js: "strand", typ: u(undefined, u(r("WireRound"), "")) },
+        { json: "twistPitch", js: "twistPitch", typ: u(undefined, r("DimensionWithTolerance")) },
     ], "any"),
     "InsulationWireCoating": o([
         { json: "breakdownVoltage", js: "breakdownVoltage", typ: u(undefined, 3.14) },
@@ -4543,29 +7139,6 @@ const typeMap: any = {
         { json: "thickness", js: "thickness", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "thicknessLayers", js: "thicknessLayers", typ: u(undefined, 3.14) },
         { json: "type", js: "type", typ: u(undefined, r("InsulationWireCoatingType")) },
-    ], "any"),
-    "InsulationMaterial": o([
-        { json: "aliases", js: "aliases", typ: u(undefined, a("")) },
-        { json: "composition", js: "composition", typ: u(undefined, "") },
-        { json: "dielectricStrength", js: "dielectricStrength", typ: a(r("DielectricStrengthElement")) },
-        { json: "manufacturer", js: "manufacturer", typ: u(undefined, "") },
-        { json: "meltingPoint", js: "meltingPoint", typ: u(undefined, 3.14) },
-        { json: "name", js: "name", typ: "" },
-        { json: "relativePermittivity", js: "relativePermittivity", typ: u(undefined, 3.14) },
-        { json: "resistivity", js: "resistivity", typ: u(undefined, a(r("ResistivityPoint"))) },
-        { json: "specificHeat", js: "specificHeat", typ: u(undefined, 3.14) },
-        { json: "temperatureClass", js: "temperatureClass", typ: u(undefined, 3.14) },
-        { json: "thermalConductivity", js: "thermalConductivity", typ: u(undefined, 3.14) },
-    ], "any"),
-    "DielectricStrengthElement": o([
-        { json: "humidity", js: "humidity", typ: u(undefined, 3.14) },
-        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
-        { json: "thickness", js: "thickness", typ: u(undefined, 3.14) },
-        { json: "value", js: "value", typ: 3.14 },
-    ], "any"),
-    "ResistivityPoint": o([
-        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
-        { json: "value", js: "value", typ: 3.14 },
     ], "any"),
     "WireMaterial": o([
         { json: "name", js: "name", typ: "" },
@@ -4595,6 +7168,20 @@ const typeMap: any = {
         { json: "standardName", js: "standardName", typ: u(undefined, "") },
         { json: "type", js: "type", typ: r("WireType") },
     ], "any"),
+    "Group": o([
+        { json: "coordinates", js: "coordinates", typ: a(3.14) },
+        { json: "coordinateSystem", js: "coordinateSystem", typ: u(undefined, r("CoordinateSystem")) },
+        { json: "dimensions", js: "dimensions", typ: a(3.14) },
+        { json: "name", js: "name", typ: "" },
+        { json: "partialWindings", js: "partialWindings", typ: a(r("PartialWinding")) },
+        { json: "sectionsOrientation", js: "sectionsOrientation", typ: r("WindingOrientation") },
+        { json: "type", js: "type", typ: r("WiringTechnology") },
+    ], "any"),
+    "PartialWinding": o([
+        { json: "connections", js: "connections", typ: u(undefined, a(r("ConnectionElement"))) },
+        { json: "parallelsProportion", js: "parallelsProportion", typ: a(3.14) },
+        { json: "winding", js: "winding", typ: "" },
+    ], false),
     "Layer": o([
         { json: "additionalCoordinates", js: "additionalCoordinates", typ: u(undefined, a(a(3.14))) },
         { json: "coordinates", js: "coordinates", typ: a(3.14) },
@@ -4610,29 +7197,34 @@ const typeMap: any = {
         { json: "type", js: "type", typ: r("ElectricalType") },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, r("WindingStyle")) },
     ], "any"),
-    "PartialWinding": o([
-        { json: "connections", js: "connections", typ: u(undefined, a(r("ConnectionElement"))) },
-        { json: "parallelsProportion", js: "parallelsProportion", typ: a(3.14) },
-        { json: "winding", js: "winding", typ: "" },
-    ], "any"),
     "Section": o([
         { json: "coordinates", js: "coordinates", typ: a(3.14) },
         { json: "coordinateSystem", js: "coordinateSystem", typ: u(undefined, r("CoordinateSystem")) },
         { json: "dimensions", js: "dimensions", typ: a(3.14) },
         { json: "fillingFactor", js: "fillingFactor", typ: u(undefined, 3.14) },
+        { json: "group", js: "group", typ: u(undefined, "") },
         { json: "layersAlignment", js: "layersAlignment", typ: u(undefined, r("CoilAlignment")) },
         { json: "layersOrientation", js: "layersOrientation", typ: r("WindingOrientation") },
-        { json: "margin", js: "margin", typ: u(undefined, a(3.14)) },
+        { json: "margin", js: "margin", typ: u(undefined, u(a(3.14), r("MarginInfo"))) },
         { json: "name", js: "name", typ: "" },
+        { json: "numberLayers", js: "numberLayers", typ: u(undefined, 3.14) },
         { json: "partialWindings", js: "partialWindings", typ: a(r("PartialWinding")) },
         { json: "type", js: "type", typ: r("ElectricalType") },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, r("WindingStyle")) },
     ], "any"),
+    "MarginInfo": o([
+        { json: "bottomOrRightWidth", js: "bottomOrRightWidth", typ: 3.14 },
+        { json: "insulationMaterial", js: "insulationMaterial", typ: u(undefined, u(r("InsulationMaterial"), "")) },
+        { json: "layerThickness", js: "layerThickness", typ: 3.14 },
+        { json: "numberLayers", js: "numberLayers", typ: 0 },
+        { json: "topOrLeftWidth", js: "topOrLeftWidth", typ: 3.14 },
+    ], false),
     "Turn": o([
         { json: "additionalCoordinates", js: "additionalCoordinates", typ: u(undefined, a(a(3.14))) },
         { json: "angle", js: "angle", typ: u(undefined, 3.14) },
         { json: "coordinates", js: "coordinates", typ: a(3.14) },
         { json: "coordinateSystem", js: "coordinateSystem", typ: u(undefined, r("CoordinateSystem")) },
+        { json: "crossSectionalShape", js: "crossSectionalShape", typ: u(undefined, r("TurnCrossSectionalShape")) },
         { json: "dimensions", js: "dimensions", typ: u(undefined, a(3.14)) },
         { json: "layer", js: "layer", typ: u(undefined, "") },
         { json: "length", js: "length", typ: 3.14 },
@@ -4670,6 +7262,8 @@ const typeMap: any = {
         { json: "type", js: "type", typ: r("GapType") },
     ], "any"),
     "CoreMaterial": o([
+        { json: "alternatives", js: "alternatives", typ: u(undefined, a("")) },
+        { json: "application", js: "application", typ: u(undefined, a(r("Application"))) },
         { json: "bhCycle", js: "bhCycle", typ: u(undefined, a(r("BhCycleElement"))) },
         { json: "coerciveForce", js: "coerciveForce", typ: u(undefined, a(r("BhCycleElement"))) },
         { json: "commercialName", js: "commercialName", typ: u(undefined, "") },
@@ -4679,11 +7273,12 @@ const typeMap: any = {
         { json: "heatCapacity", js: "heatCapacity", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "heatConductivity", js: "heatConductivity", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: r("ManufacturerInfo") },
-        { json: "massLosses", js: "massLosses", typ: u(undefined, m(a(u(a(r("MassLossesPoint")), r("MagneticsCoreLossesMethodData"))))) },
-        { json: "material", js: "material", typ: r("MaterialEnum") },
+        { json: "massLosses", js: "massLosses", typ: u(undefined, m(a(u(a(r("MassLossesPoint")), r("MagnetecCoreLossesMethodData"))))) },
+        { json: "material", js: "material", typ: r("MaterialType") },
         { json: "materialComposition", js: "materialComposition", typ: u(undefined, r("MaterialComposition")) },
         { json: "name", js: "name", typ: "" },
         { json: "permeability", js: "permeability", typ: r("Permeabilities") },
+        { json: "recommendations", js: "recommendations", typ: u(undefined, r("CoreMaterialRecommendations")) },
         { json: "remanence", js: "remanence", typ: u(undefined, a(r("BhCycleElement"))) },
         { json: "resistivity", js: "resistivity", typ: a(r("ResistivityPoint")) },
         { json: "saturation", js: "saturation", typ: a(r("BhCycleElement")) },
@@ -4694,20 +7289,22 @@ const typeMap: any = {
         { json: "magneticField", js: "magneticField", typ: 3.14 },
         { json: "magneticFluxDensity", js: "magneticFluxDensity", typ: 3.14 },
         { json: "temperature", js: "temperature", typ: 3.14 },
-    ], "any"),
+    ], false),
     "MassLossesPoint": o([
         { json: "magneticFluxDensity", js: "magneticFluxDensity", typ: r("OperatingPointExcitation") },
         { json: "origin", js: "origin", typ: "" },
         { json: "temperature", js: "temperature", typ: 3.14 },
         { json: "value", js: "value", typ: 3.14 },
     ], "any"),
-    "MagneticsCoreLossesMethodData": o([
+    "MagnetecCoreLossesMethodData": o([
         { json: "method", js: "method", typ: r("MassCoreLossesMethodType") },
     ], "any"),
     "Permeabilities": o([
         { json: "amplitude", js: "amplitude", typ: u(undefined, u(a(r("PermeabilityPoint")), r("PermeabilityPoint"))) },
         { json: "complex", js: "complex", typ: u(undefined, r("ComplexPermeabilityData")) },
+        { json: "incremental", js: "incremental", typ: u(undefined, u(a(r("PermeabilityPoint")), r("PermeabilityPoint"))) },
         { json: "initial", js: "initial", typ: u(a(r("PermeabilityPoint")), r("PermeabilityPoint")) },
+        { json: "reversible", js: "reversible", typ: u(undefined, u(a(r("PermeabilityPoint")), r("PermeabilityPoint"))) },
     ], "any"),
     "PermeabilityPoint": o([
         { json: "frequency", js: "frequency", typ: u(undefined, 3.14) },
@@ -4756,6 +7353,14 @@ const typeMap: any = {
     "ComplexPermeabilityData": o([
         { json: "imaginary", js: "imaginary", typ: u(a(r("PermeabilityPoint")), r("PermeabilityPoint")) },
         { json: "real", js: "real", typ: u(a(r("PermeabilityPoint")), r("PermeabilityPoint")) },
+    ], "any"),
+    "CoreMaterialRecommendations": o([
+        { json: "maximumFrequency", js: "maximumFrequency", typ: u(undefined, 3.14) },
+        { json: "maximumMagneticFluxDensity", js: "maximumMagneticFluxDensity", typ: u(undefined, 3.14) },
+        { json: "maximumOperatingTemperature", js: "maximumOperatingTemperature", typ: u(undefined, 3.14) },
+        { json: "minimumFrequency", js: "minimumFrequency", typ: u(undefined, 3.14) },
+        { json: "typicalApplications", js: "typicalApplications", typ: u(undefined, a("")) },
+        { json: "typicalTopologies", js: "typicalTopologies", typ: u(undefined, a("")) },
     ], "any"),
     "VolumetricLossesPoint": o([
         { json: "magneticFluxDensity", js: "magneticFluxDensity", typ: r("OperatingPointExcitation") },
@@ -4846,32 +7451,101 @@ const typeMap: any = {
         { json: "minimumArea", js: "minimumArea", typ: 3.14 },
     ], "any"),
     "MagneticManufacturerInfo": o([
-        { json: "cost", js: "cost", typ: u(undefined, "") },
+        { json: "cost", js: "cost", typ: u(undefined, r("Cost")) },
         { json: "datasheetUrl", js: "datasheetUrl", typ: u(undefined, "") },
+        { json: "description", js: "description", typ: u(undefined, "") },
         { json: "family", js: "family", typ: u(undefined, "") },
+        { json: "irdi", js: "irdi", typ: u(undefined, "") },
         { json: "name", js: "name", typ: "" },
-        { json: "recommendations", js: "recommendations", typ: u(undefined, r("MagneticManufacturerRecommendations")) },
+        { json: "orderCode", js: "orderCode", typ: u(undefined, "") },
         { json: "reference", js: "reference", typ: u(undefined, "") },
         { json: "status", js: "status", typ: u(undefined, r("Status")) },
+        { json: "datasheetInfo", js: "datasheetInfo", typ: u(undefined, r("DatasheetInfo")) },
     ], "any"),
-    "MagneticManufacturerRecommendations": o([
+    "DatasheetInfo": o([
+        { json: "application", js: "application", typ: u(undefined, r("MagneticDatasheetApplication")) },
+        { json: "business", js: "business", typ: u(undefined, r("Business")) },
+        { json: "electrical", js: "electrical", typ: u(undefined, r("Electrical")) },
+        { json: "mechanical", js: "mechanical", typ: u(undefined, r("Mechanical")) },
+        { json: "part", js: "part", typ: u(undefined, r("Part")) },
+        { json: "thermal", js: "thermal", typ: u(undefined, r("Thermal")) },
+    ], false),
+    "MagneticDatasheetApplication": o([
+        { json: "auxiliaryVoltage", js: "auxiliaryVoltage", typ: u(undefined, 3.14) },
+        { json: "inputVoltage", js: "inputVoltage", typ: u(undefined, u(3.14, r("DimensionWithTolerance"))) },
+        { json: "outputCurrents", js: "outputCurrents", typ: u(undefined, a(3.14)) },
+        { json: "outputVoltages", js: "outputVoltages", typ: u(undefined, a(3.14)) },
+        { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
+    ], false),
+    "Business": o([
+        { json: "packaging", js: "packaging", typ: u(undefined, "") },
+    ], false),
+    "Electrical": o([
+        { json: "commonModeFilter", js: "commonModeFilter", typ: u(undefined, r("CommonModeFilter")) },
+        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
+        { json: "dcResistance", js: "dcResistance", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "dcResistances", js: "dcResistances", typ: u(undefined, a(r("DcResistance"))) },
+        { json: "impedancePoints", js: "impedancePoints", typ: u(undefined, a(r("DatasheetImpedancePoint"))) },
+        { json: "inductance", js: "inductance", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "insulationResistance", js: "insulationResistance", typ: u(undefined, 3.14) },
+        { json: "insulationTestVoltageAC", js: "insulationTestVoltageAC", typ: u(undefined, 3.14) },
+        { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "maximumImpedance", js: "maximumImpedance", typ: u(undefined, 3.14) },
         { json: "ratedCurrent", js: "ratedCurrent", typ: u(undefined, 3.14) },
-        { json: "ratedCurrentTemperatureRise", js: "ratedCurrentTemperatureRise", typ: u(undefined, 3.14) },
-        { json: "ratedMagneticFlux", js: "ratedMagneticFlux", typ: u(undefined, 3.14) },
-        { json: "saturationCurrent", js: "saturationCurrent", typ: u(undefined, 3.14) },
-        { json: "saturationCurrentInductanceDrop", js: "saturationCurrentInductanceDrop", typ: u(undefined, 3.14) },
-    ], "any"),
+        { json: "ratedVoltageAC", js: "ratedVoltageAC", typ: u(undefined, 3.14) },
+        { json: "ratedVoltageDC", js: "ratedVoltageDC", typ: u(undefined, 3.14) },
+        { json: "saturationCurrentPeak", js: "saturationCurrentPeak", typ: u(undefined, 3.14) },
+        { json: "selfResonantFrequency", js: "selfResonantFrequency", typ: u(undefined, 3.14) },
+        { json: "turnsRatio", js: "turnsRatio", typ: u(undefined, 3.14) },
+    ], false),
+    "CommonModeFilter": o([
+        { json: "attenuation", js: "attenuation", typ: u(undefined, 3.14) },
+        { json: "attenuationTestCondition", js: "attenuationTestCondition", typ: u(undefined, "") },
+        { json: "cutOffFrequency", js: "cutOffFrequency", typ: u(undefined, 3.14) },
+    ], false),
+    "DcResistance": o([
+        { json: "resistance", js: "resistance", typ: 3.14 },
+        { json: "winding", js: "winding", typ: "" },
+    ], false),
+    "DatasheetImpedancePoint": o([
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "impedance", js: "impedance", typ: r("ImpedancePoint") },
+    ], false),
+    "Mechanical": o([
+        { json: "diameter", js: "diameter", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "height", js: "height", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "length", js: "length", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "mounting", js: "mounting", typ: u(undefined, r("ConnectionType")) },
+        { json: "width", js: "width", typ: u(undefined, r("DimensionWithTolerance")) },
+    ], false),
+    "Part": o([
+        { json: "automotive", js: "automotive", typ: u(undefined, true) },
+        { json: "caseCode", js: "caseCode", typ: u(undefined, "") },
+        { json: "description", js: "description", typ: u(undefined, "") },
+        { json: "family", js: "family", typ: u(undefined, "") },
+        { json: "insulationGrade", js: "insulationGrade", typ: u(undefined, r("InsulationType")) },
+        { json: "matchCode", js: "matchCode", typ: u(undefined, "") },
+        { json: "material", js: "material", typ: u(undefined, "") },
+        { json: "numberOfWindings", js: "numberOfWindings", typ: u(undefined, 0) },
+        { json: "partNumber", js: "partNumber", typ: u(undefined, "") },
+        { json: "shielded", js: "shielded", typ: u(undefined, true) },
+        { json: "windingStyle", js: "windingStyle", typ: u(undefined, "") },
+    ], false),
+    "Thermal": o([
+        { json: "operatingTemperature", js: "operatingTemperature", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "temperatureRise", js: "temperatureRise", typ: u(undefined, 3.14) },
+        { json: "thermalResistance", js: "thermalResistance", typ: u(undefined, 3.14) },
+    ], false),
     "Outputs": o([
         { json: "coreLosses", js: "coreLosses", typ: u(undefined, r("CoreLossesOutput")) },
         { json: "impedance", js: "impedance", typ: u(undefined, r("ImpedanceOutput")) },
+        { json: "inductance", js: "inductance", typ: u(undefined, r("InductanceOutput")) },
         { json: "insulation", js: "insulation", typ: u(undefined, a(r("DielectricVoltage"))) },
         { json: "insulationCoordination", js: "insulationCoordination", typ: u(undefined, r("InsulationCoordinationOutput")) },
-        { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, r("LeakageInductanceOutput")) },
-        { json: "magnetizingInductance", js: "magnetizingInductance", typ: u(undefined, r("MagnetizingInductanceOutput")) },
         { json: "strayCapacitance", js: "strayCapacitance", typ: u(undefined, a(r("StrayCapacitanceOutput"))) },
         { json: "temperature", js: "temperature", typ: u(undefined, r("TemperatureOutput")) },
         { json: "windingLosses", js: "windingLosses", typ: u(undefined, r("WindingLossesOutput")) },
-        { json: "windingWindowCurrentDensityField", js: "windingWindowCurrentDensityField", typ: u(undefined, r("WindingWindowCurrentFieldOutput")) },
+        { json: "windingWindowCurrentDensityField", js: "windingWindowCurrentDensityField", typ: u(undefined, r("WindingWindowCurrentDensityFieldOutput")) },
         { json: "windingWindowCurrentField", js: "windingWindowCurrentField", typ: u(undefined, r("WindingWindowCurrentFieldOutput")) },
         { json: "windingWindowMagneticStrengthField", js: "windingWindowMagneticStrengthField", typ: u(undefined, r("WindingWindowMagneticStrengthFieldOutput")) },
     ], "any"),
@@ -4883,28 +7557,62 @@ const typeMap: any = {
         { json: "massLosses", js: "massLosses", typ: u(undefined, 3.14) },
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "temperature", js: "temperature", typ: 3.14 },
         { json: "volumetricLosses", js: "volumetricLosses", typ: u(undefined, 3.14) },
     ], "any"),
     "ImpedanceOutput": o([
-        { json: "impedanceMatrix", js: "impedanceMatrix", typ: u(undefined, a(r("ImpedanceMatrixAtFrequency"))) },
-        { json: "inductanceMatrix", js: "inductanceMatrix", typ: a(r("InductanceMatrixAtFrequency")) },
+        { json: "impedanceMatrix", js: "impedanceMatrix", typ: u(undefined, a(r("ComplexMatrixAtFrequency"))) },
+        { json: "inductanceMatrix", js: "inductanceMatrix", typ: a(r("ScalarMatrixAtFrequency")) },
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "resistanceMatrix", js: "resistanceMatrix", typ: a(r("ResistanceMatrixAtFrequency")) },
+        { json: "resistanceMatrix", js: "resistanceMatrix", typ: a(r("ScalarMatrixAtFrequency")) },
     ], "any"),
-    "ImpedanceMatrixAtFrequency": o([
+    "ComplexMatrixAtFrequency": o([
         { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "magnitude", js: "magnitude", typ: a(a(r("DimensionWithTolerance"))) },
-        { json: "phase", js: "phase", typ: a(a(r("DimensionWithTolerance"))) },
+        { json: "magnitude", js: "magnitude", typ: m(m(r("DimensionWithTolerance"))) },
+        { json: "phase", js: "phase", typ: m(m(r("DimensionWithTolerance"))) },
     ], "any"),
-    "InductanceMatrixAtFrequency": o([
+    "ScalarMatrixAtFrequency": o([
         { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "magnitude", js: "magnitude", typ: a(a(r("DimensionWithTolerance"))) },
+        { json: "magnitude", js: "magnitude", typ: m(m(r("DimensionWithTolerance"))) },
     ], "any"),
-    "ResistanceMatrixAtFrequency": o([
-        { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "magnitude", js: "magnitude", typ: a(a(r("DimensionWithTolerance"))) },
+    "InductanceOutput": o([
+        { json: "couplingCoefficientsMatrix", js: "couplingCoefficientsMatrix", typ: u(undefined, a(r("ScalarMatrixAtFrequency"))) },
+        { json: "inductanceMatrix", js: "inductanceMatrix", typ: u(undefined, a(r("ScalarMatrixAtFrequency"))) },
+        { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, r("LeakageInductanceOutput")) },
+        { json: "magnetizingInductance", js: "magnetizingInductance", typ: r("MagnetizingInductanceOutput") },
+    ], "any"),
+    "LeakageInductanceOutput": o([
+        { json: "leakageInductancePerWinding", js: "leakageInductancePerWinding", typ: a(r("DimensionWithTolerance")) },
+        { json: "methodUsed", js: "methodUsed", typ: "" },
+        { json: "origin", js: "origin", typ: r("ResultOrigin") },
+    ], "any"),
+    "MagnetizingInductanceOutput": o([
+        { json: "coreReluctance", js: "coreReluctance", typ: 3.14 },
+        { json: "gappingReluctance", js: "gappingReluctance", typ: u(undefined, 3.14) },
+        { json: "magnetizingInductance", js: "magnetizingInductance", typ: r("DimensionWithTolerance") },
+        { json: "maximumFringingFactor", js: "maximumFringingFactor", typ: u(undefined, 3.14) },
+        { json: "maximumMagneticEnergyCore", js: "maximumMagneticEnergyCore", typ: u(undefined, 3.14) },
+        { json: "maximumStorableMagneticEnergyGapping", js: "maximumStorableMagneticEnergyGapping", typ: u(undefined, 3.14) },
+        { json: "measurementCondition", js: "measurementCondition", typ: u(undefined, r("InductanceMeasurementCondition")) },
+        { json: "methodUsed", js: "methodUsed", typ: "" },
+        { json: "origin", js: "origin", typ: r("ResultOrigin") },
+        { json: "reluctancePerGap", js: "reluctancePerGap", typ: u(undefined, a(r("AirGapReluctanceOutput"))) },
+        { json: "ungappedCoreReluctance", js: "ungappedCoreReluctance", typ: u(undefined, 3.14) },
+    ], "any"),
+    "InductanceMeasurementCondition": o([
+        { json: "currentRms", js: "currentRms", typ: u(undefined, 3.14) },
+        { json: "dcBiasCurrent", js: "dcBiasCurrent", typ: u(undefined, 3.14) },
+        { json: "frequency", js: "frequency", typ: u(undefined, 3.14) },
+        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "voltageRms", js: "voltageRms", typ: u(undefined, 3.14) },
+    ], false),
+    "AirGapReluctanceOutput": o([
+        { json: "fringingFactor", js: "fringingFactor", typ: 3.14 },
+        { json: "maximumStorableMagneticEnergy", js: "maximumStorableMagneticEnergy", typ: 3.14 },
+        { json: "methodUsed", js: "methodUsed", typ: "" },
+        { json: "origin", js: "origin", typ: r("ResultOrigin") },
+        { json: "reluctance", js: "reluctance", typ: 3.14 },
     ], "any"),
     "DielectricVoltage": o([
         { json: "duration", js: "duration", typ: u(undefined, 3.14) },
@@ -4921,51 +7629,33 @@ const typeMap: any = {
         { json: "withstandVoltageDuration", js: "withstandVoltageDuration", typ: u(undefined, 3.14) },
         { json: "withstandVoltageType", js: "withstandVoltageType", typ: u(undefined, r("VoltageType")) },
     ], "any"),
-    "LeakageInductanceOutput": o([
-        { json: "leakageInductancePerWinding", js: "leakageInductancePerWinding", typ: a(r("DimensionWithTolerance")) },
-        { json: "methodUsed", js: "methodUsed", typ: "" },
-        { json: "origin", js: "origin", typ: r("ResultOrigin") },
-    ], "any"),
-    "MagnetizingInductanceOutput": o([
-        { json: "coreReluctance", js: "coreReluctance", typ: 3.14 },
-        { json: "gappingReluctance", js: "gappingReluctance", typ: u(undefined, 3.14) },
-        { json: "magnetizingInductance", js: "magnetizingInductance", typ: r("DimensionWithTolerance") },
-        { json: "maximumFringingFactor", js: "maximumFringingFactor", typ: u(undefined, 3.14) },
-        { json: "maximumMagneticEnergyCore", js: "maximumMagneticEnergyCore", typ: u(undefined, 3.14) },
-        { json: "maximumStorableMagneticEnergyGapping", js: "maximumStorableMagneticEnergyGapping", typ: u(undefined, 3.14) },
-        { json: "methodUsed", js: "methodUsed", typ: "" },
-        { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "reluctancePerGap", js: "reluctancePerGap", typ: u(undefined, a(r("AirGapReluctanceOutput"))) },
-        { json: "ungappedCoreReluctance", js: "ungappedCoreReluctance", typ: u(undefined, 3.14) },
-    ], "any"),
-    "AirGapReluctanceOutput": o([
-        { json: "fringingFactor", js: "fringingFactor", typ: 3.14 },
-        { json: "maximumStorableMagneticEnergy", js: "maximumStorableMagneticEnergy", typ: 3.14 },
-        { json: "methodUsed", js: "methodUsed", typ: "" },
-        { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "reluctance", js: "reluctance", typ: 3.14 },
-    ], "any"),
     "StrayCapacitanceOutput": o([
+        { json: "capacitanceAmongTurns", js: "capacitanceAmongTurns", typ: u(undefined, m(m(3.14))) },
+        { json: "capacitanceAmongWindings", js: "capacitanceAmongWindings", typ: u(undefined, m(m(3.14))) },
+        { json: "capacitanceMatrix", js: "capacitanceMatrix", typ: u(undefined, m(m(r("ScalarMatrixAtFrequency")))) },
+        { json: "electricEnergyAmongTurns", js: "electricEnergyAmongTurns", typ: u(undefined, m(m(3.14))) },
+        { json: "maxwellCapacitanceMatrix", js: "maxwellCapacitanceMatrix", typ: u(undefined, a(r("ScalarMatrixAtFrequency"))) },
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "sixCapacitorNetworkPerWinding", js: "sixCapacitorNetworkPerWinding", typ: u(undefined, r("SixCapacitorNetworkPerWinding")) },
-        { json: "tripoleCapacitancePerWinding", js: "tripoleCapacitancePerWinding", typ: u(undefined, r("TripoleCapacitancePerWinding")) },
+        { json: "sixCapacitorNetworkPerWinding", js: "sixCapacitorNetworkPerWinding", typ: u(undefined, m(m(r("SixCapacitorNetworkPerWinding")))) },
+        { json: "tripoleCapacitancePerWinding", js: "tripoleCapacitancePerWinding", typ: u(undefined, m(m(r("TripoleCapacitancePerWinding")))) },
         { json: "voltageDividerEndPerTurn", js: "voltageDividerEndPerTurn", typ: u(undefined, a(3.14)) },
         { json: "voltageDividerStartPerTurn", js: "voltageDividerStartPerTurn", typ: u(undefined, a(3.14)) },
+        { json: "voltageDropAmongTurns", js: "voltageDropAmongTurns", typ: u(undefined, m(m(3.14))) },
         { json: "voltagePerTurn", js: "voltagePerTurn", typ: u(undefined, a(3.14)) },
     ], "any"),
     "SixCapacitorNetworkPerWinding": o([
-        { json: "C1", js: "c1", typ: 3.14 },
-        { json: "C2", js: "c2", typ: 3.14 },
-        { json: "C3", js: "c3", typ: 3.14 },
-        { json: "C4", js: "c4", typ: 3.14 },
-        { json: "C5", js: "c5", typ: 3.14 },
-        { json: "C6", js: "c6", typ: 3.14 },
+        { json: "C1", js: "C1", typ: 3.14 },
+        { json: "C2", js: "C2", typ: 3.14 },
+        { json: "C3", js: "C3", typ: 3.14 },
+        { json: "C4", js: "C4", typ: 3.14 },
+        { json: "C5", js: "C5", typ: 3.14 },
+        { json: "C6", js: "C6", typ: 3.14 },
     ], "any"),
     "TripoleCapacitancePerWinding": o([
-        { json: "C1", js: "c1", typ: 3.14 },
-        { json: "C2", js: "c2", typ: 3.14 },
-        { json: "C3", js: "c3", typ: 3.14 },
+        { json: "C1", js: "C1", typ: 3.14 },
+        { json: "C2", js: "C2", typ: 3.14 },
+        { json: "C3", js: "C3", typ: 3.14 },
     ], "any"),
     "TemperatureOutput": o([
         { json: "bulkThermalResistance", js: "bulkThermalResistance", typ: u(undefined, 3.14) },
@@ -4986,7 +7676,7 @@ const typeMap: any = {
         { json: "dcResistancePerWinding", js: "dcResistancePerWinding", typ: u(undefined, a(3.14)) },
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
-        { json: "resistanceMatrix", js: "resistanceMatrix", typ: u(undefined, a(r("ResistanceMatrixAtFrequency"))) },
+        { json: "resistanceMatrix", js: "resistanceMatrix", typ: u(undefined, a(r("ScalarMatrixAtFrequency"))) },
         { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
         { json: "windingLosses", js: "windingLosses", typ: 3.14 },
         { json: "windingLossesPerLayer", js: "windingLossesPerLayer", typ: u(undefined, a(r("WindingLossesPerElement"))) },
@@ -4995,6 +7685,7 @@ const typeMap: any = {
         { json: "windingLossesPerWinding", js: "windingLossesPerWinding", typ: u(undefined, a(r("WindingLossesPerElement"))) },
     ], "any"),
     "WindingLossesPerElement": o([
+        { json: "name", js: "name", typ: u(undefined, "") },
         { json: "ohmicLosses", js: "ohmicLosses", typ: u(undefined, r("OhmicLosses")) },
         { json: "proximityEffectLosses", js: "proximityEffectLosses", typ: u(undefined, r("WindingLossElement")) },
         { json: "skinEffectLosses", js: "skinEffectLosses", typ: u(undefined, r("WindingLossElement")) },
@@ -5010,10 +7701,11 @@ const typeMap: any = {
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
     ], "any"),
-    "WindingWindowCurrentFieldOutput": o([
+    "WindingWindowCurrentDensityFieldOutput": o([
         { json: "fieldPerFrequency", js: "fieldPerFrequency", typ: a(r("Field")) },
         { json: "methodUsed", js: "methodUsed", typ: "" },
         { json: "origin", js: "origin", typ: r("ResultOrigin") },
+        { json: "wires", js: "wires", typ: a(u(r("Wire"), "")) },
     ], "any"),
     "Field": o([
         { json: "data", js: "data", typ: a(r("FieldPoint")) },
@@ -5026,6 +7718,11 @@ const typeMap: any = {
         { json: "turnIndex", js: "turnIndex", typ: u(undefined, 0) },
         { json: "turnLength", js: "turnLength", typ: u(undefined, 3.14) },
         { json: "value", js: "value", typ: 3.14 },
+    ], false),
+    "WindingWindowCurrentFieldOutput": o([
+        { json: "fieldPerFrequency", js: "fieldPerFrequency", typ: a(r("Field")) },
+        { json: "methodUsed", js: "methodUsed", typ: "" },
+        { json: "origin", js: "origin", typ: r("ResultOrigin") },
     ], "any"),
     "WindingWindowMagneticStrengthFieldOutput": o([
         { json: "fieldPerFrequency", js: "fieldPerFrequency", typ: a(r("ComplexField")) },
@@ -5043,36 +7740,160 @@ const typeMap: any = {
         { json: "real", js: "real", typ: 3.14 },
         { json: "turnIndex", js: "turnIndex", typ: u(undefined, 0) },
         { json: "turnLength", js: "turnLength", typ: u(undefined, 3.14) },
-    ], "any"),
-    "FlybackModes": [
-        "Boundary Mode Operation",
-        "Continuous Conduction Mode",
-        "Discontinuous Conduction Mode",
-        "Quasi Resonant Mode",
+    ], false),
+    "OutputSType": [
+        "average",
+        "dc",
+        "peak",
+        "peakToPeak",
+        "rms",
     ],
-    "Cti": [
-        "Group I",
-        "Group II",
-        "Group IIIA",
-        "Group IIIB",
+    "AhbRectifierType": [
+        "ahbFlyback",
+        "centerTapped",
+        "currentDoubler",
+        "fullBridge",
+    ],
+    "LlcBridgeType": [
+        "fullBridge",
+        "halfBridge",
+    ],
+    "CllcPowerFlow": [
+        "forward",
+        "reverse",
+    ],
+    "ClllcControlStrategy": [
+        "fixedFrequencyPhaseShift",
+        "hybridPfmPsm",
+        "psm",
+        "pfm",
+    ],
+    "WaveformLabel": [
+        "bipolarRectangular",
+        "bipolarTriangular",
+        "custom",
+        "flybackPrimary",
+        "flybackSecondary",
+        "flybackSecondaryWithDeadtime",
+        "rectangular",
+        "rectangularDCM",
+        "rectangularWithDeadtime",
+        "secondaryRectangular",
+        "secondaryRectangularWithDeadtime",
+        "sinusoidal",
+        "triangular",
+        "triangularWithDeadtime",
+        "unipolarRectangular",
+        "unipolarTriangular",
+    ],
+    "Configuration": [
+        "singlePhase",
+        "singlePhaseBalanced",
+        "threePhase",
+        "threePhaseWithNeutral",
+    ],
+    "ModulationType": [
+        "DPS",
+        "EPS",
+        "SPS",
+        "TPS",
+    ],
+    "FlybackModes": [
+        "boundaryModeOperation",
+        "continuousConductionMode",
+        "discontinuousConductionMode",
+        "quasiResonantMode",
+    ],
+    "ControlMode": [
+        "averageCurrent",
+        "peakBuckPeakBoost",
+        "peakCurrent",
+        "voltageMode",
+    ],
+    "TransitionMode": [
+        "simultaneous",
+        "splitPwm",
+    ],
+    "BRectifierType": [
+        "centerTapped",
+        "currentDoubler",
+        "fullBridge",
+    ],
+    "PfcModes": [
+        "continuousConductionMode",
+        "criticalConductionMode",
+        "discontinuousConductionMode",
+        "transitionMode",
+    ],
+    "PfcTopologyVariants": [
+        "boost",
+        "bridgeless",
+        "buck",
+        "buckBoost",
+        "cuk",
+        "interleavedBoost",
+        "semiBridgeless",
+        "sepic",
+        "totemPole",
+        "vienna",
+    ],
+    "SrcBridgeType": [
+        "fullBridge",
+        "fullBridgePhaseShift",
+        "halfBridge",
+    ],
+    "SrcRectifierType": [
+        "centerTappedDiode",
+        "currentDoubler",
+        "fullBridgeDiode",
+    ],
+    "ViennaSamplingStrategy": [
+        "fullLineCycle",
+        "peakOfLineOnly",
+        "peakOfLinePlusSectors",
+    ],
+    "ViennaSwitchType": [
+        "backToBackMosfet",
+        "singleMosfetIn4DiodeBridge",
+        "tType",
+    ],
+    "ViennaVariant": [
+        "viennaI",
+        "viennaII",
+    ],
+    "Variant": [
+        "bridge",
+        "classic",
+    ],
+    "Application": [
+        "interferenceSuppression",
+        "power",
+        "signalProcessing",
+    ],
+    "CTI": [
+        "groupI",
+        "groupII",
+        "groupIIIA",
+        "groupIIIB",
     ],
     "InsulationType": [
-        "Basic",
-        "Double",
-        "Functional",
-        "Reinforced",
-        "Supplementary",
+        "basic",
+        "double",
+        "functional",
+        "reinforced",
+        "supplementary",
     ],
     "OvervoltageCategory": [
-        "OVC-I",
-        "OVC-II",
-        "OVC-III",
-        "OVC-IV",
+        "I",
+        "II",
+        "III",
+        "IV",
     ],
     "PollutionDegree": [
-        "P1",
-        "P2",
-        "P3",
+        "PD1",
+        "PD2",
+        "PD3",
+        "PD4",
     ],
     "InsulationStandards": [
         "IEC 60335-1",
@@ -5095,57 +7916,61 @@ const typeMap: any = {
         "undenary",
     ],
     "Market": [
-        "Commercial",
-        "Industrial",
-        "Medical",
-        "Military",
-        "Space",
+        "commercial",
+        "industrial",
+        "medical",
+        "military",
+        "space",
+    ],
+    "SubApplication": [
+        "commonModeNoiseFiltering",
+        "differentialModeNoiseFiltering",
+        "isolation",
+        "powerFiltering",
+        "transforming",
     ],
     "ConnectionType": [
-        "Flying Lead",
-        "Pin",
-        "Screw",
-        "SMT",
+        "flyingLead",
+        "pcbPad",
+        "pin",
+        "smt",
+        "screw",
+        "tht",
     ],
     "Topologies": [
-        "Active Clamp Forward Converter",
-        "Boost Converter",
-        "Buck Converter",
-        "Cuk Converter",
-        "Flyback Converter",
-        "Full-Bridge Converter",
-        "Half-Bridge Converter",
-        "Inverting Buck-Boost Converter",
-        "Phase-Shifted Full-Bridge Converter",
-        "Push-Pull Converter",
-        "SEPIC",
-        "Single Switch Forward Converter",
-        "Two Switch Flyback Converter",
-        "Two Switch Forward Converter",
-        "Weinberg Converter",
-        "Zeta Converter",
+        "activeClampForwardConverter",
+        "asymmetricHalfBridgeConverter",
+        "boostConverter",
+        "buckConverter",
+        "cllcResonantConverter",
+        "clllcResonantConverter",
+        "commonModeChoke",
+        "cukConverter",
+        "currentTransformer",
+        "differentialModeChoke",
+        "dualActiveBridgeConverter",
+        "flybackConverter",
+        "fourSwitchBuckBoostConverter",
+        "isolatedBuckBoostConverter",
+        "isolatedBuckConverter",
+        "llcResonantConverter",
+        "phaseShiftedFullBridgeConverter",
+        "phaseShiftedHalfBridgeConverter",
+        "powerFactorCorrection",
+        "pushPullConverter",
+        "sepicConverter",
+        "seriesResonantConverter",
+        "singleSwitchForwardConverter",
+        "twoSwitchForwardConverter",
+        "viennaRectifierConverter",
+        "weinbergConverter",
+        "zetaConverter",
     ],
     "WiringTechnology": [
-        "Deposition",
-        "Printed",
-        "Wound",
-    ],
-    "WaveformLabel": [
-        "Bipolar Rectangular",
-        "Bipolar Triangular",
-        "Custom",
-        "Flyback Primary",
-        "Flyback Secondary",
-        "Flyback Secondary With Deadtime",
-        "Rectangular",
-        "RectangularDCM",
-        "Rectangular With Deadtime",
-        "Secondary Rectangular",
-        "Secondary Rectangular With Deadtime",
-        "Sinusoidal",
-        "Triangular",
-        "Unipolar Rectangular",
-        "Unipolar Triangular",
+        "deposition",
+        "printed",
+        "stamped",
+        "wound",
     ],
     "BobbinFamily": [
         "e",
@@ -5159,7 +7984,26 @@ const typeMap: any = {
         "pm",
         "pq",
         "rm",
+        "t",
         "u",
+    ],
+    "Status": [
+        "obsolete",
+        "production",
+        "prototype",
+    ],
+    "TemperatureClassEnum": [
+        "A",
+        "B",
+        "E",
+        "F",
+        "H",
+        "N",
+        "R",
+        "200",
+        "220",
+        "250",
+        "Y",
     ],
     "PinShape": [
         "irregular",
@@ -5174,11 +8018,6 @@ const typeMap: any = {
         "custom",
         "standard",
     ],
-    "Status": [
-        "obsolete",
-        "production",
-        "prototype",
-    ],
     "ColumnShape": [
         "irregular",
         "oblong",
@@ -5187,8 +8026,8 @@ const typeMap: any = {
     ],
     "CoilAlignment": [
         "centered",
-        "inner or top",
-        "outer or bottom",
+        "innerOrTop",
+        "outerOrBottom",
         "spread",
     ],
     "WindingOrientation": [
@@ -5198,6 +8037,10 @@ const typeMap: any = {
     "WindingWindowShape": [
         "rectangular",
         "round",
+    ],
+    "Direction": [
+        "input",
+        "output",
     ],
     "InsulationWireCoatingType": [
         "bare",
@@ -5221,6 +8064,7 @@ const typeMap: any = {
     ],
     "CoordinateSystem": [
         "cartesian",
+        "cylindrical",
         "polar",
     ],
     "ElectricalType": [
@@ -5231,6 +8075,11 @@ const typeMap: any = {
     "WindingStyle": [
         "windByConsecutiveParallels",
         "windByConsecutiveTurns",
+    ],
+    "TurnCrossSectionalShape": [
+        "oval",
+        "rectangular",
+        "round",
     ],
     "TurnOrientation": [
         "clockwise",
@@ -5248,7 +8097,7 @@ const typeMap: any = {
     "MassCoreLossesMethodType": [
         "magnetec",
     ],
-    "MaterialEnum": [
+    "MaterialType": [
         "amorphous",
         "electricalSteel",
         "ferrite",
@@ -5256,22 +8105,24 @@ const typeMap: any = {
         "powder",
     ],
     "MaterialComposition": [
-        "Carbonyl Iron",
+        "carbonylIron",
         "FeMo",
         "FeNi",
         "FeNiMo",
         "FeSi",
         "FeSiAl",
-        "Iron",
+        "iron",
         "MgZn",
         "MnZn",
         "NiZn",
-        "Proprietary",
+        "proprietary",
     ],
     "InitialPermeabilitModifierMethod": [
         "fair-rite",
         "magnetics",
         "micrometals",
+        "poco",
+        "tdg",
     ],
     "CoreMaterialType": [
         "commercial",
@@ -5281,8 +8132,10 @@ const typeMap: any = {
         "lossFactor",
         "magnetics",
         "micrometals",
+        "poco",
         "roshen",
         "steinmetz",
+        "tdg",
     ],
     "CoreShapeFamily": [
         "c",
@@ -5301,9 +8154,9 @@ const typeMap: any = {
         "h",
         "lp",
         "p",
-        "planar e",
-        "planar el",
-        "planar er",
+        "planarE",
+        "planarEL",
+        "planarER",
         "pm",
         "pq",
         "pqi",
@@ -5320,14 +8173,14 @@ const typeMap: any = {
         "open",
     ],
     "CoreType": [
-        "closed shape",
-        "piece and plate",
+        "closedShape",
+        "pieceAndPlate",
         "toroidal",
-        "two-piece set",
+        "twoPieceSet",
     ],
     "CoreGeometricalDescriptionElementType": [
         "closed",
-        "half set",
+        "halfSet",
         "plate",
         "sheet",
         "spacer",
@@ -5336,6 +8189,11 @@ const typeMap: any = {
     "ColumnType": [
         "central",
         "lateral",
+    ],
+    "MASConformance": [
+        "A",
+        "B",
+        "C",
     ],
     "ResultOrigin": [
         "manufacturer",

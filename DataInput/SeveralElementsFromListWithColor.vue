@@ -1,157 +1,118 @@
 <script setup>
-import { toTitleCase, getMultiplier, combinedStyle, combinedClass } from '../assets/js/utils.js'
-import { ColorPicker } from "vue3-colorpicker";
-import "vue3-colorpicker/style.css";
-
+import { toTitleCase } from '../assets/js/utils.js'
+import Checkbox from 'primevue/checkbox'
+import ColorPicker from 'primevue/colorpicker'
 </script>
 <script>
 export default {
-    components: {
-        ColorPicker,
-    },
+    components: { Checkbox, ColorPicker },
+    emits: ['update', 'colorChange'],
     props: {
-        name:{
-            type: String,
-            required: true
-        },
-        modelValue:{
-            type: Object,
-            required: true
-        },
-        colors:{
-            type: Object,
-            required: true
-        },
-        options:{
-            type: Object,
-            required: true
-        },
-        dataTestLabel: {
-            type: String,
-            default: '',
-        },
-        optionsToDisable: {
-            type: Array,
-            default: () => [],
-        },
-        classInput: {
-            type: String,
-            default: 'col-lg-6 col-xl-2',
-        },
-        justifyContent: {
-            type: Boolean,
-            default: false,
-        },
-        disabled: {
-            type: Boolean,
-            default: false,
-        },
-        valueFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelBgColor: {
-            type: [String, Object],
-            default: "bg-dark",
-        },
-        valueBgColor: {
-            type: [String, Object],
-            default: "bg-light",
-        },
-        textColor: {
-            type: [String, Object],
-            default: "text-white",
-        },
+        name: { type: String, required: true },
+        modelValue: { type: Object, required: true },
+        colors: { type: Object, required: true },
+        options: { type: Object, required: true },
+        dataTestLabel: { type: String, default: '' },
+        optionsToDisable: { type: Array, default: () => [] },
+        classInput: { type: String, default: '' },
+        justifyContent: { type: Boolean, default: false },
+        disabled: { type: Boolean, default: false },
+        valueFontSize: { type: [String, Object], default: () => ({}) },
+        labelFontSize: { type: [String, Object], default: () => ({}) },
+        labelBgColor: { type: [String, Object], default: () => ({}) },
+        valueBgColor: { type: [String, Object], default: () => ({}) },
+        textColor: { type: [String, Object], default: () => ({}) },
     },
-    data() {
-        return {
-        }
-    },
-    mounted () {
-        Object.keys(this.options).forEach((value) => {
-            if (!(value in this.colors)) {
-                this.colors[value] = this.getRandomColor()
-            }
+    mounted() {
+        Object.keys(this.options).forEach(value => {
+            if (!(value in this.colors)) this.colors[value] = this.getRandomColor()
         })
     },
+    computed: {
+        currentSelection() {
+            return this.modelValue[this.name] || []
+        },
+    },
     methods: {
+        toTitleCase,
         getRandomColor() {
-            const letters = '0123456789ABCDEF';
-            let color = '#';
-            for (let i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
-            }
-            return color;
+            const letters = '0123456789ABCDEF'
+            let color = '#'
+            for (let i = 0; i < 6; i++) color += letters[Math.floor(Math.random() * 16)]
+            return color
         },
-        changedCheckedValue(checkedValue) {
-            let found = false;
-            const newList = [];
-            for (let [key, value] of Object.entries(this.modelValue[this.name])) {
-                if (value == checkedValue) {
-                    found = true;
-                }
-                else {
-                    newList.push(value);
-                }
-        
-            }
-            if (!found) {
-                this.modelValue[this.name].push(checkedValue);
-            }
-            else {
-                this.modelValue[this.name] = newList;
-            }
-            this.$emit("update", checkedValue, this.name);
+        onToggle(value) {
+            const cur = this.modelValue[this.name] || []
+            const idx = cur.indexOf(value)
+            if (idx >= 0) this.modelValue[this.name] = cur.filter(v => v !== value)
+            else this.modelValue[this.name] = [...cur, value]
+            this.$emit('update', value, this.name)
         },
-    }
+    },
 }
 </script>
 
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex ">
-        <div class="row" :class="justifyContent ? 'ms-0 ps-0' : ''">
-            <label
-                :style="combinedStyle([labelBgColor, textColor, labelFontSize])"
-                :data-cy="dataTestLabel + '-title'"
-                class="rounded-2 fs-5 "
-                :class="combinedClass([justifyContent? 'text-start ms-0' : 'ms-3', labelBgColor, textColor, labelFontSize])"
-            >
-                {{toTitleCase(name)}}
-            </label>
-        </div>
-            <div :class="classInput" class="form-check ms-4 " v-for="[key, value] in Object.entries(options)" :key="key">
-                <input
-                    :style="combinedStyle([textColor])"
-                    :disabled="optionsToDisable.includes(value) || disabled"
+    <div :data-cy="dataTestLabel + '-container'" class="seflc-container">
+        <label
+            :style="[labelBgColor, textColor, labelFontSize]"
+            :data-cy="dataTestLabel + '-title'"
+            class="seflc-label">
+            {{ toTitleCase(name) }}
+        </label>
+        <div class="seflc-row">
+            <div
+                v-for="[key, value] in Object.entries(options)"
+                :key="key"
+                class="seflc-option"
+                :class="classInput">
+                <Checkbox
+                    :input-id="name + '-' + value + '-cb'"
                     :data-cy="dataTestLabel + '-' + value + '-checkbox-input'"
-                    :ref="key"
-                    class="form-check-input border"
-                    type="checkbox"
-                    :checked="modelValue[name].includes(value)"
-                    :id="name + '-checkbox-input'"
-                    :class="combinedClass([disabled? labelBgColor : valueBgColor, textColor, valueFontSize, disabled? 'border-0' : ''])"
-                    @change="changedCheckedValue(value)"
-                >
-                <label 
-                    :style="combinedStyle([labelBgColor, textColor, valueFontSize])"
-                    class="form-check-label col-3"
-                    :class="combinedClass([labelBgColor, textColor, valueFontSize])"
-                    :for="name + '-checkbox-input'">
-                    {{value}}
-                </label>
-                <color-picker
-                    v-if="modelValue[name].includes(value)"
-                    class="col-3 p-0 m-0"
-                    v-model:pureColor="colors[value]"
-                    @pureColorChange="$emit('colorChange')"
+                    binary
+                    :model-value="currentSelection.includes(value)"
+                    @update:model-value="onToggle(value)"
+                    :disabled="optionsToDisable.includes(value) || disabled"
                 />
+                <label
+                    :style="[labelBgColor, textColor, valueFontSize]"
+                    class="seflc-option-label"
+                    :for="name + '-' + value + '-cb'">
+                    {{ value }}
+                </label>
+                <ColorPicker
+                    v-if="currentSelection.includes(value)"
+                    v-model="colors[value]"
+                    @change="$emit('colorChange')"
+                />
+            </div>
         </div>
     </div>
 </template>
 
-<style>
+<style scoped>
+.seflc-container { width: 100%; }
+.seflc-label {
+    font-size: 0.875rem;
+    overflow: hidden;
+    white-space: nowrap;
+    display: block;
+    margin-bottom: 0.4rem;
+}
+.seflc-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    width: 100%;
+}
+.seflc-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.seflc-option-label {
+    font-size: 0.875rem;
+    cursor: pointer;
+    user-select: none;
+}
 </style>
