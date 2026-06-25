@@ -121,8 +121,23 @@ const workerApi = {
             const ModuleFactory = (await import(/* @vite-ignore */ blobUrl)).default;
             URL.revokeObjectURL(blobUrl);
 
+            // Keep the browser console clean. The MKF WASM prints verbose adviser
+            // progress (logEntry WARNING/INFO/DEBUG), timing, and JSON dumps to
+            // stdout, and errors to stderr. Suppress stdout noise always; in
+            // production suppress stderr too so NOTHING is logged (genuine errors
+            // are still returned in the result JSON). In dev, stderr is surfaced
+            // for debugging. Flip DEBUG_WASM_LOGS to restore all WASM output.
+            const DEBUG_WASM_LOGS = false;
+            const isProd = !!(import.meta.env && import.meta.env.PROD);
+            const wasmPrint = DEBUG_WASM_LOGS ? (t) => console.log(t) : () => {};
+            const wasmPrintErr = (DEBUG_WASM_LOGS || !isProd)
+                ? (t) => console.warn('[MKF]', t)
+                : () => {};
+
             return new Promise((resolve, reject) => {
                 ModuleFactory({
+                    print: wasmPrint,
+                    printErr: wasmPrintErr,
                     locateFile(path) {
                         if (path.endsWith('.wasm')) {
                             // Append cache-busting version to WASM binary URL

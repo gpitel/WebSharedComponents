@@ -1,175 +1,148 @@
 <script setup>
-import { toTitleCase, getMultiplier, combinedStyle, combinedClass } from '../assets/js/utils.js'
-
+import { toTitleCase } from '../assets/js/utils.js'
+import RadioButton from 'primevue/radiobutton'
+import InputText from 'primevue/inputtext'
 </script>
 <script>
 export default {
+    components: { RadioButton, InputText },
     props: {
-        name:{
-            type: String,
-            required: true
-        },
-        modelValue:{
-            type: Object,
-            required: true
-        },
-        options:{
-            type: [Array, Object],
-            required: true
-        },
-        dataTestLabel: {
-            type: String,
-            default: '',
-        },
-        replaceTitle:{
-            type: String
-        },
-        titleSameRow:{
-            type: Boolean,
-            default: false
-        },
-        altText:{
-            type: String
-        },
-        disabled: {
-            type: Boolean,
-            default: false,
-        },
-        optionsToDisable: {
-            type: Array,
-            default: () => [],
-        },
-        valueFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelFontSize: {
-            type: [String, Object],
-            default: 'fs-6'
-        },
-        labelWidthProportionClass:{
-            type: String,
-            default: 'col-xs-12 col-md-7'
-        },
-        valueWidthProportionClass:{
-            type: String,
-            default: 'col-4'
-        },
-        labelBgColor: {
-            type: [String, Object],
-            default: "bg-dark",
-        },
-        valueBgColor: {
-            type: [String, Object],
-            default: "bg-light",
-        },
-        textColor: {
-            type: [String, Object],
-            default: "text-white",
-        },
+        name: { type: String, required: true },
+        modelValue: { type: Object, required: true },
+        options: { type: [Array, Object], required: true },
+        dataTestLabel: { type: String, default: '' },
+        replaceTitle: { type: String },
+        tooltip: { type: String, default: null },
+        titleSameRow: { type: Boolean, default: false },
+        altText: { type: String },
+        disabled: { type: Boolean, default: false },
+        optionsToDisable: { type: Array, default: () => [] },
+        valueFontSize: { type: [String, Object], default: () => ({ fontSize: '0.875rem' }) },
+        labelFontSize: { type: [String, Object], default: () => ({ fontSize: '0.875rem' }) },
+        labelWidthProportionClass: { type: String, default: '' },
+        valueWidthProportionClass: { type: String, default: '' },
+        labelBgColor: { type: [String, Object], default: () => ({}) },
+        valueBgColor: { type: [String, Object], default: () => ({}) },
+        textColor: { type: [String, Object], default: () => ({}) },
+        optionLabels: { type: Object, default: null },
     },
-    data() {
-        return {
-        }
-    },
+    emits: ['update', 'changeText'],
     computed: {
-        selectedLabel() {
-        },
         optionsIter() {
             if (Array.isArray(this.options)) {
-                const aux = {}
-                this.options.forEach((elem) => {
-                    aux[elem] = elem;
-                })
-                return Object.entries(aux);
+                return this.options.map(v => [v, v])
             }
-            else {
-                return Object.entries(this.options)
-            }
-        }
-    },
-    watch: { 
-    },
-    mounted () {
+            return Object.entries(this.options)
+        },
     },
     methods: {
-        changedCheckedValue(checkedValue) {
-            this.modelValue[this.name] = checkedValue;
-            this.$emit("update", checkedValue, this.name);
+        toTitleCase,
+        onChange(value) {
+            this.modelValue[this.name] = value
+            this.$emit('update', value, this.name)
         },
-    }
+    },
 }
 </script>
 
-
 <template>
-    <div :data-cy="dataTestLabel + '-container'" class="container-flex">
-        <div class="row">
-            <input 
-                :style="combinedStyle([labelFontSize, labelWidthProportionClass, labelBgColor, textColor])"
+    <div :data-cy="dataTestLabel + '-container'" class="efr-container" v-tooltip="tooltip">
+        <div class="efr-row" v-if="!titleSameRow">
+            <InputText
+                v-if="altText != null"
+                :class="labelWidthProportionClass"
                 :data-cy="dataTestLabel + '-alt-title-label'"
-                v-if="altText != null && !titleSameRow"
-                type="text"
-                :class="combinedClass([labelFontSize, labelWidthProportionClass, labelBgColor, textColor])"
-                class="rounded-2 p-0 mb-2 border-0"
-                @change="$emit('changeText', $event.target.value)"
-                :value="altText"
-            >
-            <label 
-                :style="combinedStyle([labelFontSize, labelWidthProportionClass, labelBgColor, textColor])"
+                :model-value="altText"
+                @change="$emit('changeText', $event.target.value)" />
+            <label
+                v-else
+                :style="[labelFontSize, labelBgColor, textColor]"
+                :class="labelWidthProportionClass"
                 :data-cy="dataTestLabel + '-title'"
-                v-if="altText == null && !titleSameRow"
-                :class="combinedClass([labelFontSize, labelWidthProportionClass, labelBgColor, textColor])"
-                class="rounded-2 p-0"
-            >
-                {{replaceTitle == null? toTitleCase(name) : toTitleCase(replaceTitle)}}
+                class="efr-label"
+                v-tooltip="tooltip">
+                {{ replaceTitle == null ? toTitleCase(name) : toTitleCase(replaceTitle) }}
             </label>
         </div>
-        <div class="row">
+        <div class="efr-options-row" :class="titleSameRow ? 'efr-options-row-inline' : ''">
             <label
-                :style="combinedStyle([labelFontSize, labelWidthProportionClass, labelBgColor, textColor, labelWidthProportionClass])"
-                :data-cy="dataTestLabel + '-same-row-label'"
                 v-if="titleSameRow"
-                :class="combinedClass([labelFontSize, labelWidthProportionClass, labelBgColor, textColor, labelWidthProportionClass])"
-                class="rounded-2 p-0"
-            >
-                {{replaceTitle == null? toTitleCase(name) : toTitleCase(replaceTitle)}}
+                :style="[labelFontSize, labelBgColor, textColor]"
+                :class="labelWidthProportionClass"
+                :data-cy="dataTestLabel + '-same-row-label'"
+                class="efr-label efr-label-inline"
+                v-tooltip="tooltip">
+                {{ replaceTitle == null ? toTitleCase(name) : toTitleCase(replaceTitle) }}
             </label>
             <div
-                :style="combinedStyle([disabled? labelBgColor : valueBgColor, textColor, valueFontSize, valueWidthProportionClass])"
-                class="form-check"
-                :class="combinedClass([disabled? labelBgColor : valueBgColor, textColor, valueFontSize, valueWidthProportionClass, disabled? 'border-0' : ''])"
                 v-for="[key, value] in optionsIter"
-            >
-                <input
-                    :disabled="optionsToDisable.includes(value)"
+                :key="key"
+                class="efr-option"
+                :class="valueWidthProportionClass"
+                :style="[disabled ? labelBgColor : valueBgColor, textColor, valueFontSize]">
+                <label v-if="key === 'Planar'" class="efr-flame">&#128293;</label>
+                <RadioButton
+                    :input-id="key + '-radio-input'"
                     :data-cy="dataTestLabel + '-' + value + '-radio-input'"
-                    :ref="key"
-                    class="form-check-input"
-                    type="radio"
-                    :checked="modelValue[name].includes(value)"
-                    :id="key + '-radio-input'"
-                    @change="changedCheckedValue(value)"
-                >
-                <label
-                    v-if="key == 'Planar'"
-                >
-                &#128293;
+                    :name="dataTestLabel + '-' + name"
+                    :value="value"
+                    :model-value="modelValue[name]"
+                    @update:model-value="onChange"
+                    :disabled="disabled || optionsToDisable.includes(value)"
+                />
+                <label class="efr-option-label" :for="key + '-radio-input'">
+                    {{ (optionLabels && optionLabels[key]) || key }}
                 </label>
-                <label
-                    class="form-check-label"
-                    :for="key + '-radio-input'"
-                >
-                    {{key}}
-                </label>
-
-                <label
-                    v-if="key == 'Planar'"
-                >
-                &#128293;
-                </label>
+                <label v-if="key === 'Planar'" class="efr-flame">&#128293;</label>
             </div>
         </div>
     </div>
 </template>
 
+<style scoped>
+.efr-container { width: 100%; }
+.efr-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0.25rem;
+}
+.efr-options-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+}
+.efr-options-row-inline {
+    justify-content: space-between;
+}
+.efr-label {
+    font-size: 0.875rem;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: 0;
+    color: inherit;
+}
+.efr-label-inline { flex: 0 0 auto; }
+.efr-option {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    line-height: 1.2;
+}
+.efr-option-label {
+    cursor: pointer;
+    font-size: 0.875rem;
+    user-select: none;
+}
+.efr-flame {
+    font-size: 1rem;
+}
+</style>

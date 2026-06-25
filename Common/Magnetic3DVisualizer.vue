@@ -4,8 +4,8 @@ import { MeshPhysicalMaterial, Object3D, Group, Mesh, Box3, Vector3 } from 'thre
 import { Camera, Renderer, SpotLight, Scene, AmbientLight } from 'troisjs';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { deepCopy, hexToRgb } from '../assets/js/utils.js';
-import { waitForMkf } from '../assets/js/mkfRuntime.js';
-import { initMvbWorker, buildCoreSTL, buildSpacersSTL, buildBobbinSTL, buildTurnSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
+import { initMvbWorker, buildCoreSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
+import { enrichMagnetic } from '../assets/js/mkfRuntime.js';
 </script>
 
 <script>
@@ -144,7 +144,7 @@ export default {
     },
     backgroundColor: {
       type: String,
-      default: "#1a1a1a",
+      default: "var(--p-dark)",
     },
     buttonColor: {
       type: String,
@@ -165,6 +165,7 @@ export default {
       bobbinMesh: null,
       turnsMeshes: [],
       building: false,
+      pendingBuild: false,
       updating: true,
       recentChange: false,
       tryingToSend: false,
@@ -234,15 +235,15 @@ export default {
     getTheme() {
       const style = getComputedStyle(document.body);
       return {
-        primary: style.getPropertyValue('--bs-primary'),
-        secondary: style.getPropertyValue('--bs-secondary'),
-        success: style.getPropertyValue('--bs-success'),
-        info: style.getPropertyValue('--bs-info'),
-        warning: style.getPropertyValue('--bs-warning'),
-        danger: style.getPropertyValue('--bs-danger'),
-        light: style.getPropertyValue('--bs-light'),
-        dark: style.getPropertyValue('--bs-dark'),
-        white: style.getPropertyValue('--bs-white'),
+        primary: style.getPropertyValue('--p-primary'),
+        secondary: style.getPropertyValue('--p-secondary'),
+        success: style.getPropertyValue('--p-success'),
+        info: style.getPropertyValue('--p-info'),
+        warning: style.getPropertyValue('--p-warning'),
+        danger: style.getPropertyValue('--p-danger'),
+        light: style.getPropertyValue('--p-light'),
+        dark: style.getPropertyValue('--p-dark'),
+        white: style.getPropertyValue('--p-white'),
       };
     },
 
@@ -312,10 +313,9 @@ export default {
       const material = this.createMaterial(color, options);
       const mesh = markRaw(new Mesh(geometry, material));
       
-      mesh.rotation.x = -Math.PI / 2;
       mesh.rotation.y = 0;
       mesh.rotation.z = 0;
-      
+
       return mesh;
     },
 
@@ -331,16 +331,17 @@ export default {
       let dx = size.z / 2 + Math.abs(size.x / 2 / Math.tan(fovh / 2));
       let dy = size.z / 2 + Math.abs(size.y / 2 / Math.tan(fov / 2));
       let cameraZ = Math.max(dx, dy);
-      let cameraY = size.y;
+      let cameraY = 0;
 
       if (offset !== undefined && offset !== 0) cameraZ *= offset;
-      if (offsetY !== undefined && offsetY !== 0) cameraY *= offsetY;
+      if (offsetY !== undefined && offsetY !== 0) cameraY = size.y * offsetY;
 
       camera.position.set(0, cameraY, cameraZ);
 
       const minZ = boundingBox.min.z;
       const cameraToFarEdge = (minZ < 0) ? -minZ + cameraZ : cameraZ - minZ;
 
+      camera.near = cameraToFarEdge * 0.001;
       camera.far = cameraToFarEdge * 30;
       camera.updateProjectionMatrix();
 
@@ -351,7 +352,16 @@ export default {
     },
 
     async buildMagnetic() {
-      if (this.building || !this.isMounted) return;
+      // Re-entry guard: if a build is already in flight, remember that the
+      // caller wanted a fresh build with the latest `magnetic` snapshot and
+      // re-fire after the current build settles. Without this, a wind-result
+      // arriving while the previous build is still running is silently
+      // dropped and the viewer stays one revision behind.
+      if (this.building || !this.isMounted) {
+        if (this.building) this.pendingBuild = true;
+        return;
+      }
+      this.pendingBuild = false;
 
       const magnetic = this.magnetic;
       if (!magnetic) {
@@ -359,10 +369,8 @@ export default {
         return;
       }
 
-      // Clear scene before building new magnetic to prevent old designs from persisting
       this.clearScene();
 
-      // Need core data with shape and material
       const core = magnetic.core;
       if (!core?.functionalDescription?.shape || !core?.functionalDescription?.material) {
         this.updating = false;
@@ -372,42 +380,10 @@ export default {
       try {
         this.building = true;
 
-        // Initialize MVB worker if needed
         if (!this.mvbInitialized) {
           await initMvbWorker();
           this.mvbInitialized = true;
         }
-
-        // Get MKF to compute core data
-        const mkf = await waitForMkf();
-        
-        // Prepare core data
-        const coreAux = deepCopy(core);
-        coreAux.geometricalDescription = null;
-        coreAux.processedDescription = null;
-        
-        if (typeof coreAux.functionalDescription.shape === 'string') {
-          coreAux.functionalDescription.shape = JSON.parse(
-            await mkf.get_shape_data(coreAux.functionalDescription.shape)
-          );
-        }
-
-        if (coreAux.functionalDescription.shape?.familySubtype) {
-          coreAux.functionalDescription.shape.familySubtype = 
-            String(coreAux.functionalDescription.shape.familySubtype);
-        }
-
-        const coreResult = await mkf.calculate_core_data(JSON.stringify(coreAux), false);
-        
-        if (coreResult.startsWith("Exception")) {
-          console.error(coreResult);
-          this.$emit("errorInDimensions");
-          this.building = false;
-          this.updating = false;
-          return;
-        }
-
-        const processedCore = JSON.parse(coreResult);
 
         if (!this.isMounted) {
           this.building = false;
@@ -415,7 +391,6 @@ export default {
           return;
         }
 
-        // Build components in scene
         const scene = this.$refs.scene?.scene;
         const camera = this.$refs.camera?.camera;
 
@@ -425,166 +400,98 @@ export default {
           return;
         }
 
-        const group = markRaw(new Group());
-        const stlOptions = { tolerance: 0.5, angularTolerance: 0.5, binary: true };
-
-        // Build core - only if core data is valid
-        const isCoreValid = processedCore.geometricalDescription?.length > 0;
-        if (this.showCore && isCoreValid) {
-          try {
-            const coreArrayBuffer = await buildCoreSTL(processedCore.geometricalDescription, stlOptions);
-            
-            if (coreArrayBuffer) {
-              this.coreMesh = this.addMeshFromSTL(coreArrayBuffer, this.coreColor, {
-                metalness: 0.1,
-                roughness: 0.9
-              });
-              if (this.coreMesh) {
-                this.coreMesh.visible = this.internalShowCore;
-                group.add(this.coreMesh);
-              }
-            }
-          } catch (err) {
-            console.warn('Could not build core:', err.message);
-          }
-
-          // Build spacers separately (different color)
-          try {
-            const spacersArrayBuffer = await buildSpacersSTL(processedCore.geometricalDescription, stlOptions);
-            
-            if (spacersArrayBuffer) {
-              const spacersMesh = this.addMeshFromSTL(spacersArrayBuffer, COMPONENT_COLORS.spacer, {
-                metalness: 0.1,
-                roughness: 0.6
-              });
-              if (spacersMesh) {
-                spacersMesh.visible = this.internalShowCore;
-                group.add(spacersMesh);
-              }
-            }
-          } catch (err) {
-            console.warn('Could not build spacers:', err.message);
-          }
+        // Pre-enrich via MKF worker (already running) so MVB++ skips its internal
+        // autocomplete and goes straight to geometry — one autocomplete total.
+        let mag;
+        try {
+          mag = await enrichMagnetic(JSON.parse(JSON.stringify(magnetic)));
+        } catch (e) {
+          mag = JSON.parse(JSON.stringify(magnetic));
         }
 
-        // Check if toroidal
-        const isToroidal = processedCore.geometricalDescription?.some(
-          part => part.type === 'toroidal' || part.shape?.family?.toLowerCase() === 't'
-        );
+        const group = markRaw(new Group());
 
-        // Build bobbin - only if valid, not toroidal, and not a dummy bobbin
-        const coil = magnetic.coil || {};
-        const isDummyBobbin = coil.bobbin === "Dummy" || coil.bobbin === "" || coil.bobbin == null;
-        const hasBobbinData = coil.bobbin?.processedDescription && Object.keys(coil.bobbin.processedDescription).length > 0;
-        
+        const shapeFamily = mag.core?.functionalDescription?.shape?.family?.toLowerCase() ?? '';
+        const isToroidal = shapeFamily === 't' || shapeFamily === 'toroidal';
+
+        if (this.showCore) {
+          try {
+            const buf = await buildCoreSTL(mag);
+            if (buf) {
+              this.coreMesh = this.addMeshFromSTL(buf, this.coreColor, { metalness: 0.1, roughness: 0.9 });
+              if (this.coreMesh) { this.coreMesh.visible = this.internalShowCore; group.add(this.coreMesh); }
+            }
+          } catch (err) { console.warn('Could not build core:', err.message); }
+
+          try {
+            const buf = await buildSpacersSTL(mag);
+            if (buf) {
+              const m = this.addMeshFromSTL(buf, COMPONENT_COLORS.spacer, { metalness: 0.1, roughness: 0.6 });
+              if (m) { m.visible = this.internalShowCore; group.add(m); }
+            }
+          } catch (err) { /* no spacers — normal */ }
+        }
+
+        const coil = mag.coil || {};
+        const isDummyBobbin = coil.bobbin === 'Dummy' || coil.bobbin === '' || coil.bobbin == null;
+        const hasBobbinData = coil.bobbin?.processedDescription &&
+          Object.keys(coil.bobbin.processedDescription).length > 0;
+
         if (this.showBobbin && !isToroidal && !isDummyBobbin && hasBobbinData) {
           try {
-            // Deep clone to remove Vue reactivity and circular references
-            const bobbinProcessed = JSON.parse(JSON.stringify(coil.bobbin.processedDescription));
-            const bobbinArrayBuffer = await buildBobbinSTL(bobbinProcessed, stlOptions);
-
-            if (bobbinArrayBuffer) {
-              this.bobbinMesh = this.addMeshFromSTL(bobbinArrayBuffer, this.bobbinColor, {
-                metalness: 0.1,
-                roughness: 0.7
-              });
-              if (this.bobbinMesh) {
-                this.bobbinMesh.visible = this.internalShowBobbin;
-                group.add(this.bobbinMesh);
-              }
+            const buf = await buildBobbinSTL(mag);
+            if (buf) {
+              this.bobbinMesh = this.addMeshFromSTL(buf, this.bobbinColor, { metalness: 0.1, roughness: 0.7 });
+              if (this.bobbinMesh) { this.bobbinMesh.visible = this.internalShowBobbin; group.add(this.bobbinMesh); }
             }
-          } catch (err) {
-            console.warn('Could not build bobbin:', err.message);
-          }
+          } catch (err) { console.warn('Could not build bobbin:', err.message); }
         }
 
-        // Build turns - only if coil.turnsDescription is not null, has data, and bobbin data is valid
-        const hasTurnsData = coil.turnsDescription != null && coil.turnsDescription.length > 0;
-        const hasValidBobbinForTurns = coil.bobbin?.processedDescription && 
-          coil.bobbin.processedDescription.columnDepth !== undefined &&
-          coil.bobbin.processedDescription.columnWidth !== undefined;
-        
-        // Check if any wire is planar type (as fallback if groupsDescription type isn't set correctly)
+        const hasTurnsData = coil.turnsDescription?.length > 0;
+        // MVB++ STL turn renderer needs every wire to be a fully-resolved
+        // object (numDimensions, material, etc.). The OpenMagnetics defaults
+        // pipeline (utils.js:1083) writes the string "Dummy" as a sentinel
+        // when a wire isn't yet picked — and MVB++ throws COIL_WIRE_NOT_FOUND
+        // because no catalog wire is named "Dummy". Detect that here and
+        // skip the build, same way `isDummyBobbin` handles the bobbin path.
+        const hasDummyWires = coil.functionalDescription?.some(
+          w => typeof w?.wire === 'string' || !w?.wire
+        );
         const hasPlanarWires = coil.functionalDescription?.some(
-          winding => winding?.wire?.type?.toLowerCase() === 'planar'
+          w => w?.wire?.type?.toLowerCase() === 'planar'
         );
-        
-        // Build FR4 boards for planar transformer groups
-        const hasGroupsDescription = coil.groupsDescription != null && coil.groupsDescription.length > 0;
-        const shouldBuildFR4 = hasGroupsDescription && (
-          coil.groupsDescription.some(g => g.type === "Printed" || g.type?.toLowerCase() === 'printed') ||
-          hasPlanarWires
-        );
+        const shouldBuildFR4 = coil.groupsDescription?.some(
+          g => g.type === 'Printed' || g.type?.toLowerCase() === 'printed'
+        ) || hasPlanarWires;
 
-        if (this.showTurns && shouldBuildFR4 && hasValidBobbinForTurns) {
+        if (this.showTurns && shouldBuildFR4) {
           try {
-            // Deep clone coil to remove Vue reactivity (required for Worker postMessage)
-            const coilClone = JSON.parse(JSON.stringify(coil));
-            const fr4ArrayBuffer = await buildFR4BoardSTL(coilClone);
-
-            if (fr4ArrayBuffer) {
-              const fr4Mesh = this.addMeshFromSTL(fr4ArrayBuffer, COATING_COLORS.fr4, {
-                metalness: 0.0,
-                roughness: 0.8,
-                transparent: true,
-                opacity: 0.4
-              });
-              if (fr4Mesh) {
-                fr4Mesh.visible = this.internalShowTurns;
-                group.add(fr4Mesh);
-                this.turnsMeshes.push(fr4Mesh);
-              }
+            const buf = await buildFR4BoardSTL(mag);
+            if (buf) {
+              const m = this.addMeshFromSTL(buf, COATING_COLORS.fr4, { metalness: 0.0, roughness: 0.8, transparent: true, opacity: 0.4 });
+              if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
             }
-          } catch (err) {
-            console.warn('Could not build FR4 boards:', err.message);
-          }
+          } catch (err) { console.warn('Could not build FR4 boards:', err.message); }
         }
-        
-        if (this.showTurns && hasTurnsData && hasValidBobbinForTurns) {
+
+        if (this.showTurns && hasTurnsData && !hasDummyWires) {
           try {
-            // Deep clone to remove Vue reactivity and circular references
-            const turnsData = JSON.parse(JSON.stringify(coil.turnsDescription));
-            const bobbinProcessed = JSON.parse(JSON.stringify(coil.bobbin.processedDescription));
-            
-            for (let i = 0; i < turnsData.length; i++) {
-              const turnData = turnsData[i];
-              const windingIndex = turnData.windingIndex || 0;
-              const turnColor = getWireColorFromCoating(turnData, coil, windingIndex);
-              
-              try {
-                const turnArrayBuffer = await buildTurnSTL(
-                  turnData, 
-                  turnData, // wireDesc same as turnData for now
-                  bobbinProcessed, 
-                  isToroidal, 
-                  stlOptions
-                );
-                
-                if (turnArrayBuffer) {
-                  const turnMesh = this.addMeshFromSTL(turnArrayBuffer, turnColor, {
-                    metalness: 0.2,
-                    roughness: 0.6
-                  });
-                  if (turnMesh) {
-                    turnMesh.visible = this.internalShowTurns;
-                    group.add(turnMesh);
-                    this.turnsMeshes.push(turnMesh);
-                  }
-                }
-              } catch (err) {
-                console.warn(`Could not build turn ${i}:`, err.message);
-              }
+            const buf = await buildTurnsSTL(mag);
+            if (buf) {
+              const m = this.addMeshFromSTL(buf, this.turnsColor, { metalness: 0.2, roughness: 0.6 });
+              if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
             }
-          } catch (err) {
-            console.warn('Could not build turns:', err.message);
-          }        } else if (this.showTurns && hasTurnsData && !hasValidBobbinForTurns) {
-          console.warn('Cannot build turns: missing valid bobbin processedDescription');        }
+          } catch (err) { console.warn('Could not build turns:', err.message); }
+        } else if (this.showTurns && hasTurnsData && hasDummyWires) {
+          console.warn('Skipping turn STL build: one or more windings reference the "Dummy" wire sentinel. Pick a real wire in the coil builder before rendering 3D turns.');
+        }
 
         // Add group to scene
         if (group.children.length > 0) {
+          group.rotation.x = isToroidal ? -Math.PI / 2 : 0;
           scene.add(group);
           this.currentGroup = group;
-          this.fitCameraToCenteredObject(camera, group, this.offset, 1.5);
+          this.fitCameraToCenteredObject(camera, group, this.offset, isToroidal ? 1.5 : 0);
         }
 
         this.$emit("buildComplete");
@@ -596,6 +503,12 @@ export default {
         if (this.isMounted) {
           this.building = false;
           this.updating = false;
+          // If new build requests arrived while this build was running,
+          // honour the most recent `magnetic` snapshot now.
+          if (this.pendingBuild) {
+            this.pendingBuild = false;
+            this.tryToSend();
+          }
         }
       }
     },
@@ -624,6 +537,10 @@ export default {
       this.updating = true;
       this.clearScene();
       this.currentMagnetic = deepCopy(this.magnetic);
+      // Flag that a fresh change happened so a tryToSend already in its
+      // debounce window restarts the timer instead of building with the
+      // (now stale) snapshot it captured.
+      this.recentChange = true;
       this.tryToSend();
     },
   },
@@ -653,7 +570,7 @@ export default {
       :data-cy="`${dataTestLabel}-canvas`" 
       ref="renderer" 
       resize=true 
-      :orbit-ctrl="{ enableDamping: true, dampingFactor: 0.05, autoRotate: true }" 
+      :orbit-ctrl="{ enableDamping: true, dampingFactor: 0.05, autoRotate : false }" 
       shadow 
       class="p-0 m-0"
     >
@@ -669,7 +586,7 @@ export default {
     <!-- Visibility toggle buttons below canvas -->
     <div class="visibility-controls" v-if="!updating && hasMagneticLoaded">
       <button 
-        :class="['btn btn-sm visibility-btn', internalShowCore ? 'active' : '']"
+        :class="['p-button p-button-sm visibility-btn', internalShowCore ? 'active' : '']"
         :style="{ color: buttonColor, borderColor: buttonColor }"
         @click="internalShowCore = !internalShowCore"
         title="Toggle Core visibility"
@@ -677,7 +594,7 @@ export default {
         <i :class="['bi', internalShowCore ? 'bi-eye' : 'bi-eye-slash']"></i> Core
       </button>
       <button 
-        :class="['btn btn-sm visibility-btn', internalShowBobbin ? 'active' : '']"
+        :class="['p-button p-button-sm visibility-btn', internalShowBobbin ? 'active' : '']"
         :style="{ color: buttonColor, borderColor: buttonColor }"
         @click="internalShowBobbin = !internalShowBobbin"
         title="Toggle Bobbin visibility"
@@ -685,7 +602,7 @@ export default {
         <i :class="['bi', internalShowBobbin ? 'bi-eye' : 'bi-eye-slash']"></i> Bobbin
       </button>
       <button 
-        :class="['btn btn-sm visibility-btn', internalShowTurns ? 'active' : '']"
+        :class="['p-button p-button-sm visibility-btn', internalShowTurns ? 'active' : '']"
         :style="{ color: buttonColor, borderColor: buttonColor }"
         @click="internalShowTurns = !internalShowTurns"
         title="Toggle Turns visibility"
@@ -736,7 +653,7 @@ export default {
 }
 
 .visibility-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--p-white-rgb), 0.2);
 }
 
 .visibility-btn.active {

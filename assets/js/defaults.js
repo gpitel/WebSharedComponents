@@ -1,3 +1,4 @@
+import { CTI, ConnectionType, CoreShapeFamily, CoreType, GapType, InsulationStandards, IsolationClass, IsolationSide, Market, OvervoltageCategory, PollutionDegree, Topology, WiringTechnology } from '../ts/MAS.ts'
 export const coreAdviserWeights = {
     "Efficiency": 40,
     "Dimensions": 30,
@@ -52,7 +53,7 @@ export const powerMas = {
                 "nominal": 100e-6
             },
             "turnsRatios": [],
-            "wiringTechnology": "Wound",
+            "wiringTechnology": WiringTechnology.Wound,
         },
         "operatingPoints": [],
     },
@@ -64,7 +65,7 @@ export const powerMas = {
                     "name": "Primary",
                     "numberTurns": 0,
                     "numberParallels": 0,
-                    "isolationSide": "primary",
+                    "isolationSide": IsolationSide.Primary,
                     "wire": ""
                 }
             ],
@@ -72,7 +73,7 @@ export const powerMas = {
         "core": {
             "name": "DummyCore",
             "functionalDescription": {
-                "type": "two-piece set",
+                "type": CoreType.TwoPieceSet,
                 "material": "",
                 "shape": "",
                 "gapping": [],
@@ -103,14 +104,14 @@ export const filterMas = {
                     "name": "Primary",
                     "numberTurns": 0,
                     "numberParallels": 0,
-                    "isolationSide": "primary",
+                    "isolationSide": IsolationSide.Primary,
                     "wire": ""
                 },
                 {
                     "name": "Secondary",
                     "numberTurns": 0,
                     "numberParallels": 0,
-                    "isolationSide": "secondary",
+                    "isolationSide": IsolationSide.Secondary,
                     "wire": ""
                 }
             ],
@@ -118,7 +119,46 @@ export const filterMas = {
         "core": {
             "name": "DummyCore",
             "functionalDescription": {
-                "type": "two-piece set",
+                "type": CoreType.TwoPieceSet,
+                "material": "",
+                "shape": "",
+                "gapping": [],
+                "numberStacks": 1
+            }
+        },
+    },
+    "outputs": []
+}
+
+export const dmcMas = {
+    "inputs": {
+        "designRequirements": {
+            "name": "My Design Requirements",
+            "topology": Topology.DifferentialModeChoke,
+            "magnetizingInductance": {
+                "minimum": 100e-6
+            },
+            "turnsRatios": [],
+        },
+        "operatingPoints": [],
+    },
+    "magnetic": {
+        "coil": {
+            "bobbin": "Dummy",
+            "functionalDescription": [
+                {
+                    "name": "Primary",
+                    "numberTurns": 0,
+                    "numberParallels": 0,
+                    "isolationSide": IsolationSide.Primary,
+                    "wire": "Dummy"
+                }
+            ],
+        },
+        "core": {
+            "name": "DummyCore",
+            "functionalDescription": {
+                "type": CoreType.TwoPieceSet,
                 "material": "",
                 "shape": "",
                 "gapping": [],
@@ -237,22 +277,22 @@ export const defaultDesignRequirements = {
         "altitude": {
             "maximum": 2000,
         },
-        "cti": "Group II",
-        "pollutionDegree": "P2",
-        "overvoltageCategory": "OVC-III",
-        "insulationType": "Double",
+        "cti": CTI.GroupII,
+        "pollutionDegree": PollutionDegree.Pd2,
+        "overvoltageCategory": OvervoltageCategory.Iii,
+        "insulationType": IsolationClass.Double,
         "mainSupplyVoltage": {
             "maximum": 400
         },
-        "standards": ["IEC 60664-1"]
+        "standards": [InsulationStandards.IEC606641]
     },
-    "market": "Industrial",
-    "topology": "Buck Converter",
+    "market": Market.Industrial,
+    "topology": Topology.BuckConverter,
     "maximumWeight": 300,
-    "isolationSides": ["primary"],
+    "isolationSides": [IsolationSide.Primary],
     "maximumDimensions": {"width": null, "height": 0.05, "depth": null},
-    "terminalType": ["Flying Lead"],
-    "wiringTechnology": "Wound"
+    "terminalType": [ConnectionType.FlyingLead],
+    "wiringTechnology": WiringTechnology.Wound
 }
 
 export const defaultOperatingPointExcitationForInsulation = {  
@@ -264,7 +304,7 @@ export const defaultOperatingPointExcitationForInsulation = {
             "peakToPeak" : 1600,
             "rms" : 400,
             "offset" : 0,
-            "label": "Rectangular"
+            "label": "rectangular"
         }
     }
 }
@@ -289,7 +329,7 @@ export const defaultOperatingPointExcitation = {
             "dutyCycle" : 0.5,
             "peakToPeak" : 10,
             "offset" : 0,
-            "label": "Triangular"
+            "label": "triangular"
         }
     },
     "voltage": {
@@ -313,7 +353,7 @@ export const defaultOperatingPointExcitation = {
             "dutyCycle" : 0.5,
             "peakToPeak" : 100,
             "offset" : 0,
-            "label": "Rectangular"
+            "label": "rectangular"
         }
     }
 }
@@ -340,6 +380,7 @@ export const minimumMaximumScalePerParameter = {
     "weight": {"min": 0.001, "max": 1e6},
     "altitude": {"min": 1, "max": 10000},
     "inductance": {"min": 1e-9, "max": 1},
+    "capacitance": {"min": 1e-15, "max": 1},
     "impedance": {"min": 1e-3, "max": 1e9},
     "leakageInductance": {"min": 1e-9, "max": 1e-6},
     "strayCapacitance": {"min": 1e-12, "max": 1e-6},
@@ -363,66 +404,66 @@ export const gapTypes = [
 export const defaultUngappedGapping = [
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     },
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     },
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     }
 ]
 export const defaultGroundGapping = [
     {
         "length": 0.001,
-        "type": "subtractive"
+        "type": GapType.Subtractive
     },
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     },
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     }
 ]
 export const defaultSpacerGapping = [
     {
         "length": 0.001,
-        "type": "additive"
+        "type": GapType.Additive
     },
     {
         "length": 0.001,
-        "type": "additive"
+        "type": GapType.Additive
     },
     {
         "length": 0.001,
-        "type": "additive"
+        "type": GapType.Additive
     }
 ]
 export const defaultDistributedGapping = [
     {
         "length": 0.0003,
-        "type": "subtractive"
+        "type": GapType.Subtractive
     },
     {
         "length": 0.000005,
-        "type": "residual"
+        "type": GapType.Residual
     },
     {
         "length": 0.000005,
 
-        "type": "residual"
+        "type": GapType.Residual
     },
     {
         "length": 0.0003,
-        "type": "subtractive"
+        "type": GapType.Subtractive
     },
     {
         "length": 0.0003,
-        "type": "subtractive"
+        "type": GapType.Subtractive
     }
 ]
 
@@ -468,7 +509,7 @@ export const defaultOperationPointExcitation = {
 export const defaultCore = {
     "name": "My Core",
     "functionalDescription": {
-        "type": "two-piece set",
+        "type": CoreType.TwoPieceSet,
         "material": "3C97",
         "shape":  {'aliases': [],
                    'dimensions': {'A': 0.0391,
@@ -479,18 +520,18 @@ export const defaultCore = {
                                   'F': 0.0125,
                                   'G': 0.0,
                                   'H': 0.0},
-                   'family': 'etd',
+                   'family': CoreShapeFamily.Etd,
                    'familySubtype': '1',
                    'name': 'ETD 39/20/13',
                    'type': 'standard'},
         "gapping": [{
-            "type": "subtractive",
+            "type": GapType.Subtractive,
             "length": 0.001
         },{
-            "type": "residual",
+            "type": GapType.Residual,
             "length": 0.00001
         },{
-            "type": "residual",
+            "type": GapType.Residual,
             "length": 0.00001
         }],
         "numberStacks": 1
@@ -516,7 +557,7 @@ export const defaultInputs = {
 export const defaultCoil = {
     "bobbin": "Dummy",
     "functionalDescription": [{
-        "isolationSide": "primary",
+        "isolationSide": IsolationSide.Primary,
         "name": "Primary",
         "numberParallels": 1,
         "numberTurns": 23,
@@ -663,7 +704,7 @@ export const defaultFlybackWizardInputs = {
     ],
     switchingFrequency: 100000,
     ambientTemperature: 25,
-    insulationType: 'Basic'
+    insulationType: 'basic'
 };
 
 export const defaultBuckWizardInputs = {
@@ -704,6 +745,158 @@ export const defaultBoostWizardInputs = {
     ambientTemperature: 25
 };
 
+// Cuk converter (V1 non-isolated). MKF Cuk model also supports V2 coupled,
+// V3 isolated, V4 synchronous, V5 bidirectional — exposed via optional flags.
+// Wizard MVP only targets V1; advanced variants reachable later via flag toggles.
+// Note: Cuk inverts polarity (Vo is signed negative internally per MKF
+// convention) but the wizard takes the positive magnitude (the C++ model
+// signs it). See MAS.ts CukOperatingPoint.
+export const defaultCukWizardInputs = {
+    inputVoltage: {
+        minimum: 10,
+        maximum: 14
+    },
+    diodeVoltageDrop: 0.7,
+    maximumSwitchCurrent: 8,
+    currentRippleRatio: 0.4,
+    efficiency: 0.9,
+    designLevel: 'Help me with the design',
+    inductance: 100e-6,
+    outputsParameters: {
+        voltage: 12,
+        current: 1,
+    },
+    switchingFrequency: 100000,
+    ambientTemperature: 25
+};
+
+// Zeta converter (non-isolated buck-boost relative, non-inverting Vo positive).
+// MKF Zeta model uses L1 (primary inductor) — wizard sizes only L1 here; L2
+// is an extra-component output of process_extra_components_inputs.
+export const defaultZetaWizardInputs = {
+    inputVoltage: {
+        minimum: 5,
+        maximum: 15
+    },
+    diodeVoltageDrop: 0.7,
+    maximumSwitchCurrent: 8,
+    currentRippleRatio: 0.4,
+    efficiency: 0.9,
+    designLevel: 'Help me with the design',
+    inductance: 100e-6,
+    outputsParameters: {
+        voltage: 12,
+        current: 1,
+    },
+    switchingFrequency: 100000,
+    ambientTemperature: 25
+};
+
+// Four-Switch Buck-Boost (non-isolated, non-inverting Vo positive). Single
+// inductor between the two H-bridge legs. Operates in buck, boost, or
+// passthrough mode depending on Vin/Vo ratio — selected automatically by the
+// MKF FourSwitchBuckBoost model.
+export const defaultFourSwitchBuckBoostWizardInputs = {
+    inputVoltage: {
+        minimum: 9,
+        maximum: 18
+    },
+    diodeVoltageDrop: 0.7,
+    maximumSwitchCurrent: 8,
+    currentRippleRatio: 0.4,
+    efficiency: 0.92,
+    designLevel: 'Help me with the design',
+    inductance: 47e-6,
+    outputsParameters: {
+        voltage: 12,
+        current: 2,
+    },
+    switchingFrequency: 100000,
+    ambientTemperature: 25
+};
+
+// Weinberg converter (isolated, push-pull-derived, non-inverting Vo positive).
+// Two primary windings + center-tapped secondary, single output inductor.
+// MKF Weinberg returns the 2-winding power transformer; secondary inductor
+// and clamp components come from process_extra_components_inputs.
+export const defaultWeinbergWizardInputs = {
+    inputVoltage: {
+        minimum: 20,
+        maximum: 30
+    },
+    diodeVoltageDrop: 0.7,
+    maximumSwitchCurrent: 5,
+    currentRippleRatio: 0.4,
+    efficiency: 0.9,
+    turnsRatio: 0.5,
+    designLevel: 'Help me with the design',
+    inductance: 200e-6,
+    outputsParameters: {
+        voltage: 48,
+        current: 2,
+    },
+    switchingFrequency: 200000,
+    ambientTemperature: 25,
+    insulationType: 'basic',
+    // Backend-known optional fields exposed through the wizard so the user
+    // can pin them rather than letting the solver pick. Defaults map to
+    // typical fielded values.
+    variant: 'classic',                  // 'classic' (V1 push-pull) | 'bridge' (V2 H-bridge)
+    synchronousRectifier: false,         // diodes -> actively-driven MOSFETs on secondary
+    couplingCoefficientInput: 0.999,     // k for the two L1 windings (input coupled inductor)
+    couplingCoefficientMain: 0.97,       // k for the 4-way main-transformer coupling
+};
+
+// CLLLC bidirectional symmetric resonant converter — Lr_p / Cr_p / Lm /
+// Cr_s / Lr_s layout. The wizard exposes the converter as a designed-by-MKF
+// flow: user specifies switching range + output range; MKF picks Lm, turns
+// ratio, and the resonant elements via process_design_requirements.
+export const defaultClllcWizardInputs = {
+    inputVoltage: {
+        minimum: 380,
+        maximum: 420
+    },
+    minSwitchingFrequency: 90000,
+    maxSwitchingFrequency: 150000,
+    nominalSwitchingFrequency: 120000,
+    diodeVoltageDrop: 0.7,
+    efficiency: 0.95,
+    qualityFactor: 0.4,
+    designLevel: 'Help me with the design',
+    magnetizingInductance: 500e-6,
+    turnsRatio: 8,
+    primarySeriesInductance: 50e-6,
+    primaryResonantCapacitance: 33e-9,
+    outputsParameters: {
+        voltage: 48,
+        current: 5,
+    },
+    ambientTemperature: 25,
+    insulationType: 'basic'
+};
+
+export const defaultSepicWizardInputs = {
+    inputVoltage: {
+        minimum: 9,
+        maximum: 16
+    },
+    designLevel: 'Help me with the design',
+    diodeVoltageDrop: 0.5,
+    maximumSwitchCurrent: 4,
+    currentRippleRatio: 0.4,
+    inductance: 47e-6,
+    efficiency: 0.9,
+    coupledInductor: false,
+    couplingCoefficient: 0.95,
+    synchronousRectifier: false,
+    outputsParameters: {
+        voltage: 12,
+        current: 1,
+    },
+    switchingFrequency: 250000,
+    ambientTemperature: 25
+};
+
 export const defaultIsolatedBuckWizardInputs = {
     inputVoltage: {
         minimum: 36,
@@ -713,6 +906,11 @@ export const defaultIsolatedBuckWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 1,
     currentRippleRatio: 0.4,
+    // dutyCycle: required in I-know mode (buildParams zips .min/.nom/.max
+    // with inputVoltage to emit desiredDutyCycle). Without this, analytical
+    // sends an empty array and the backend produces no waveforms.
+    dutyCycle: { minimum: 0.25, nominal: 0.40, maximum: 0.55 },
+    deadTime: 100e-9,
     inductance: 10e-6,
     efficiency: 0.9,
     numberOutputs: 2,
@@ -730,7 +928,7 @@ export const defaultIsolatedBuckWizardInputs = {
     ],
     switchingFrequency: 750000,
     ambientTemperature: 25,
-    insulationType: 'Basic'
+    insulationType: 'basic'
 };
 
 export const defaultIsolatedBuckBoostWizardInputs = {
@@ -742,6 +940,9 @@ export const defaultIsolatedBuckBoostWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 2.5,
     currentRippleRatio: 0.4,
+    // dutyCycle: required in I-know mode (see IsolatedBuck comment).
+    dutyCycle: { minimum: 0.30, nominal: 0.50, maximum: 0.65 },
+    deadTime: 100e-9,
     inductance: 10e-6,
     efficiency: 0.9,
     numberOutputs: 3,
@@ -764,7 +965,7 @@ export const defaultIsolatedBuckBoostWizardInputs = {
     ],
     switchingFrequency: 400000,
     ambientTemperature: 25,
-    insulationType: 'Basic'
+    insulationType: 'basic'
 };
 
 export const defaultPushPullWizardInputs = {
@@ -776,7 +977,10 @@ export const defaultPushPullWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 3,
     currentRippleRatio: 0.3,
-    dutyCycle: 0.40,
+    // dutyCycle: I-know mode reads .minimum/.nominal/.maximum and zips with
+    // inputVoltage triple to build desiredDutyCycle. Scalar default would
+    // produce an empty array and crash analytical in I-know mode.
+    dutyCycle: { minimum: 0.30, nominal: 0.40, maximum: 0.45 },
     inductance: 100e-6,
     efficiency: 0.9,
     numberOutputs: 1,
@@ -789,7 +993,7 @@ export const defaultPushPullWizardInputs = {
     ],
     switchingFrequency: 100000,
     ambientTemperature: 25,
-    insulationType: 'Basic'
+    insulationType: 'basic'
 };
 
 export const defaultForwardWizardInputs = {
@@ -818,7 +1022,7 @@ export const defaultForwardWizardInputs = {
     ],
     switchingFrequency: 200000,
     ambientTemperature: 25,
-    insulationType: 'Basic'
+    insulationType: 'basic'
 };
 
 export const defaultPfcWizardInputs = {
@@ -827,7 +1031,10 @@ export const defaultPfcWizardInputs = {
         maximum: 265
     },
     designLevel: 'Help me with the design',
-    mode: 'Continuous Conduction Mode',
+    mode: 'continuousConductionMode',
+    topologyVariant: 'boost', // boost|bridgeless|semiBridgeless|interleavedBoost|totemPole|sepic|cuk
+    numberOfPhases: 2,        // interleavedBoost only (2 or 3)
+    wideBandgapSwitch: true,  // GaN/SiC; required for totemPole in CCM
     outputVoltage: 400,      // 400V DC bus for universal input PFC
     outputPower: 300,        // 300W - typical for small-medium PFC
     switchingFrequency: 65000,  // 65kHz - good balance of size/losses
