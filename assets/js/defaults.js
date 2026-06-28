@@ -62,7 +62,7 @@ export const powerMas = {
             "bobbin": "Dummy",
             "functionalDescription": [
                 {
-                    "name": "Primary",
+                    "name": "Winding 1",
                     "numberTurns": 0,
                     "numberParallels": 0,
                     "isolationSide": IsolationSide.Primary,
@@ -101,14 +101,14 @@ export const filterMas = {
             "bobbin": "Dummy",
             "functionalDescription": [
                 {
-                    "name": "Primary",
+                    "name": "Winding 1",
                     "numberTurns": 0,
                     "numberParallels": 0,
                     "isolationSide": IsolationSide.Primary,
                     "wire": ""
                 },
                 {
-                    "name": "Secondary",
+                    "name": "Winding 2",
                     "numberTurns": 0,
                     "numberParallels": 0,
                     "isolationSide": IsolationSide.Secondary,
@@ -147,7 +147,7 @@ export const dmcMas = {
             "bobbin": "Dummy",
             "functionalDescription": [
                 {
-                    "name": "Primary",
+                    "name": "Winding 1",
                     "numberTurns": 0,
                     "numberParallels": 0,
                     "isolationSide": IsolationSide.Primary,
@@ -558,7 +558,7 @@ export const defaultCoil = {
     "bobbin": "Dummy",
     "functionalDescription": [{
         "isolationSide": IsolationSide.Primary,
-        "name": "Primary",
+        "name": "Winding 1",
         "numberParallels": 1,
         "numberTurns": 23,
         "wire": "Dummy"
