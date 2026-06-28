@@ -23,11 +23,11 @@ const { ConnectionType, CoreType, MagneticCircuit, WiringTechnology } = MAS;
 // is the same string anyway).
 const ENUM_KEYS_TO_ENUMS = {
     ancillaryLabel:      [MAS.WaveformLabel],
-    application:         [MAS.Application],
+    application:         [MAS.MagneticApplication],
     bridgeType:          [MAS.LlcBridgeType, MAS.SrcBridgeType],
     bridgeTypePrimary:   [MAS.LlcBridgeType],
     bridgeTypeSecondary: [MAS.LlcBridgeType],
-    coating:             [MAS.Coating],
+    coating:             [MAS.CoatingType],
     columnShape:         [MAS.ColumnShape],
     configuration:       [MAS.Configuration],
     controlMode:         [MAS.ControlMode],
@@ -62,8 +62,8 @@ const ENUM_KEYS_TO_ENUMS = {
     outputVoltagesType:  [MAS.OutputSType],
     overvoltageCategory: [MAS.OvervoltageCategory],
     pollutionDegree:     [MAS.PollutionDegree],
-    powerFlow:           [MAS.CllcPowerFlow],
-    powerFlowDirection:  [MAS.CllcPowerFlow],
+    powerFlow:           [MAS.PowerFlowDirection],
+    powerFlowDirection:  [MAS.PowerFlowDirection],
     rectifierType:       [MAS.AhbRectifierType, MAS.BRectifierType, MAS.SrcRectifierType],
     samplingStrategy:    [MAS.ViennaSamplingStrategy],
     sectionsAlignment:   [MAS.CoilAlignment],
@@ -74,7 +74,10 @@ const ENUM_KEYS_TO_ENUMS = {
     standard:            [MAS.WireStandard],
     standards:           [MAS.InsulationStandards],
     status:              [MAS.Status],
-    subApplication:      [MAS.SubApplication],
+    // `subApplication` is a free-form string in the current MAS designRequirements
+    // (PEAS makes it overridable per family; MAS does not constrain it to an enum),
+    // so there is no MAS.ts enum to normalise against — values pass through as-is.
+    subApplication:      [],
     switchType:          [MAS.ViennaSwitchType],
     temperatureClass:    [MAS.TemperatureClassEnum],
     terminalType:        [MAS.ConnectionType],
@@ -1103,6 +1106,8 @@ export async function checkAndFixMas(mas, mkf=null) {
         if (mas.magnetic.core.functionalDescription.shape != null && typeof(mas.magnetic.core.functionalDescription.shape) !== "string") {
             if (mas.magnetic.core.functionalDescription.shape.family == 't') {
                 mas.magnetic.core.functionalDescription.type = CoreType.Toroidal;
+                // magneticCircuit lives on the shape in current MAS (it was removed
+                // from coreFunctionalDescription, which is additionalProperties:false).
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Closed;
                 mas.magnetic.core.functionalDescription.gapping = [];
             }
@@ -1111,6 +1116,10 @@ export async function checkAndFixMas(mas, mkf=null) {
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Open;
             }
         }
+        // Legacy migration: magneticCircuit moved from coreFunctionalDescription onto
+        // the shape. Drop any obsolete copy left in old localStorage / imported MAS /
+        // fixtures so the current (additionalProperties:false) schema still validates.
+        delete mas.magnetic.core.functionalDescription.magneticCircuit;
     }
 
     if (mas.magnetic.coil != null) {
@@ -1275,7 +1284,7 @@ export function download(data, strFileName, strMimeType) {
         blob,
         reader;
         myBlob= myBlob.call ? myBlob.bind(self) : Blob ;
-  
+
     // Capture every exported artifact as a final design (no export blind spots).
     try { recordExport(strFileName); } catch (_) { /* telemetry must never break a download */ }
   

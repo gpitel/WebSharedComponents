@@ -3,6 +3,13 @@
 // Regenerates the TypeScript binding `MAS.ts` from the JSON-Schema files in
 // the MAS submodule whenever any schema is newer than the existing MAS.ts.
 //
+// MAS schemas `$ref` shared PEAS definitions by absolute URL
+// (https://psma.com/peas/...). quicktype cannot fetch those over the network, so
+// the plugin locates the local PEAS schemas (MKF/PEAS, or a `peasDir` override)
+// and supplies the transitively-referenced ones as additional `-S` sources. By
+// default it prefers MKF's MAS+PEAS submodules — the same schemas the WASM is
+// built from — so the generated TypeScript stays consistent with the WASM.
+//
 // Usage (in vite.config.js):
 //
 //     import masRegen from 'WebSharedComponents/build-tools/vite-plugin-mas-regen.js';
@@ -10,9 +17,13 @@
 //         plugins: [
 //             masRegen({
 //                 // Absolute path to MAS submodule's schemas directory.
-//                 // If omitted, plugin auto-detects ../MAS/schemas relative to
-//                 // the project root and walks up until found.
+//                 // If omitted, plugin auto-detects MKF/MAS/schemas (preferred)
+//                 // or a sibling ../MAS/schemas and walks up until found.
 //                 schemasDir: undefined,
+//                 // Absolute path to PEAS schemas directory (for resolving the
+//                 // https://psma.com/peas/... $refs in MAS). If omitted, plugin
+//                 // auto-detects MKF/PEAS/schemas near the MAS dir.
+//                 peasDir: undefined,
 //                 // List of absolute paths where the regenerated MAS.ts should
 //                 // be written. Plugin writes ONLY to these targets.
 //                 targets: [
@@ -82,16 +93,71 @@ function listSchemas(dir, exclude = []) {
 }
 
 function findSchemasDir(startDir) {
-    // Walk up until we find a sibling MAS/schemas/MAS.json.
+    // Walk up looking for a MAS/schemas/MAS.json. We PREFER MKF's MAS submodule
+    // (MKF/MAS) over a standalone sibling MAS, because that is the exact schema
+    // set the WASM (libMKF) is generated from — regenerating MAS.ts from the
+    // same source keeps the TypeScript bindings consistent with what the WASM
+    // emits/consumes.
     let cur = path.resolve(startDir);
     for (let i = 0; i < 6; i++) {
-        const candidate = path.join(cur, 'MAS', 'schemas', 'MAS.json');
-        if (fs.existsSync(candidate)) return path.dirname(candidate);
-        const candidate2 = path.join(cur, '..', 'MAS', 'schemas', 'MAS.json');
-        if (fs.existsSync(candidate2)) return path.dirname(candidate2);
+        for (const rel of [
+            ['MKF', 'MAS', 'schemas', 'MAS.json'],
+            ['MAS', 'schemas', 'MAS.json'],
+            ['..', 'MKF', 'MAS', 'schemas', 'MAS.json'],
+            ['..', 'MAS', 'schemas', 'MAS.json'],
+        ]) {
+            const candidate = path.join(cur, ...rel);
+            if (fs.existsSync(candidate)) return path.dirname(candidate);
+        }
         cur = path.dirname(cur);
     }
     return null;
+}
+
+function findPeasDir(startDir) {
+    // PEAS lives in MKF/PEAS (or as a sibling PEAS repo). MAS schemas $ref PEAS
+    // definitions by absolute URL (e.g. https://psma.com/peas/utils.json), which
+    // quicktype can only resolve if the matching local PEAS files are supplied as
+    // -S sources. Prefer MKF/PEAS so it pairs with MKF/MAS above.
+    let cur = path.resolve(startDir);
+    for (let i = 0; i < 6; i++) {
+        for (const rel of [
+            ['MKF', 'PEAS', 'schemas', 'utils.json'],
+            ['PEAS', 'schemas', 'utils.json'],
+            ['..', 'MKF', 'PEAS', 'schemas', 'utils.json'],
+            ['..', 'PEAS', 'schemas', 'utils.json'],
+        ]) {
+            const candidate = path.join(cur, ...rel);
+            if (fs.existsSync(candidate)) return path.dirname(candidate);
+        }
+        cur = path.dirname(cur);
+    }
+    return null;
+}
+
+// MAS schemas reference PEAS `$defs` via absolute URLs. quicktype matches those
+// against each supplied schema's `$id`, so we must hand it the local PEAS files.
+// A referenced PEAS file may itself reference further PEAS files, so we follow
+// the refs transitively and return every reachable local PEAS schema.
+const PEAS_REF_RE = /https:\/\/psma\.com\/peas\/([A-Za-z0-9/_.-]+\.json)/g;
+function collectPeasSources(seedFiles, peasDir) {
+    if (!peasDir) return [];
+    const seen = new Set();
+    const queue = [];
+    for (const f of seedFiles) {
+        for (const m of fs.readFileSync(f, 'utf8').matchAll(PEAS_REF_RE)) queue.push(m[1]);
+    }
+    const sources = [];
+    while (queue.length) {
+        const rel = queue.shift();
+        if (seen.has(rel)) continue;
+        seen.add(rel);
+        const full = path.join(peasDir, rel);
+        if (!fs.existsSync(full)) continue;
+        sources.push(full);
+        for (const m of fs.readFileSync(full, 'utf8').matchAll(PEAS_REF_RE)) queue.push(m[1]);
+    }
+    return sources;
 }
 
 function hasQuicktype() {
@@ -101,14 +167,18 @@ function hasQuicktype() {
     } catch { return false; }
 }
 
-function regenerate(schemasDir, targets) {
+function regenerate(schemasDir, peasDir, targets) {
     const schemas = listSchemas(schemasDir, ['conformance']);
     const masJson = path.join(schemasDir, 'MAS.json');
+    // PEAS schemas referenced (transitively) by the MAS schemas, supplied so
+    // quicktype can resolve the https://psma.com/peas/... $refs locally.
+    const peasSources = collectPeasSources([masJson, ...schemas], peasDir);
     const args = [
         '-l', 'ts',
         '-s', 'schema',
         masJson,
         ...schemas.flatMap(s => ['-S', s]),
+        ...peasSources.flatMap(s => ['-S', s]),
         '--top-level', 'Mas',
     ];
     // quicktype writes to the file specified by -o; we write to a temp file
@@ -151,7 +221,7 @@ function regenerate(schemasDir, targets) {
 }
 
 export default function masRegenPlugin(opts = {}) {
-    const { schemasDir: schemasDirOpt, targets } = opts;
+    const { schemasDir: schemasDirOpt, peasDir: peasDirOpt, targets } = opts;
     if (!Array.isArray(targets) || targets.length === 0) {
         throw new Error('vite-plugin-mas-regen: `targets` (array of absolute paths) is required');
     }
@@ -164,7 +234,11 @@ export default function masRegenPlugin(opts = {}) {
             // Standalone build without MAS submodule — keep checked-in MAS.ts.
             return;
         }
-        const newestSchema = newestMtime(schemasDir, ['conformance']);
+        const peasDir = peasDirOpt || findPeasDir(schemasDir) || findPeasDir(process.cwd());
+        const newestSchema = Math.max(
+            newestMtime(schemasDir, ['conformance']),
+            peasDir ? newestMtime(peasDir, ['conformance']) : 0,
+        );
         let oldestTarget = Infinity;
         for (const t of targets) {
             if (!fs.existsSync(t)) { oldestTarget = -1; break; }
@@ -189,7 +263,7 @@ export default function masRegenPlugin(opts = {}) {
         // eslint-disable-next-line no-console
         console.log(`[mas-regen] (${label}) schemas changed, regenerating MAS.ts -> ${targets.length} target(s)...`);
         try {
-            regenerate(schemasDir, targets);
+            regenerate(schemasDir, peasDir, targets);
             // eslint-disable-next-line no-console
             console.log(`[mas-regen] regenerated in ${Date.now() - t0} ms`);
         } catch (e) {
@@ -213,10 +287,12 @@ export default function masRegenPlugin(opts = {}) {
         configureServer(server) {
             const schemasDir = schemasDirOpt || findSchemasDir(process.cwd());
             if (schemasDir) {
-                // Watch schema directory so edits trigger Vite restart-on-change.
-                server.watcher.add(path.join(schemasDir, '**', '*.json'));
+                const peasDir = peasDirOpt || findPeasDir(schemasDir) || findPeasDir(process.cwd());
+                // Watch schema directories so edits trigger Vite restart-on-change.
+                const watched = [schemasDir, peasDir].filter(Boolean);
+                for (const dir of watched) server.watcher.add(path.join(dir, '**', '*.json'));
                 server.watcher.on('change', (file) => {
-                    if (file.startsWith(schemasDir) && file.endsWith('.json')) {
+                    if (file.endsWith('.json') && watched.some(d => file.startsWith(d))) {
                         maybeRegen('schema-change');
                     }
                 });

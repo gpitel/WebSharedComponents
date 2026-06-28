@@ -2696,6 +2696,7 @@ export interface MaximumDimensions {
  * PCB mounting style. Uses the same connectionType enum as designRequirements.terminalType.
  */
 export enum ConnectionType {
+    Blind = "blind",
     Chassis = "chassis",
     FlyingLead = "flyingLead",
     PCBPad = "pcbPad",
@@ -2923,7 +2924,7 @@ export interface SignalDescriptor {
      * of frequencies
      */
     harmonics?: Harmonics;
-    processed?: Processed;
+    processed?: ProcessedWaveform;
     waveform?:  Waveform;
     [property: string]: any;
 }
@@ -2943,7 +2944,7 @@ export interface Harmonics {
     frequencies: number[];
 }
 
-export interface Processed {
+export interface ProcessedWaveform {
     /**
      * Effective (equivalent-sine) frequency of the AC component of the waveform (DC component
      * removed). Unit: Hz.
@@ -3037,7 +3038,7 @@ export interface Magnetic {
     /**
      * The lists of distributors of the magnetic
      */
-    distributorsInfo?: Utils[];
+    distributorsInfo?: DistributorInfo[];
     /**
      * Manufacturer information for the magnetic. Extends the shared manufacturerInfo with a
      * datasheetInfo block for catalogue-level data.
@@ -3098,7 +3099,7 @@ export interface Bobbin {
     /**
      * List of distributors of this bobbin.
      */
-    distributorsInfo?: Utils[];
+    distributorsInfo?: DistributorInfo[];
     /**
      * Bobbin data described in functional terms, in a form suitable for analytical models.
      */
@@ -3115,7 +3116,7 @@ export interface Bobbin {
 /**
  * Where to buy this component.
  */
-export interface Utils {
+export interface DistributorInfo {
     /**
      * Unit cost as a monetary value with explicit currency ({value, currency}). The currency is
      * the code this distributor quotes in (derived from the distributor's country where not
@@ -4309,7 +4310,7 @@ export interface MagneticCore {
     /**
      * The lists of distributors of the magnetic core
      */
-    distributorsInfo?: Utils[];
+    distributorsInfo?: DistributorInfo[];
     /**
      * The data from the core based on its function, in a way that can be used by analytical
      * models.
@@ -5358,6 +5359,10 @@ export interface DatasheetInfo {
      */
     part?: Part;
     /**
+     * Data-provenance trail (see provenance).
+     */
+    provenance?: Provenance[];
+    /**
      * Operating temperature range from the datasheet.
      */
     thermal?: Thermal;
@@ -5822,6 +5827,50 @@ export interface Part {
      * Winding construction style (e.g. bifilar, sectional, trifilar).
      */
     windingStyle?: string;
+}
+
+/**
+ * Data-provenance trail (see provenance).
+ *
+ * Data-provenance trail for this part's datasheetInfo. A list, because different fields may
+ * come from different sources (e.g. core specs from the manufacturer datasheet, current
+ * rating from a distributor, a missing field back-filled by librarian enrichment).
+ */
+export interface Provenance {
+    /**
+     * Optional: which datasheetInfo fields this source provided (for mixed-source records).
+     */
+    fields?: string[];
+    /**
+     * Date the data was retrieved (YYYY-MM-DD).
+     */
+    retrievedDate?: null | string;
+    /**
+     * Kind of source this data came from.
+     */
+    source: Source;
+    /**
+     * Human-readable source identifier, e.g. 'TI parametric API', 'WE - Passive
+     * Components.mdb', 'DigiKey'.
+     */
+    sourceName?: string;
+    /**
+     * URL the data was retrieved from, if applicable.
+     */
+    sourceUrl?: null | string;
+}
+
+/**
+ * Kind of source this data came from.
+ */
+export enum Source {
+    Distributor = "distributor",
+    LibrarianEnrichment = "librarianEnrichment",
+    Manual = "manual",
+    ManufacturerDatabase = "manufacturerDatabase",
+    ManufacturerDatasheet = "manufacturerDatasheet",
+    ManufacturerParametric = "manufacturerParametric",
+    Scrape = "scrape",
 }
 
 /**
@@ -7281,14 +7330,14 @@ const typeMap: any = {
     ], "any"),
     "SignalDescriptor": o([
         { json: "harmonics", js: "harmonics", typ: u(undefined, r("Harmonics")) },
-        { json: "processed", js: "processed", typ: u(undefined, r("Processed")) },
+        { json: "processed", js: "processed", typ: u(undefined, r("ProcessedWaveform")) },
         { json: "waveform", js: "waveform", typ: u(undefined, r("Waveform")) },
     ], "any"),
     "Harmonics": o([
         { json: "amplitudes", js: "amplitudes", typ: a(3.14) },
         { json: "frequencies", js: "frequencies", typ: a(3.14) },
     ], false),
-    "Processed": o([
+    "ProcessedWaveform": o([
         { json: "acEffectiveFrequency", js: "acEffectiveFrequency", typ: u(undefined, 3.14) },
         { json: "average", js: "average", typ: u(undefined, 3.14) },
         { json: "deadTime", js: "deadTime", typ: u(undefined, 3.14) },
@@ -7313,7 +7362,7 @@ const typeMap: any = {
     "Magnetic": o([
         { json: "coil", js: "coil", typ: u(undefined, r("Coil")) },
         { json: "core", js: "core", typ: u(undefined, r("MagneticCore")) },
-        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("Utils"))) },
+        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("MagneticManufacturerInfo")) },
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
     ], false),
@@ -7326,13 +7375,13 @@ const typeMap: any = {
         { json: "turnsDescription", js: "turnsDescription", typ: u(undefined, a(r("Turn"))) },
     ], "any"),
     "Bobbin": o([
-        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("Utils"))) },
+        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "functionalDescription", js: "functionalDescription", typ: u(undefined, r("BobbinFunctionalDescription")) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("ManufacturerInfo")) },
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "processedDescription", js: "processedDescription", typ: u(undefined, r("CoreBobbinProcessedDescription")) },
     ], "any"),
-    "Utils": o([
+    "DistributorInfo": o([
         { json: "cost", js: "cost", typ: u(undefined, r("CurrencyAmount")) },
         { json: "country", js: "country", typ: u(undefined, u(null, "")) },
         { json: "distributedArea", js: "distributedArea", typ: u(undefined, "") },
@@ -7588,7 +7637,7 @@ const typeMap: any = {
         { json: "winding", js: "winding", typ: "" },
     ], false),
     "MagneticCore": o([
-        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("Utils"))) },
+        { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "functionalDescription", js: "functionalDescription", typ: r("CoreFunctionalDescription") },
         { json: "geometricalDescription", js: "geometricalDescription", typ: u(undefined, a(r("CoreGeometricalDescriptionElement"))) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("ManufacturerInfo")) },
@@ -7825,6 +7874,7 @@ const typeMap: any = {
         { json: "mechanical", js: "mechanical", typ: u(undefined, r("Mechanical")) },
         { json: "model", js: "model", typ: u(undefined, r("MagneticDatasheetChipBeadModel")) },
         { json: "part", js: "part", typ: u(undefined, r("Part")) },
+        { json: "provenance", js: "provenance", typ: u(undefined, a(r("Provenance"))) },
         { json: "thermal", js: "thermal", typ: u(undefined, r("Thermal")) },
     ], false),
     "MagneticDatasheetApplication": o([
@@ -7928,6 +7978,13 @@ const typeMap: any = {
         { json: "partNumber", js: "partNumber", typ: u(undefined, "") },
         { json: "shielded", js: "shielded", typ: u(undefined, true) },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, "") },
+    ], false),
+    "Provenance": o([
+        { json: "fields", js: "fields", typ: u(undefined, a("")) },
+        { json: "retrievedDate", js: "retrievedDate", typ: u(undefined, u(null, "")) },
+        { json: "source", js: "source", typ: r("Source") },
+        { json: "sourceName", js: "sourceName", typ: u(undefined, "") },
+        { json: "sourceUrl", js: "sourceUrl", typ: u(undefined, u(null, "")) },
     ], false),
     "Thermal": o([
         { json: "operatingTemperature", js: "operatingTemperature", typ: u(undefined, r("DimensionWithTolerance")) },
@@ -8610,6 +8667,15 @@ const typeMap: any = {
     ],
     "ModelSubtype": [
         "chipBead",
+    ],
+    "Source": [
+        "distributor",
+        "librarianEnrichment",
+        "manual",
+        "manufacturerDatabase",
+        "manufacturerDatasheet",
+        "manufacturerParametric",
+        "scrape",
     ],
     "MASConformance": [
         "A",
