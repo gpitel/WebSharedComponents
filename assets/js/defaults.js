@@ -1,4 +1,4 @@
-import { CTI, ConnectionType, CoreShapeFamily, CoreType, GapType, InsulationStandards, InsulationType, IsolationSide, Market, OvervoltageCategory, PollutionDegree, Topologies, WiringTechnology } from '../ts/MAS.ts'
+import { CTI, ConnectionType, CoreShapeFamily, CoreType, GapType, InsulationStandards, IsolationClass, IsolationSide, Market, OvervoltageCategory, PollutionDegree, Topology, WiringTechnology } from '../ts/MAS.ts'
 export const coreAdviserWeights = {
     "Efficiency": 40,
     "Dimensions": 30,
@@ -134,7 +134,7 @@ export const dmcMas = {
     "inputs": {
         "designRequirements": {
             "name": "My Design Requirements",
-            "topology": Topologies.DifferentialModeChoke,
+            "topology": Topology.DifferentialModeChoke,
             "magnetizingInductance": {
                 "minimum": 100e-6
             },
@@ -280,14 +280,14 @@ export const defaultDesignRequirements = {
         "cti": CTI.GroupII,
         "pollutionDegree": PollutionDegree.Pd2,
         "overvoltageCategory": OvervoltageCategory.Iii,
-        "insulationType": InsulationType.Double,
+        "insulationType": IsolationClass.Double,
         "mainSupplyVoltage": {
             "maximum": 400
         },
         "standards": [InsulationStandards.IEC606641]
     },
     "market": Market.Industrial,
-    "topology": Topologies.BuckConverter,
+    "topology": Topology.BuckConverter,
     "maximumWeight": 300,
     "isolationSides": [IsolationSide.Primary],
     "maximumDimensions": {"width": null, "height": 0.05, "depth": null},

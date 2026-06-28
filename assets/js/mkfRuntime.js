@@ -6,7 +6,9 @@ let mkf = null;
 let mkfProxy = null;
 let worker = null;
 let resolveReady;
-const ready = new Promise((resolve) => { resolveReady = resolve; });
+// `ready` is re-armed by terminateWorker() so a torn-down worker doesn't leave
+// waitForMkf() permanently resolved with a dead proxy (see terminateWorker).
+let ready = new Promise((resolve) => { resolveReady = resolve; });
 
 // Configuration
 let useWorker = true; // Worker mode enabled - WASM runs in background thread
@@ -114,6 +116,11 @@ export function terminateWorker() {
         worker = null;
         mkfProxy = null;
         mkf = null;
+        // Re-arm `ready` so the NEXT initWorker() resolves a FRESH promise. Without
+        // this, `ready` stays resolved with the terminated worker's proxy, so every
+        // waitForMkf() consumer (LtSpice export, masAutocomplete) keeps calling the
+        // dead worker after a rebuild (e.g. an El Choker palette switch).
+        ready = new Promise((resolve) => { resolveReady = resolve; });
     }
 }
 
