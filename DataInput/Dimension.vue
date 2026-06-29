@@ -279,6 +279,7 @@ export default {
                 <label
                     v-if="unit == null && altUnit != null && altUnit !== ''"
                     class="dim-alt-unit"
+                    :class="{ 'dim-alt-unit--disabled': disabled }"
                     :data-cy="dataTestLabel + '-DimensionUnit-text'">
                     {{ altUnit }}
                 </label>
@@ -432,6 +433,10 @@ export default {
     border-bottom-left-radius: 0;
     border-top-right-radius: var(--p-form-field-border-radius, 6px);
     border-bottom-right-radius: var(--p-form-field-border-radius, 6px);
+}
+.dim-alt-unit--disabled {
+    background: var(--p-select-disabled-background);
+    color: var(--p-select-disabled-color);
 }
 .dim-error-row {
     display: flex;
