@@ -8,7 +8,9 @@ import {
   LegendComponent,
   ToolboxComponent,
   GridComponent,
-  DataZoomComponent
+  DataZoomComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts';
@@ -20,6 +22,8 @@ use([
   ToolboxComponent,
   GridComponent,
   DataZoomComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   ScatterChart,
   LineChart,
   EffectScatterChart,
@@ -165,6 +169,14 @@ export default {
         showArea:{
             type: Boolean,
             default: true
+        },
+        markArea: {
+            type: Object,
+            default: null,
+        },
+        markLine: {
+            type: Object,
+            default: null,
         },
     },
     emits: [
@@ -489,6 +501,7 @@ export default {
 
             options.series = []
             options.yAxis = []
+
             const firstIndexPerSide = {}
             this.data.forEach((datum, index) => {
 
@@ -599,6 +612,15 @@ export default {
                 );
 
             })
+
+            if (options.series.length > 0) {
+                if (this.markArea || this.markLine) {
+                    const overlay = {}
+                    if (this.markArea) overlay.markArea = this.markArea
+                    if (this.markLine) overlay.markLine = this.markLine
+                    options.series[0] = { ...options.series[0], ...overlay }
+                }
+            }
 
             this.points.forEach((point) => {
                 options.series.push(
