@@ -208,6 +208,7 @@ export const designRequirementsOrdered = {
         "turnsRatios",
         "wiringTechnology",
         "insulation",
+        "shielding",
         "leakageInductance",
         "strayCapacitance",
         "isolationSides",
@@ -292,7 +293,8 @@ export const defaultDesignRequirements = {
     "isolationSides": [IsolationSide.Primary],
     "maximumDimensions": {"width": null, "height": 0.05, "depth": null},
     "terminalType": [ConnectionType.FlyingLead],
-    "wiringTechnology": WiringTechnology.Wound
+    "wiringTechnology": WiringTechnology.Wound,
+    "shielding": []
 }
 
 export const defaultOperatingPointExcitationForInsulation = {  

@@ -4,6 +4,7 @@ export const tooltipsMagneticSynthesisDesignRequirements = {
     "magnetizingInductance": "Magnetizing inductance as seen from the primary",
     "minimumImpedance": "List of minimum impedances that the filter has to reach",
     "turnsRatios": "List of turns ratios, one for each secondary, each one referred to the primary",
+    "shielding": "Electrostatic screens placed between two windings to cut winding-to-winding capacitance and common-mode noise",
     "leakageInductance": "List of leakage inductances, with tolerance, one for each secondary, each one referred to the primary",
     "strayCapacitance": "List of stray capacitances, with tolerance, one for each secondary, each one referred to the primary",
     "operatingTemperature": "Range of operation temperatures that the magnetic will be subjected to",
