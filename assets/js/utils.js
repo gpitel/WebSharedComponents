@@ -1025,6 +1025,38 @@ export async function checkAndFixMas(mas, mkf=null) {
     // as an enum in MAS.ts (see ENUM_KEYS_TO_ENUMS above).
     normaliseMasEnumCasing(mas);
 
+    // Legacy shielding requirements referenced windings by NAME; they are now
+    // referenced by index (0-based, functionalDescription order) so renaming a
+    // winding cannot break its shields. Convert names found in old files.
+    if (mas?.inputs?.designRequirements?.shielding != null) {
+        const windingNames = (mas?.magnetic?.coil?.functionalDescription || []).map((winding) => winding.name);
+        const toIndex = (value) => {
+            if (typeof value !== 'string') {
+                return value;
+            }
+            const index = windingNames.indexOf(value);
+            return index >= 0 ? index : null;
+        };
+        mas.inputs.designRequirements.shielding = mas.inputs.designRequirements.shielding
+            .map((requirement) => {
+                const converted = { ...requirement };
+                if (Array.isArray(converted.betweenWindings)) {
+                    converted.betweenWindings = converted.betweenWindings.map(toIndex);
+                }
+                if (typeof converted.terminatedTo === 'string') {
+                    converted.terminatedTo = toIndex(converted.terminatedTo);
+                    if (converted.terminatedTo == null) {
+                        delete converted.terminatedTo;
+                    }
+                }
+                return converted;
+            })
+            .filter((requirement) =>
+                Array.isArray(requirement.betweenWindings) &&
+                requirement.betweenWindings.length == 2 &&
+                requirement.betweenWindings.every((index) => typeof index === 'number'));
+    }
+
     let numberWindings = 0;
     if (mas.inputs != null) {
         numberWindings = mas.inputs.designRequirements.turnsRatios.length + 1;

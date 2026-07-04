@@ -2578,10 +2578,12 @@ export interface ShieldingRequirement {
      */
     name?: string;
     /**
-     * Names of the two windings between which the shield must be placed. The shield is inserted
-     * at every interface where sections of these two windings are adjacent
+     * Indexes of the two windings between which the shield must be placed (0-based, in
+     * functionalDescription order, like isolationSides). The shield is inserted at every
+     * interface where sections of these two windings are adjacent, unless restricted by
+     * interfaces
      */
-    betweenWindings: string[];
+    betweenWindings: number[];
     /**
      * How the shield termination is connected. A shield terminates at one point only — the
      * other end is left unconnected to avoid a shorted turn — so unlike windings there is a
@@ -2609,9 +2611,10 @@ export interface ShieldingRequirement {
      */
     material?: string;
     /**
-     * Name of the winding whose quiet node the shield single-ended termination is connected to
+     * Index of the winding whose quiet node the shield single-ended termination is connected
+     * to (0-based, in functionalDescription order)
      */
-    terminatedTo?: string;
+    terminatedTo?: number;
     /**
      * Thickness of the shield, in m
      */
@@ -7349,14 +7352,14 @@ const typeMap: any = {
         { json: "wiringTechnology", js: "wiringTechnology", typ: u(undefined, r("WiringTechnology")) },
     ], "any"),
     "ShieldingRequirement": o([
-        { json: "betweenWindings", js: "betweenWindings", typ: a("") },
+        { json: "betweenWindings", js: "betweenWindings", typ: a(0) },
         { json: "connection", js: "connection", typ: u(undefined, r("ConnectionElement")) },
         { json: "coverage", js: "coverage", typ: u(undefined, 3.14) },
         { json: "interfaces", js: "interfaces", typ: u(undefined, a(0)) },
         { json: "margin", js: "margin", typ: u(undefined, a(3.14)) },
         { json: "material", js: "material", typ: u(undefined, "") },
         { json: "name", js: "name", typ: u(undefined, "") },
-        { json: "terminatedTo", js: "terminatedTo", typ: u(undefined, "") },
+        { json: "terminatedTo", js: "terminatedTo", typ: u(undefined, 0) },
         { json: "thickness", js: "thickness", typ: u(undefined, 3.14) },
         { json: "type", js: "type", typ: u(undefined, r("ShieldingType")) },
         { json: "wire", js: "wire", typ: u(undefined, "") },
