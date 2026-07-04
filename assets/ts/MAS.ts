@@ -2557,6 +2557,10 @@ export interface DesignRequirements {
      */
     minimumImpedance?: ImpedanceAtFrequency[];
     /**
+     * List of electrostatic shields that must be placed between windings
+     */
+    shielding?: ShieldingRequirement[];
+    /**
      * Required values for the stray capacitance
      */
     strayCapacitance?: DimensionWithTolerance[];
@@ -2565,6 +2569,53 @@ export interface DesignRequirements {
      */
     turnsRatios:       DimensionWithTolerance[];
     wiringTechnology?: WiringTechnology;
+    [property: string]: any;
+}
+
+export interface ShieldingRequirement {
+    /**
+     * A label that identifies this shield
+     */
+    name?: string;
+    /**
+     * Names of the two windings between which the shield must be placed. The shield is inserted
+     * at every interface where sections of these two windings are adjacent
+     */
+    betweenWindings: string[];
+    /**
+     * How the shield termination is connected. A shield terminates at one point only — the
+     * other end is left unconnected to avoid a shorted turn — so unlike windings there is a
+     * single connection instead of a start-finish pair
+     */
+    connection?: ConnectionElement;
+    /**
+     * Proportion of the winding window breadth covered by the shield, from 0 to 1
+     */
+    coverage?: number;
+    /**
+     * Zero-based ordinals of the insulation interfaces of the wound coil (counted in winding
+     * order, wrap-around interface last) at which the shield must be placed. If absent, the
+     * shield is placed at every interface where the two windings are adjacent
+     */
+    interfaces?: number[];
+    /**
+     * Distances at the extremes of the winding window kept clear by the shield, in m.
+     * Two-element array, from 'inner or top' to 'outer or bottom', like section margins.
+     * Takes precedence over coverage
+     */
+    margin?: number[];
+    /**
+     * Material of the shield, by default copper
+     */
+    material?: string;
+    /**
+     * Name of the winding whose quiet node the shield single-ended termination is connected to
+     */
+    terminatedTo?: string;
+    /**
+     * Thickness of the shield, in m
+     */
+    thickness?: number;
     [property: string]: any;
 }
 
@@ -7271,9 +7322,21 @@ const typeMap: any = {
         { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, a(r("DimensionWithTolerance"))) },
         { json: "magnetizingInductance", js: "magnetizingInductance", typ: r("DimensionWithTolerance") },
         { json: "minimumImpedance", js: "minimumImpedance", typ: u(undefined, a(r("ImpedanceAtFrequency"))) },
+        { json: "shielding", js: "shielding", typ: u(undefined, a(r("ShieldingRequirement"))) },
         { json: "strayCapacitance", js: "strayCapacitance", typ: u(undefined, a(r("DimensionWithTolerance"))) },
         { json: "turnsRatios", js: "turnsRatios", typ: a(r("DimensionWithTolerance")) },
         { json: "wiringTechnology", js: "wiringTechnology", typ: u(undefined, r("WiringTechnology")) },
+    ], "any"),
+    "ShieldingRequirement": o([
+        { json: "betweenWindings", js: "betweenWindings", typ: a("") },
+        { json: "connection", js: "connection", typ: u(undefined, r("ConnectionElement")) },
+        { json: "coverage", js: "coverage", typ: u(undefined, 3.14) },
+        { json: "interfaces", js: "interfaces", typ: u(undefined, a(0)) },
+        { json: "margin", js: "margin", typ: u(undefined, a(3.14)) },
+        { json: "material", js: "material", typ: u(undefined, "") },
+        { json: "name", js: "name", typ: u(undefined, "") },
+        { json: "terminatedTo", js: "terminatedTo", typ: u(undefined, "") },
+        { json: "thickness", js: "thickness", typ: u(undefined, 3.14) },
     ], "any"),
     "InsulationRequirements": o([
         { json: "altitude", js: "altitude", typ: u(undefined, r("DimensionWithTolerance")) },
