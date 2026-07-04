@@ -13,6 +13,12 @@
  * winding START (connections[0]); degree-1 ends become labelled terminals. A node
  * shared ACROSS groups can't be one rail, so it shows as matching labels + a NOTE.
  *
+ * Electrostatic shields (designRequirements.shielding) draw as a dashed line
+ * parallel to the core on the side of betweenWindings[0], spanning the winding
+ * stack. A solid lead extends from its bottom: to the side's terminal column
+ * labelled with the connection pin, or — when connection.type is `chassis` —
+ * straight down to a chassis-ground symbol (all chassis shields share one).
+ *
  * Lives in WebSharedComponents so both the WebFrontend and MagneticBuilderApp can
  * import it via the /WebSharedComponents/assets/js/ alias.
  */
@@ -37,6 +43,15 @@ const HOP_R = 0.12;     // radius of a lead's hop over a rail
 const STUB = 0.30;      // straight lead stub above and below each coil's spring
 const DOT_DX = 0.16;    // polarity-dot offset to the coil's outer side
 const DOT_DY = 0.15;    // polarity-dot drop below the start terminal
+const SHIELD_DX = 0.26;     // shield dash distance from the core (inside the coil bumps at ~0.39)
+const SHIELD_STEP = 0.06;   // inward step for each additional shield on the same side
+const SHIELD_OVER = 0.05;   // dash overshoot above/below the winding stack
+const SHIELD_DROP = 0.5;    // pin lead's run below the lowest coil
+const SHIELD_ROW = 0.4;     // extra drop per additional pin lead on a side
+const CHASSIS_DY = 0.4;     // chassis bar distance below the core bottom
+const CHASSIS_JOIN = 0.35;  // U-join depth below the core (2+ chassis shields)
+const CHASSIS_W = 0.25;     // chassis bar half-width
+const CHASSIS_HATCH = 0.16; // chassis hatch stroke run (45 degrees, down-left)
 
 // Two-decimal coordinate formatter (matches Python's f"{x:.2f}", avoiding "-0.00").
 const f = (x) => (Object.is(x, -0) ? 0 : x).toFixed(2);
@@ -176,7 +191,72 @@ function renderGroup(windings, side, yTop) {
     for (const p of placed) {
         lines.push(...windingLines(p, coilX, side, termX, rails));
     }
-    return [lines, coilBot, shared.length ? base : coilBot];
+    return [lines, coilBot, shared.length ? base : coilBot, { railX, railTop, shared, base, termX }];
+}
+
+function chassisSymbol(x, yBar) {
+    const lines = [`  \\draw[thick] (${f(x - CHASSIS_W)},${f(yBar)}) -- (${f(x + CHASSIS_W)},${f(yBar)});`];
+    for (const xs of [x - CHASSIS_W, x, x + CHASSIS_W]) {
+        lines.push(`  \\draw[thick] (${f(xs)},${f(yBar)}) -- (${f(xs - CHASSIS_HATCH)},${f(yBar - CHASSIS_HATCH * 1.25)});`);
+    }
+    return lines;
+}
+
+function shieldLines(shields, sideOf, sideMeta, coilLow, coreBot) {
+    const lines = [];
+    const slots = { '-1': 0, 1: 0 };     // dash slots used per side (outermost first)
+    const pinRows = { '-1': 0, 1: 0 };   // pin leads already routed per side
+    const chassisX = [];
+    const dashTop = TOP + SHIELD_OVER;
+    const dashBot = coilLow - SHIELD_OVER;
+    const isChassis = (sh) => ((sh.connection || {}).type || '').toLowerCase() === 'chassis';
+    // Pin-terminated shields take the outer slots so their horizontal leads
+    // start outside every chassis stem and cross nothing.
+    const ordered = shields.slice().sort((a, b) => isChassis(a) - isChassis(b));
+    for (const sh of ordered) {
+        const side = sideOf[(sh.betweenWindings || [])[0]] || -1;
+        const x = side * (SHIELD_DX - slots[side] * SHIELD_STEP);
+        slots[side] += 1;
+        lines.push(`  % shield ${sh.name !== undefined ? sh.name : '?'}`);
+        lines.push(`  \\draw[thick, dashed] (${f(x)},${f(dashTop)}) -- (${f(x)},${f(dashBot)});`);
+        if (isChassis(sh)) {
+            chassisX.push(x);
+        } else {
+            const pin = (sh.connection || {}).pinName;
+            const label = pin === undefined || pin === null || String(pin) === '' ? '?' : String(pin);
+            const y = coilLow - SHIELD_DROP - pinRows[side] * SHIELD_ROW;
+            pinRows[side] += 1;
+            const metas = sideMeta[side];
+            const termX = metas.length
+                ? side * Math.max(...metas.map((m) => Math.abs(m.termX))) : side * TERM_DX;
+            const crosses = [];
+            for (const m of metas) {
+                for (const n of m.shared) {
+                    if (between(x, termX, m.railX[n]) && inSpan(y, m.railTop[n], m.base)) {
+                        crosses.push(m.railX[n]);
+                    }
+                }
+            }
+            lines.push(`  \\draw[thick] (${f(x)},${f(dashBot)}) -- (${f(x)},${f(y)});`);
+            lines.push(hline(x, termX, y, crosses, label, side < 0 ? 'left' : 'right'));
+        }
+    }
+    if (chassisX.length === 1) {
+        const yBar = coreBot - CHASSIS_DY;
+        lines.push(`  \\draw[thick] (${f(chassisX[0])},${f(dashBot)}) -- (${f(chassisX[0])},${f(yBar)});`);
+        lines.push(...chassisSymbol(chassisX[0], yBar));
+    } else if (chassisX.length > 1) {
+        // Join all chassis-terminated shields to a single chassis-ground symbol.
+        const joinY = coreBot - CHASSIS_JOIN;
+        const xMid = (Math.min(...chassisX) + Math.max(...chassisX)) / 2;
+        for (const x of chassisX) {
+            lines.push(`  \\draw[thick] (${f(x)},${f(dashBot)}) -- (${f(x)},${f(joinY)});`);
+        }
+        lines.push(`  \\draw[thick] (${f(Math.min(...chassisX))},${f(joinY)}) -- (${f(Math.max(...chassisX))},${f(joinY)});`);
+        lines.push(`  \\draw[thick] (${f(xMid)},${f(joinY)}) -- (${f(xMid)},${f(joinY - 0.2)});`);
+        lines.push(...chassisSymbol(xMid, joinY - 0.2));
+    }
+    return lines;
 }
 
 function groupWindings(coil_) {
@@ -203,23 +283,33 @@ function crossGroupShared(groups) {
  * Build a standalone TikZ schematic for a MAS `coil` (`mas.magnetic.coil`).
  * @param {object} coil_ object carrying `functionalDescription[]` with per-winding
  *   `name`, `isolationSide` and `connections[].pinName`.
+ * @param {Array} [shielding] `designRequirements.shielding` entries (`betweenWindings`,
+ *   `connection.type`/`pinName`, `name`). Defaults to a `shielding` key embedded in
+ *   `coil_` so playground JSON can carry shields without a second input.
  * @returns {string} a complete `\begin{tikzpicture}...\end{tikzpicture}`.
  */
-export function coilToTikz(coil_) {
+export function coilToTikz(coil_, shielding = coil_.shielding) {
     const groups = Object.entries(groupWindings(coil_))
         .sort((a, b) => sideIndex(a[0]) - sideIndex(b[0]));
     const body = [];
     let coilLow = TOP;
     let rightY = TOP;            // cursor for stacking the right-hand groups
+    const sideOf = {};           // winding name -> -1 (left of core) / +1 (right)
+    const sideMeta = { '-1': [], 1: [] };  // per-side group rails + terminal columns
     for (const [sideName, windings] of groups) {
-        let lines; let low;
-        if (sideName === 'primary') {
-            [lines, low] = renderGroup(windings, -1, TOP);
+        const side = sideName === 'primary' ? -1 : +1;
+        let lines; let low; let meta;
+        if (side < 0) {
+            [lines, low, , meta] = renderGroup(windings, -1, TOP);
         } else {
             let lowPoint;
-            [lines, low, lowPoint] = renderGroup(windings, +1, rightY);
+            [lines, low, lowPoint, meta] = renderGroup(windings, +1, rightY);
             rightY = lowPoint - ROW_GAP;
         }
+        for (const wind of windings) {
+            if (wind.name !== undefined) sideOf[wind.name] = side;
+        }
+        sideMeta[side].push(meta);
         body.push(...lines);
         coilLow = Math.min(coilLow, low);
     }
@@ -232,6 +322,9 @@ export function coilToTikz(coil_) {
 
     const coreTop = TOP + 0.4;
     const coreBot = coilLow - 0.3;
+    if ((shielding || []).length) {
+        body.push(...shieldLines(shielding, sideOf, sideMeta, coilLow, coreBot));
+    }
     const core = [
         `  \\draw[line width=1.4pt] (${f(-CORE_GAP)},${f(coreTop)}) -- (${f(-CORE_GAP)},${f(coreBot)});`,
         `  \\draw[line width=1.4pt] (${f(CORE_GAP)},${f(coreTop)}) -- (${f(CORE_GAP)},${f(coreBot)});`,

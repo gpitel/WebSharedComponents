@@ -101,4 +101,32 @@ export const MOCK_COILS = [
             w('S', 'secondary', [PIN, '3'], [PIN, '4']),
         ]),
     },
+    {
+        name: 'shielded_pin',
+        caption: 'P|S shield to pin 5, wrap-around shield to pin 6',
+        coil: {
+            ...coil([
+                w('P', 'primary', [PIN, '1'], [PIN, '2']),
+                w('S', 'secondary', [PIN, '3'], [PIN, '4']),
+            ]),
+            shielding: [
+                { name: 'SH1', betweenWindings: ['P', 'S'], connection: { type: PIN, pinName: '5' } },
+                { name: 'SH2', betweenWindings: ['S', 'P'], connection: { type: PIN, pinName: '6' } },
+            ],
+        },
+    },
+    {
+        name: 'shielded_chassis',
+        caption: 'both interface shields joined to chassis gnd',
+        coil: {
+            ...coil([
+                w('P', 'primary', [PIN, '1'], [PIN, '2']),
+                w('S', 'secondary', [PIN, '3'], [PIN, '4']),
+            ]),
+            shielding: [
+                { name: 'SH1', betweenWindings: ['P', 'S'], connection: { type: 'Chassis' } },
+                { name: 'SH2', betweenWindings: ['S', 'P'], connection: { type: 'Chassis' } },
+            ],
+        },
+    },
 ];
