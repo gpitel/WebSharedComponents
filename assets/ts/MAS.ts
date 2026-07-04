@@ -2616,7 +2616,28 @@ export interface ShieldingRequirement {
      * Thickness of the shield, in m
      */
     thickness?: number;
+    /**
+     * Construction of the shield: a continuous foil (near-complete coverage, must stay much
+     * thinner than a skin depth to limit eddy loss), or a screen wound from wire like a
+     * winding layer (runs on standard winding equipment, lower eddy loss, partial coverage)
+     */
+    type?: ShieldingType;
+    /**
+     * Name of the wire the screen is wound from, when the shield type is wound. The shield
+     * layer thickness follows the wire outer diameter
+     */
+    wire?: string;
     [property: string]: any;
+}
+
+/**
+ * Construction of the shield: a continuous foil (near-complete coverage, must stay much
+ * thinner than a skin depth to limit eddy loss), or a screen wound from wire like a
+ * winding layer (runs on standard winding equipment, lower eddy loss, partial coverage)
+ */
+export enum ShieldingType {
+    Foil = "foil",
+    Wound = "wound",
 }
 
 export interface InsulationRequirements {
@@ -7337,6 +7358,8 @@ const typeMap: any = {
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "terminatedTo", js: "terminatedTo", typ: u(undefined, "") },
         { json: "thickness", js: "thickness", typ: u(undefined, 3.14) },
+        { json: "type", js: "type", typ: u(undefined, r("ShieldingType")) },
+        { json: "wire", js: "wire", typ: u(undefined, "") },
     ], "any"),
     "InsulationRequirements": o([
         { json: "altitude", js: "altitude", typ: u(undefined, r("DimensionWithTolerance")) },
@@ -8590,6 +8613,10 @@ const typeMap: any = {
         "cartesian",
         "cylindrical",
         "polar",
+    ],
+    "ShieldingType": [
+        "foil",
+        "wound",
     ],
     "ElectricalType": [
         "conduction",
