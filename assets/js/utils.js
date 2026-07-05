@@ -1025,26 +1025,25 @@ export async function checkAndFixMas(mas, mkf=null) {
     // as an enum in MAS.ts (see ENUM_KEYS_TO_ENUMS above).
     normaliseMasEnumCasing(mas);
 
-    // Legacy shielding requirements referenced windings by NAME; they are now
-    // referenced by index (0-based, functionalDescription order) so renaming a
-    // winding cannot break its shields. Convert names found in old files.
+    // Shielding requirements reference windings by NAME, like everywhere else in
+    // MAS. Files saved during the brief index-based era are converted back, and
+    // shields whose windings cannot be resolved are dropped.
     if (mas?.inputs?.designRequirements?.shielding != null) {
         const windingNames = (mas?.magnetic?.coil?.functionalDescription || []).map((winding) => winding.name);
-        const toIndex = (value) => {
-            if (typeof value !== 'string') {
-                return value;
+        const toName = (value) => {
+            if (typeof value === 'number') {
+                return windingNames[value] ?? null;
             }
-            const index = windingNames.indexOf(value);
-            return index >= 0 ? index : null;
+            return windingNames.includes(value) ? value : null;
         };
         mas.inputs.designRequirements.shielding = mas.inputs.designRequirements.shielding
             .map((requirement) => {
                 const converted = { ...requirement };
                 if (Array.isArray(converted.betweenWindings)) {
-                    converted.betweenWindings = converted.betweenWindings.map(toIndex);
+                    converted.betweenWindings = converted.betweenWindings.map(toName);
                 }
-                if (typeof converted.terminatedTo === 'string') {
-                    converted.terminatedTo = toIndex(converted.terminatedTo);
+                if (converted.terminatedTo != null) {
+                    converted.terminatedTo = toName(converted.terminatedTo);
                     if (converted.terminatedTo == null) {
                         delete converted.terminatedTo;
                     }
@@ -1054,8 +1053,10 @@ export async function checkAndFixMas(mas, mkf=null) {
             .filter((requirement) =>
                 Array.isArray(requirement.betweenWindings) &&
                 requirement.betweenWindings.length == 2 &&
-                requirement.betweenWindings.every((index) => typeof index === 'number'));
+                requirement.betweenWindings.every((name) => typeof name === 'string'));
     }
+
+    // moved below: renameWinding keeps name-based references valid on rename
 
     let numberWindings = 0;
     if (mas.inputs != null) {
@@ -1516,4 +1517,27 @@ export function base64ToArrayBuffer(base64) {
         bytes[i] = binaryString.charCodeAt(i);
     }
     return bytes.buffer;
+}
+
+// Rename a winding and keep every name-based reference to it valid. MAS references
+// windings by name (sections, layers, turns, shielding requirements), so renames must
+// be propagated instead of leaving dangling references behind.
+export function renameWinding(mas, windingIndex, newName) {
+    const functionalDescription = mas?.magnetic?.coil?.functionalDescription || [];
+    if (windingIndex < 0 || windingIndex >= functionalDescription.length || newName == null || newName === '') {
+        return;
+    }
+    const oldName = functionalDescription[windingIndex].name;
+    functionalDescription[windingIndex].name = newName;
+    if (oldName == null || oldName === newName) {
+        return;
+    }
+    (mas?.inputs?.designRequirements?.shielding || []).forEach((requirement) => {
+        if (Array.isArray(requirement.betweenWindings)) {
+            requirement.betweenWindings = requirement.betweenWindings.map((name) => name === oldName ? newName : name);
+        }
+        if (requirement.terminatedTo === oldName) {
+            requirement.terminatedTo = newName;
+        }
+    });
 }
