@@ -20,18 +20,6 @@ export interface Mas {
      */
     magnetic: Magnetic;
     /**
-     * Optional declaration of which MAS conformance class this document targets. Class A —
-     * Inductor Basic. Class B — Transformer (multi-winding, insulation, isolated topologies).
-     * Class C — Full (all schemas, all topologies). See docs/conformance.md and
-     * schemas/conformance/.
-     */
-    masConformance?: MASConformance;
-    /**
-     * SemVer version of the MAS specification this document conforms to (MAJOR.MINOR.PATCH).
-     * Optional in 0.x; will become required in 1.0.
-     */
-    masVersion?: string;
-    /**
      * The description of the outputs that are produced after designing a Magnetic
      */
     outputs: Outputs[];
@@ -41,7 +29,6 @@ export interface Mas {
  * The description of the inputs that can be used to design a Magnetic
  */
 export interface Inputs {
-    converterInformation?: ConverterInformation;
     /**
      * Data describing the design requirements
      */
@@ -50,2434 +37,6 @@ export interface Inputs {
      * Data describing the operating points
      */
     operatingPoints: OperatingPoint[];
-}
-
-export interface ConverterInformation {
-    supportedTopologies?: SupportedTopologies;
-}
-
-export interface SupportedTopologies {
-    asymmetricHalfBridge?:   AsymmetricHalfBridge;
-    boost?:                  Boost;
-    buck?:                   Buck;
-    cllcResonant?:           CllcResonant;
-    clllcResonant?:          ClllcResonant;
-    commonModeChoke?:        CommonModeChoke;
-    cuk?:                    Cuk;
-    currentTransformer?:     CurrentTransformer;
-    differentialModeChoke?:  DifferentialModeChoke;
-    dualActiveBridge?:       DualActiveBridge;
-    flyback?:                Flyback;
-    forward?:                Forward;
-    fourSwitchBuckBoost?:    FourSwitchBuckBoost;
-    isolatedBuck?:           IsolatedBuck;
-    isolatedBuckBoost?:      IsolatedBuckBoost;
-    llcResonant?:            LlcResonant;
-    phaseShiftedFullBridge?: PhaseShiftedFullBridge;
-    phaseShiftedHalfBridge?: PhaseShiftedHalfBridge;
-    powerFactorCorrection?:  PowerFactorCorrection;
-    pushPull?:               PushPull;
-    sepic?:                  Sepic;
-    seriesResonant?:         SeriesResonant;
-    viennaRectifier?:        ViennaRectifier;
-    weinberg?:               Weinberg;
-    zeta?:                   Zeta;
-}
-
-/**
- * The description of an Asymmetric Half-Bridge (AHB) converter (Imbertson-Mohan 1993):
- * single-leg, two-switch isolated PWM converter with DC-blocking capacitor and
- * complementary D/(1-D) drive.
- */
-export interface AsymmetricHalfBridge {
-    /**
-     * Optional explicit DC-blocking capacitance in farads
-     */
-    dcBlockingCapacitance?: number;
-    /**
-     * The voltage drop of the rectifier diode (or SR FET drain-source drop)
-     */
-    diodeVoltageDrop?: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the AHB converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * Optional Vin step magnitude (in volts) used to compute worst-case transient flux excursion
-     */
-    inputVoltageStepRange?: number;
-    /**
-     * Optional explicit primary leakage inductance in henries
-     */
-    leakageInductance?: number;
-    /**
-     * Optional explicit primary magnetizing inductance in henries
-     */
-    magnetizingInductance?: number;
-    /**
-     * Maximum duty cycle of Q1 (chosen branch of non-monotonic gain curve, conventionally <=
-     * 0.5)
-     */
-    maximumDutyCycle?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: AhbOperatingPoint[];
-    /**
-     * Optional explicit output filter inductance in henries
-     */
-    outputInductance?: number;
-    /**
-     * The type of secondary rectifier
-     */
-    rectifierType?: AhbRectifierType;
-    /**
-     * Whether to use transformer leakage inductance for ZVS
-     */
-    useLeakageInductance?: boolean;
-}
-
-/**
- * The input voltage of the AHB converter
- *
- * The input voltage of the boost
- *
- * The input voltage of the buck
- *
- * The input voltage (HV side) of the CLLC converter
- *
- * The HV-side bus voltage (typically 380-800 V for OBC)
- *
- * The LV-side bus voltage (typically 200-500 V for OBC)
- *
- * The operating voltage across the choke (line-to-line or line-to-neutral)
- *
- * The input voltage of the Cuk
- *
- * The input voltage of the filter stage
- *
- * The input voltage of the DAB converter
- *
- * The input voltage of the flyback
- *
- * The input voltage of the forward
- *
- * The input voltage of the 4-switch buck-boost (must support a sweep range that crosses
- * Vo)
- *
- * The input voltage of the isolatedBuck
- *
- * The input voltage of the isolatedBuckBoost
- *
- * The input voltage of the LLC converter
- *
- * The input voltage of the PSFB converter
- *
- * The input voltage of the PSHB converter
- *
- * The AC input voltage (RMS) with tolerance range (e.g., 85-265V universal input)
- *
- * The input voltage of the pushPull
- *
- * The input voltage of the SEPIC
- *
- * The input voltage of the SRC converter
- *
- * AC line-to-line RMS voltage (e.g. 400 V for EU, 480 V for US)
- *
- * The input voltage of the Weinberg
- *
- * The input voltage of the Zeta
- *
- * Required values for the altitude
- *
- * Voltage RMS of the main supply to which this transformer is connected to.
- *
- * Required values for the magnetizing inductance
- *
- * The maximum thickness of the insulation around the wire, in m
- *
- * The conducting area of the wire, in m². Used for some rectangular shapes where the area
- * is smaller than expected due to rounded corners
- *
- * The conducting diameter of the wire, in m
- *
- * The outer diameter of the wire, in m
- *
- * The conducting height of the wire, in m
- *
- * The conducting width of the wire, in m
- *
- * The outer height of the wire, in m
- *
- * The outer width of the wire, in m
- *
- * The radius of the edge, in case of rectangular wire, in m
- *
- * The outer diameter of the wire. Unit: m.
- *
- * Length of one full twist of the litz bundle along the wire axis. Unit: m. Vendors quote
- * this in mm or as 'lay length'; convert to metres before serialisation. No international
- * standard exists for litz construction; this field captures the most commonly published
- * vendor parameter.
- *
- * Specific heat capacity value according to manufacturer. Unit: J/(kg*K).
- *
- * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
- *
- * DC resistance in Ohms. nominal = typical value, maximum = datasheet max.
- *
- * Inductance in Henries, with tolerance.
- *
- * Inductance per winding in Henries, with tolerance.
- *
- * Leakage inductance in Henries.
- *
- * Magnetizing inductance in Henries, with tolerance.
- *
- * Rated common-mode inductance in Henries (the per-line inductance presented to common-mode
- * current). Datasheet-specified for common-mode chokes; distinct from leakageInductance
- * (the differential-mode term).
- *
- * Differential-mode (leakage) inductance in Henries.
- *
- * Body diameter in metres (for cylindrical parts).
- *
- * Body height in metres.
- *
- * Body length in metres.
- *
- * Pin length in metres.
- *
- * Body weight in kilograms.
- *
- * Body width in metres.
- *
- * Operating temperature in degrees Celsius.
- *
- * Value of the leakage inductance between the primary and a secondary winding given by the
- * position in the array
- *
- * Value of the magnetizing inductance. Unit: H. The operating point at which this value
- * applies (frequency, AC test amplitude, DC bias, temperature) is recorded in the optional
- * `measurementCondition` block; if absent, small-signal at 0 A DC bias and the ambient
- * temperature of the operating point is assumed.
- *
- * Required values for the temperature that the component can reach under operation, in
- * Celsius
- *
- * A dimension with minimum, nominal, and maximum values.
- */
-export interface DimensionWithTolerance {
-    /**
-     * True if the maximum value must be excluded from the range
-     */
-    excludeMaximum?: boolean;
-    /**
-     * True if the minimum value must be excluded from the range
-     */
-    excludeMinimum?: boolean;
-    /**
-     * The maximum value of the dimension.
-     */
-    maximum?: number;
-    /**
-     * The minimum value of the dimension.
-     */
-    minimum?: number;
-    /**
-     * The nominal value of the dimension.
-     */
-    nominal?: number;
-    /**
-     * Optional SI unit string (e.g. 'H', 'F', 'V', 'A', 'Ohm', 'm', 'kg'). When absent, the
-     * unit is implied by the field name.
-     */
-    unit?: string;
-    [property: string]: any;
-}
-
-/**
- * The description of one AHB operating point
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface AhbOperatingPoint {
-    /**
-     * Commanded duty cycle of Q1 for this operating point (0 < D <= 0.5 for the conventional
-     * non-monotonic gain branch). Schema bounds 0 <= D <= 1 to permit the upper-branch research
-     * configuration.
-     */
-    dutyCycle: number;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
- * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
- *
- * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
- * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
- *
- * Type of value carried in outputCurrents. Defaults to dc.
- *
- * Type of value carried in outputVoltages. Defaults to dc.
- */
-export enum OutputSType {
-    Average = "average",
-    Dc = "dc",
-    Peak = "peak",
-    PeakToPeak = "peakToPeak",
-    RMS = "rms",
-}
-
-/**
- * The type of secondary rectifier
- *
- * The type of secondary rectifier for the AHB
- */
-export enum AhbRectifierType {
-    AhbFlyback = "ahbFlyback",
-    CenterTapped = "centerTapped",
-    CurrentDoubler = "currentDoubler",
-    FullBridge = "fullBridge",
-}
-
-/**
- * The description of a Boost converter excitation
- */
-export interface Boost {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the boost
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface TopologyExcitation {
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The description of a Buck converter excitation
- */
-export interface Buck {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the buck
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * CLLC Bidirectional Resonant converter excitation. Schema v2 adds asymmetric-tank ratios
- * (a, b), bridge-type selection (full/half) and leakage-integration flags so that Lr1, Lr2
- * can be either discrete components or absorbed into transformer leakage. The pre-v2
- * boolean `symmetricDesign` is retained as a derived alias (true iff a==1 && b==1). See
- * Infineon AN-2024-06 §2.3 for the canonical 11-step design procedure and the asymmetric
- * design rationale of Min et al., IEEE TPE 36(6) 2021.
- */
-export interface CllcResonant {
-    /**
-     * Whether the converter operates in bidirectional mode (active synchronous rectifier on the
-     * secondary side, capable of reverse power flow). When false the secondary still uses SR
-     * for efficiency but reverse mode is not exercised.
-     */
-    bidirectional?: boolean;
-    /**
-     * Bridge topology of the primary inverter. Full-bridge gives bridge-voltage factor 1.0
-     * (peak Vpri = Vin); half-bridge gives 0.5 (peak Vpri = Vin/2). Most CLLC > 1 kW use full
-     * bridge; sub-1 kW server / V2L designs use half-bridge.
-     */
-    bridgeType?: LlcBridgeType;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage (HV side) of the CLLC converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * If true, the primary resonant inductor Lr1 is realised as transformer primary leakage (no
-     * discrete inductor). When false, Lr1 is a discrete component placed in series with the
-     * primary winding.
-     */
-    integratedResonantInductor1?: boolean;
-    /**
-     * If true, the secondary resonant inductor Lr2 is realised as transformer secondary
-     * leakage. When false, Lr2 is a discrete component placed in series with the secondary
-     * winding (CLLLC layout).
-     */
-    integratedResonantInductor2?: boolean;
-    /**
-     * The maximum switching frequency for regulation
-     */
-    maxSwitchingFrequency: number;
-    /**
-     * The minimum switching frequency for regulation
-     */
-    minSwitchingFrequency: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: CllcOperatingPoint[];
-    /**
-     * Quality factor of the resonant tank, Infineon convention Q = sqrt(Lr/Cr) / Ro. Two other
-     * conventions exist in the literature (Steigerwald uses 1/Q, Erickson uses Ro/sqrt(Lr/Cr));
-     * the Infineon convention is documented in the class header.
-     */
-    qualityFactor?: number;
-    /**
-     * Asymmetric-tank ratio b = Cr2 / (n^2 * Cr1). Symmetric tank: b = 1. Typical asymmetric
-     * battery-charger design: b ~= 1.052 so that fr1 = fr2 (a*b ~ 1).
-     */
-    resonantCapacitorRatio?: number;
-    /**
-     * Asymmetric-tank ratio a = n^2 * Lr2 / Lr1. Symmetric tank: a = 1. Typical asymmetric
-     * battery-charger design (Min IEEE TPE 2021): a ~= 0.95.
-     */
-    resonantInductorRatio?: number;
-    /**
-     * DEPRECATED - retained for v1 compatibility. True iff resonantInductorRatio==1 &&
-     * resonantCapacitorRatio==1. New code should set the ratio fields directly.
-     */
-    symmetricDesign?: boolean;
-}
-
-/**
- * Bridge topology of the primary inverter. Full-bridge gives bridge-voltage factor 1.0
- * (peak Vpri = Vin); half-bridge gives 0.5 (peak Vpri = Vin/2). Most CLLC > 1 kW use full
- * bridge; sub-1 kW server / V2L designs use half-bridge.
- *
- * CLLC primary bridge topology selector
- *
- * The HV-side bridge topology
- *
- * The type of bridge for CLLLC
- *
- * The LV-side bridge topology
- *
- * The type of primary bridge
- *
- * The type of primary bridge for LLC
- */
-export enum LlcBridgeType {
-    FullBridge = "fullBridge",
-    HalfBridge = "halfBridge",
-}
-
-/**
- * The description of one CLLC operating point
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface CllcOperatingPoint {
-    /**
-     * The power flow direction.
-     */
-    powerFlow: PowerFlowDirection;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The power flow direction.
- *
- * Bidirectional power-flow direction. Used by all topologies that share forward/reverse
- * semantics (CLLC, CLLLC, Cuk). Single canonical definition; topology schemas reference
- * this via $ref.
- *
- * Power-flow direction. Forward = source -> load via L1; reverse = load -> source via L2.
- */
-export enum PowerFlowDirection {
-    Forward = "forward",
-    Reverse = "reverse",
-}
-
-/**
- * The description of a CLLLC bidirectional symmetric resonant converter excitation
- */
-export interface ClllcResonant {
-    /**
-     * The HV-side bridge topology
-     */
-    bridgeTypePrimary?: LlcBridgeType;
-    /**
-     * The LV-side bridge topology
-     */
-    bridgeTypeSecondary?: LlcBridgeType;
-    /**
-     * How the controller modulates frequency vs phase-shift
-     */
-    controlStrategy?: ClllcControlStrategy;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The HV-side bus voltage (typically 380-800 V for OBC)
-     */
-    highVoltageBusVoltage: DimensionWithTolerance;
-    /**
-     * K = Lm/Lr1, the magnetizing-to-series-inductance ratio
-     */
-    inductanceRatioK?: number;
-    /**
-     * If true, Lr1 and Lr2 are integrated as transformer leakage on each side
-     */
-    integratedResonantInductors?: boolean;
-    /**
-     * The LV-side bus voltage (typically 200-500 V for OBC)
-     */
-    lowVoltageBusVoltage: DimensionWithTolerance;
-    /**
-     * The maximum switching frequency for regulation
-     */
-    maxSwitchingFrequency: number;
-    /**
-     * The minimum switching frequency for regulation
-     */
-    minSwitchingFrequency: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: ClllcOperatingPoint[];
-    /**
-     * Optional explicit primary-side resonant capacitor (Cr1) in F. Overrides Q/K/fr derivation
-     * when set.
-     */
-    primaryResonantCapacitance?: number;
-    /**
-     * f_r1 = 1/(2*pi*sqrt(Lr1*Cr1)). Optional; computed if absent.
-     */
-    primaryResonantFrequency?: number;
-    /**
-     * Optional explicit primary-side resonant inductor (Lr1) in H. Overrides Q/K/fr derivation
-     * when set.
-     */
-    primarySeriesInductance?: number;
-    /**
-     * The quality factor of the resonant tank
-     */
-    qualityFactor?: number;
-    /**
-     * (Lr2/(n^2*Lr1)) * (Cr2*n^2/Cr1). 1.0 = perfectly symmetric.
-     */
-    tankSymmetryRatio?: number;
-}
-
-/**
- * How the controller modulates frequency vs phase-shift
- *
- * The CLLLC control strategy
- */
-export enum ClllcControlStrategy {
-    FixedFrequencyPhaseShift = "fixedFrequencyPhaseShift",
-    HybridPfmPSM = "hybridPfmPsm",
-    PSM = "psm",
-    Pfm = "pfm",
-}
-
-/**
- * The description of one CLLLC operating point
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface ClllcOperatingPoint {
-    /**
-     * Inter-bridge phase shift; only used by psm or hybridPfmPsm
-     */
-    phaseShiftDegrees?: number;
-    /**
-     * The power flow direction.
-     */
-    powerFlowDirection?: PowerFlowDirection;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The description of a Common Mode Choke (CMC) for EMI filtering. Common mode chokes use
- * coupled inductors wound on a toroidal core to suppress common mode noise while passing
- * differential signals. The choke presents high impedance to common mode currents (both
- * lines with same phase) and low impedance to differential mode currents (opposite phase).
- */
-export interface CommonModeChoke {
-    /**
-     * The ambient temperature for the application
-     */
-    ambientTemperature: number;
-    /**
-     * The mains/line frequency in Hz (50 or 60 Hz typically). This is the frequency of the
-     * differential mode current that causes magnetic excitation.
-     */
-    lineFrequency: number;
-    /**
-     * The characteristic line impedance (typically 50 ohms for LISN measurements)
-     */
-    lineImpedance?: number;
-    /**
-     * Maximum allowable DC resistance per winding in ohms
-     */
-    maximumDcResistance?: number;
-    /**
-     * Maximum allowable leakage inductance in henries (for tight coupling)
-     */
-    maximumLeakageInductance?: number;
-    /**
-     * The minimum impedance requirements at specified frequencies
-     */
-    minimumImpedance: ImpedanceAtFrequency[];
-    /**
-     * The nominal operating current through each winding (differential mode current)
-     */
-    operatingCurrent: number;
-    /**
-     * The operating voltage across the choke (line-to-line or line-to-neutral)
-     */
-    operatingVoltage: DimensionWithTolerance;
-    /**
-     * Target insertion loss in dB at specified frequencies (optional, alternative to impedance
-     * specification)
-     */
-    targetInsertionLoss?: InsertionLossAtFrequency[];
-}
-
-/**
- * An impedance value pinned to a specific frequency. The impedance is a structured
- * impedancePoint with magnitude, phase and real/imaginary parts. Bare-magnitude callers
- * populate magnitude only and leave phase / real / imaginary unset.
- */
-export interface ImpedanceAtFrequency {
-    /**
-     * Frequency at which the impedance applies. Unit: Hz.
-     */
-    frequency: number;
-    impedance: ImpedancePoint;
-}
-
-/**
- * Data describing one impendance value
- *
- * Impedance value. Uses the same impedancePoint structure as designRequirements.
- */
-export interface ImpedancePoint {
-    imaginaryPart?: number;
-    /**
-     * Magnitude of the impedance, in Ohm
-     */
-    magnitude: number;
-    phase?:    number;
-    realPart?: number;
-}
-
-/**
- * Insertion loss requirement at a specific frequency
- */
-export interface InsertionLossAtFrequency {
-    /**
-     * The frequency in Hz
-     */
-    frequency: number;
-    /**
-     * The target insertion loss in dB at this frequency
-     */
-    insertionLoss: number;
-}
-
-/**
- * Cuk converter excitation. Five wiring variants are supported via the boolean flags below:
- * V1 non-isolated (defaults), V2 coupled-inductor zero-ripple (coupledInductor=true), V3
- * transformer-isolated (isolated=true), V4 synchronous (synchronous=true), V5 bidirectional
- * (bidirectional=true, V4 implied). For V1/V2/V4/V5 the magnetic returned by
- * process_design_requirements is the input inductor L1 (V2: a 2-winding coupled inductor);
- * for V3 it is a 2-winding transformer. The remaining reactive elements (L2, C1, Co, plus
- * Ca/Cb in V3) are emitted via get_extra_components_inputs.
- */
-export interface Cuk {
-    /**
-     * If true, both switches are active and the converter can transfer power in either
-     * direction depending on operatingPoint.powerFlow. Implies synchronous=true.
-     */
-    bidirectional?: boolean;
-    /**
-     * If true, L1 and L2 are wound on the same core with coupling coefficient
-     * couplingCoefficient (Cuk's zero-ripple trick when k = sqrt(L1/L2)). The magnetic returned
-     * is a 2-winding coupled inductor. Mutually exclusive with isolated=true.
-     */
-    coupledInductor?: boolean;
-    /**
-     * Secondary-side coupling capacitance Cb in farads (used only when isolated=true). If
-     * absent, Cb defaults to Ca scaled by turnsRatio^2 to balance V*s on each side.
-     */
-    couplingCapacitanceSecondary?: number;
-    /**
-     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
-     * Zero-ripple condition: k * sqrt(L2/L1) = 1.
-     */
-    couplingCoefficient?: number;
-    /**
-     * The maximum input-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the diode (ignored when synchronous=true)
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the Cuk
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * If true, the coupling capacitor is split into Ca/Cb and an isolation transformer is
-     * inserted between them. The magnetic returned is the transformer (2 windings, isolation
-     * sides PRIMARY and SECONDARY); L1 and L2 become extra components.
-     */
-    isolated?: boolean;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: CukOperatingPoint[];
-    /**
-     * If true, the catch diode D1 is replaced by an actively-driven synchronous switch S2.
-     * Reduces conduction loss; mandatory for bidirectional=true.
-     */
-    synchronous?: boolean;
-    /**
-     * Transformer turns ratio Np:Ns for isolated=true (used as Vo/Vin step targeting). Ignored
-     * for non-isolated variants.
-     */
-    turnsRatio?: number;
-}
-
-/**
- * The description of one Cuk operating point. NOTE: outputVoltages magnitudes are passed
- * positive here; Vo is signed negative internally per Cuk polarity convention. powerFlow is
- * required only when the parent Cuk has bidirectional=true.
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface CukOperatingPoint {
-    /**
-     * Power-flow direction. Forward = source -> load via L1; reverse = load -> source via L2.
-     */
-    powerFlow?: PowerFlowDirection;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The description of a Current Transformer excitation
- */
-export interface CurrentTransformer {
-    /**
-     * The ambient temperature of the operating point
-     */
-    ambientTemperature: number;
-    /**
-     * The value of the burden resistor in the measuring circuit
-     */
-    burdenResistor: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * Frequency of the input
-     */
-    frequency: number;
-    /**
-     * The maximum duty cycle in the input
-     */
-    maximumDutyCycle: number;
-    /**
-     * The maximum current peak in the input
-     */
-    maximumPrimaryCurrentPeak: number;
-    /**
-     * Waveform of the signal to measure
-     */
-    waveformLabel: WaveformLabel;
-}
-
-/**
- * Waveform of the signal to measure
- *
- * Label of the waveform, if applicable. Used for common waveforms
- */
-export enum WaveformLabel {
-    BipolarRectangular = "bipolarRectangular",
-    BipolarTriangular = "bipolarTriangular",
-    Custom = "custom",
-    FlybackPrimary = "flybackPrimary",
-    FlybackSecondary = "flybackSecondary",
-    FlybackSecondaryWithDeadtime = "flybackSecondaryWithDeadtime",
-    Rectangular = "rectangular",
-    RectangularDCM = "rectangularDCM",
-    RectangularWithDeadtime = "rectangularWithDeadtime",
-    SecondaryRectangular = "secondaryRectangular",
-    SecondaryRectangularWithDeadtime = "secondaryRectangularWithDeadtime",
-    Sinusoidal = "sinusoidal",
-    Triangular = "triangular",
-    TriangularWithDeadtime = "triangularWithDeadtime",
-    UnipolarRectangular = "unipolarRectangular",
-    UnipolarTriangular = "unipolarTriangular",
-}
-
-/**
- * The description of a Differential Mode Choke (DMC) for EMI filtering. Differential mode
- * chokes use an inductor to attenuate differential mode noise (noise between line and
- * neutral or between lines). Unlike CMCs, DMCs present impedance to differential signals
- * and are typically used in combination with capacitors to form LC filters.
- */
-export interface DifferentialModeChoke {
-    /**
-     * The ambient temperature for the application
-     */
-    ambientTemperature: number;
-    /**
-     * The DMC configuration type
-     */
-    configuration?: Configuration;
-    /**
-     * The filter capacitance in Farads (for LC filter design)
-     */
-    filterCapacitance?: number;
-    /**
-     * The input voltage of the filter stage
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The mains/line frequency in Hz (50 or 60 Hz typically). This is the frequency of the load
-     * current that causes magnetic excitation.
-     */
-    lineFrequency: number;
-    /**
-     * Maximum allowable temperature rise due to core and winding losses
-     */
-    maximumCoreTemperatureRise?: number;
-    /**
-     * Maximum allowable DC resistance in ohms
-     */
-    maximumDcResistance?: number;
-    /**
-     * The minimum impedance requirements at specified frequencies
-     */
-    minimumImpedance?: ImpedanceAtFrequency[];
-    /**
-     * The minimum required inductance in henries for the filter cutoff frequency
-     */
-    minimumInductance?: number;
-    /**
-     * The nominal operating current through the choke
-     */
-    operatingCurrent: number;
-    /**
-     * The peak current including ripple
-     */
-    peakCurrent?: number;
-    /**
-     * The switching frequency of the converter being filtered
-     */
-    switchingFrequency?: number;
-    /**
-     * Target attenuation in dB at specified frequencies
-     */
-    targetAttenuation?: AttenuationAtFrequency[];
-    [property: string]: any;
-}
-
-/**
- * The DMC configuration type
- */
-export enum Configuration {
-    SinglePhase = "singlePhase",
-    SinglePhaseBalanced = "singlePhaseBalanced",
-    ThreePhase = "threePhase",
-    ThreePhaseWithNeutral = "threePhaseWithNeutral",
-}
-
-/**
- * Attenuation requirement at a specific frequency
- */
-export interface AttenuationAtFrequency {
-    /**
-     * The target attenuation in dB at this frequency
-     */
-    attenuation: number;
-    /**
-     * The frequency in Hz
-     */
-    frequency: number;
-}
-
-/**
- * Dual Active Bridge (DAB) DC-DC converter excitation. Modulation parameters follow the
- * standard Triple Phase Shift (TPS) convention: D1 = primary-bridge intra-leg shift, D2 =
- * secondary-bridge intra-leg shift, D3 = inter-bridge (outer) shift. See Huang et al.,
- * Energies 11(9):2419 (2018) and Maniktala & Rosano, 'Power Supplies A to Z', 3rd ed. (Ch.
- * 2).
- */
-export interface DualActiveBridge {
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the DAB converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: DabOperatingPoint[];
-    /**
-     * Optional per-secondary leakage inductance in H, one entry per output. Required for
-     * physically meaningful multi-output DAB simulation; if absent, all secondaries share the
-     * same series inductance.
-     */
-    perSecondaryLeakage?: number[];
-    /**
-     * The series inductance for power transfer control. If 0, uses transformer leakage
-     * inductance
-     */
-    seriesInductance?: number;
-    /**
-     * Whether to use transformer leakage inductance as the series inductor
-     */
-    useLeakageInductance?: boolean;
-}
-
-/**
- * One DAB operating point. Modulation is parameterised by three phase-shift variables D1,
- * D2, D3 (Huang et al. 2018 convention): D1 and D2 are intra-bridge (leg-to-leg) shifts
- * that control each bridge's effective duty cycle, and D3 is the outer inter-bridge shift
- * that controls power transfer. SPS uses D3 only (D1=D2=0). EPS uses D3 + one inner shift
- * (D1, with D2=0). DPS uses D3 + one symmetric inner shift (D1=D2). TPS uses all three
- * independently.
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface DabOperatingPoint {
-    /**
-     * D1 in degrees
-     */
-    innerPhaseShift1?: number;
-    /**
-     * D2 in degrees
-     */
-    innerPhaseShift2?: number;
-    /**
-     * D3 in degrees
-     */
-    innerPhaseShift3?: number;
-    /**
-     * DAB modulation scheme. SPS (only D3), EPS (D1>0, D2=0), DPS (D1=D2>0), TPS (independent).
-     * Ref: Huang et al., Energies 11(9):2419 (2018).
-     */
-    modulationType?: ModulationType;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * DAB modulation scheme. SPS (only D3), EPS (D1>0, D2=0), DPS (D1=D2>0), TPS (independent).
- * Ref: Huang et al., Energies 11(9):2419 (2018).
- */
-export enum ModulationType {
-    Dps = "DPS",
-    Eps = "EPS",
-    Sps = "SPS",
-    Tps = "TPS",
-}
-
-/**
- * The description of a Flyback converter excitation
- */
-export interface Flyback {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency: number;
-    /**
-     * The input voltage of the flyback
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum drain-source voltage in the selected switch
-     */
-    maximumDrainSourceVoltage?: number;
-    /**
-     * The maximum duty cycle in the selected switch
-     */
-    maximumDutyCycle?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: FlybackOperatingPoint[];
-}
-
-/**
- * The description of one flyback operating point. Flyback does not require
- * switchingFrequency at the schema level: when omitted, it is inferred from the conduction
- * mode, see docs/inputs.md.
- */
-export interface FlybackOperatingPoint {
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius.
-     */
-    ambientTemperature: number;
-    /**
-     * The conduction mode of the operating point.
-     */
-    mode?: FlybackModes;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default: dc).
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents. Defaults to dc.
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default: dc).
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages. Defaults to dc.
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. Optional for flyback when mode is
-     * supplied.
-     */
-    switchingFrequency?: number;
-}
-
-/**
- * The conduction mode of the operating point.
- *
- * The conduction mode of the Flyback
- */
-export enum FlybackModes {
-    BoundaryModeOperation = "boundaryModeOperation",
-    ContinuousConductionMode = "continuousConductionMode",
-    DiscontinuousConductionMode = "discontinuousConductionMode",
-    QuasiResonantMode = "quasiResonantMode",
-}
-
-/**
- * The description of a Forward converter excitation
- */
-export interface Forward {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * Duty cycle for the converter, maximum 50%
-     */
-    dutyCycle?: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the forward
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * 4-Switch Buck-Boost (also called non-inverting buck-boost, H-bridge buck-boost, FSBB)
- * excitation. Single inductor with two half-bridges (Q1/Q2 buck leg, Q3/Q4 boost leg). The
- * controller selects one of three operating regions per Vin value: BUCK (Vo/Vin <
- * 1-hysteresis: Q3 always-on, Q1/Q2 PWM), BOOST (Vo/Vin > 1+hysteresis: Q1 always-on, Q3/Q4
- * PWM), or BUCK_BOOST (transition band: all four switches modulate). The magnetic returned
- * by process_design_requirements is the single inductor sized for the worst-case region
- * across the Vin sweep (max(L_buck@VinMax, L_boost@VinMin)). Cin and Co are emitted via
- * get_extra_components_inputs. References: TI SLVA535B, TI LM5175/LM5176, ADI LT8390,
- * Restrepo IEEE 8986423.
- */
-export interface FourSwitchBuckBoost {
-    /**
-     * If true, controller allows reverse power flow (V2G / battery / 12V<->48V mild-hybrid)
-     */
-    bidirectional?: boolean;
-    /**
-     * Controller duty-assignment strategy in the buck-boost region (peakCurrent: TI LM5176,
-     * peakBuckPeakBoost: ADI LT8390, averageCurrent: USB-PD, voltageMode: legacy)
-     */
-    controlMode?: ControlMode;
-    /**
-     * The maximum inductor current ripple ratio (delta-IL / IL_avg)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the 4-switch buck-boost (must support a sweep range that crosses Vo)
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through any of the four switches
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * The output voltage ripple ratio (delta-Vo / Vo)
-     */
-    outputVoltageRippleRatio?: number;
-    /**
-     * Number of interleaved phases (default 1; >1 for automotive 12V<->48V)
-     */
-    phaseCount?: number;
-    /**
-     * Width of the buck-boost band as |1 - Vo/Vin| (default 0.15 per LM5176)
-     */
-    transitionHysteresisRatio?: number;
-    /**
-     * Buck-boost-region modulation: 'simultaneous' (Mode 1, Q1+Q3 ON together) or 'splitPwm'
-     * (Mode 2, sequential split-PWM, LM5176/LT8390 default)
-     */
-    transitionMode?: TransitionMode;
-}
-
-/**
- * Controller duty-assignment strategy in the buck-boost region (peakCurrent: TI LM5176,
- * peakBuckPeakBoost: ADI LT8390, averageCurrent: USB-PD, voltageMode: legacy)
- */
-export enum ControlMode {
-    AverageCurrent = "averageCurrent",
-    PeakBuckPeakBoost = "peakBuckPeakBoost",
-    PeakCurrent = "peakCurrent",
-    VoltageMode = "voltageMode",
-}
-
-/**
- * Buck-boost-region modulation: 'simultaneous' (Mode 1, Q1+Q3 ON together) or 'splitPwm'
- * (Mode 2, sequential split-PWM, LM5176/LT8390 default)
- */
-export enum TransitionMode {
-    Simultaneous = "simultaneous",
-    SplitPwm = "splitPwm",
-}
-
-/**
- * The description of a Isolated Buck / Flybuck converter excitation
- */
-export interface IsolatedBuck {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the isolatedBuck
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * The description of a Isolated BuckBoost / FlyBuck - Boost converter excitation
- */
-export interface IsolatedBuckBoost {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the isolatedBuckBoost
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * The description of an LLC Resonant converter excitation
- */
-export interface LlcResonant {
-    /**
-     * The type of primary bridge
-     */
-    bridgeType?: LlcBridgeType;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The inductance ratio between Lm/Ls
-     */
-    inductanceRatio?: number;
-    /**
-     * The input voltage of the LLC converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * Whether the resonant inductor is integrated in the transformer (leakage)
-     */
-    integratedResonantInductor?: boolean;
-    /**
-     * The maximum switching frequency for regulation
-     */
-    maxSwitchingFrequency: number;
-    /**
-     * The minimum switching frequency for regulation
-     */
-    minSwitchingFrequency: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * The quality factor of the resonant tank
-     */
-    qualityFactor?: number;
-    /**
-     * The type of secondary rectifier
-     */
-    rectifierType?: LlcRectifierType;
-    /**
-     * Optional explicit resonant capacitor (Cr) value in F. Overrides the Q/Ln/fr derivation
-     * when set.
-     */
-    resonantCapacitance?: number;
-    /**
-     * The resonant frequency of the tank (optional, will be calculated if not provided)
-     */
-    resonantFrequency?: number;
-    /**
-     * Optional explicit resonant inductor (Ls) value in H. Overrides the Q/Ln/fr derivation
-     * when set.
-     */
-    seriesInductance?: number;
-}
-
-/**
- * The type of secondary rectifier
- *
- * The type of secondary rectifier for LLC
- */
-export enum LlcRectifierType {
-    CenterTapped = "centerTapped",
-    CurrentDoubler = "currentDoubler",
-    FullBridge = "fullBridge",
-    VoltageDoubler = "voltageDoubler",
-}
-
-/**
- * The description of a Phase Shift Full Bridge (PSFB) converter excitation
- */
-export interface PhaseShiftedFullBridge {
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the PSFB converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum phase shift as ratio of half period (0-1)
-     */
-    maximumPhaseShift?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: PsfbOperatingPoint[];
-    /**
-     * The output filter inductance
-     */
-    outputInductance?: number;
-    /**
-     * The type of secondary rectifier
-     */
-    rectifierType?: BRectifierType;
-    /**
-     * The series inductance for ZVS and duty cycle control. If 0, uses transformer leakage
-     * inductance
-     */
-    seriesInductance?: number;
-    /**
-     * Whether to use transformer leakage inductance as the series inductor
-     */
-    useLeakageInductance?: boolean;
-}
-
-/**
- * The description of one PSFB operating point
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface PsfbOperatingPoint {
-    /**
-     * Phase shift in degrees
-     */
-    phaseShift: number;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The type of secondary rectifier
- */
-export enum BRectifierType {
-    CenterTapped = "centerTapped",
-    CurrentDoubler = "currentDoubler",
-    FullBridge = "fullBridge",
-}
-
-/**
- * The description of a Phase Shifted Half Bridge (PSHB) converter excitation. PSHB uses a
- * single 3-level Neutral-Point-Clamped (NPC) leg with split-capacitor input bus, producing
- * a 3-level primary voltage waveform (±Vin/2 / 0). The configuration fields mirror those of
- * phaseShiftFullBridge for now, but the topology, switch count, and primary-voltage
- * amplitude differ — see the corresponding C++ class documentation for details.
- */
-export interface PhaseShiftedHalfBridge {
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the PSHB converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum phase shift as ratio of half period (0-1). For the single-leg NPC
-     * implementation this is interpreted as the maximum effective duty cycle of the active
-     * sub-interval.
-     */
-    maximumPhaseShift?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: PshbOperatingPoint[];
-    /**
-     * The output filter inductance
-     */
-    outputInductance?: number;
-    /**
-     * The type of secondary rectifier
-     */
-    rectifierType?: BRectifierType;
-    /**
-     * The series inductance for ZVS and duty cycle control. If 0, uses transformer leakage
-     * inductance
-     */
-    seriesInductance?: number;
-    /**
-     * Whether to use transformer leakage inductance as the series inductor
-     */
-    useLeakageInductance?: boolean;
-}
-
-/**
- * The description of one PSHB operating point. The phaseShift field is mapped internally to
- * an effective duty cycle Deff = phaseShift/180 for the single-leg 3-level NPC
- * implementation.
- *
- * Base fields common to all topology operating points
- *
- * The description of one boost operating point
- *
- * The description of one buck operating point
- *
- * The description of one forward operating point
- *
- * The description of one 4-switch buck-boost operating point. Outputs are non-inverting (Vo
- * positive).
- *
- * The description of one isolatedBuck operating point
- *
- * The description of one isolatedBuckBoost operating point
- *
- * The description of one LLC operating point
- *
- * The description of one pushPull operating point
- *
- * The description of one SEPIC operating point. SEPIC outputs are non-inverting (Vo
- * positive).
- *
- * The description of one SRC operating point
- *
- * The description of one Vienna rectifier operating point
- *
- * The description of one Weinberg operating point. Weinberg outputs are non-inverting (Vo
- * positive); positive Iout flows through the load to GND.
- *
- * The description of one Zeta operating point. Zeta outputs are non-inverting (Vo positive).
- */
-export interface PshbOperatingPoint {
-    /**
-     * Phase shift in degrees
-     */
-    phaseShift: number;
-    /**
-     * Ambient temperature of the operating point. Unit: Celsius. See docs/units.md.
-     */
-    ambientTemperature: number;
-    /**
-     * List of output currents, one per output. Interpreted per outputCurrentsType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputCurrents: number[];
-    /**
-     * Type of value carried in outputCurrents: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputCurrentsType?: OutputSType;
-    /**
-     * List of output voltages, one per output. Interpreted per outputVoltagesType (default:
-     * dc). See docs/normative-references.md.
-     */
-    outputVoltages: number[];
-    /**
-     * Type of value carried in outputVoltages: which aggregate of the periodic waveform the
-     * number represents. Defaults to dc. See IEV 103-02 (values of a periodic quantity).
-     */
-    outputVoltagesType?: OutputSType;
-    /**
-     * Switching frequency of the operating point. Unit: Hz. See docs/units.md.
-     */
-    switchingFrequency: number;
-    [property: string]: any;
-}
-
-/**
- * The description of a Power Factor Correction (PFC) stage. PFC converters shape the input
- * current to follow the input voltage waveform, achieving near-unity power factor. The
- * inductor operates with a triangular current ripple superimposed on a half-sinusoidal
- * envelope. This topology covers both continuous (CCM) and discontinuous (DCM) conduction
- * modes across the standard single-phase and three-phase variants (boost, bridgeless,
- * totem-pole, interleaved boost, Vienna, etc.).
- */
-export interface PowerFactorCorrection {
-    /**
-     * The ambient temperature for the application
-     */
-    ambientTemperature: number;
-    /**
-     * The DC bus bulk capacitance in farads. Used by the operating-point synthesis to compute
-     * the twice-line-frequency bus-voltage ripple: ΔVbus ≈ Pout / (2·π·f_line·Cbus·Vbus). Sized
-     * in practice from hold-up-time requirements (~1–4 µF/W of output power for 230 Vrms input,
-     * 400 V bus, 20 ms hold-up).
-     */
-    bulkCapacitance?: number;
-    /**
-     * The peak-to-peak current ripple as a ratio of the average current (typically 0.2-0.4 for
-     * CCM)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the boost diode
-     */
-    diodeVoltageDrop?: number;
-    /**
-     * The target efficiency of the PFC stage
-     */
-    efficiency?: number;
-    /**
-     * The AC input voltage (RMS) with tolerance range (e.g., 85-265V universal input)
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The AC line frequency (50 or 60 Hz)
-     */
-    lineFrequency?: number;
-    /**
-     * Maximum allowable temperature rise
-     */
-    maximumCoreTemperatureRise?: number;
-    /**
-     * The maximum current rating of the switch (optional constraint)
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * The conduction mode of the PFC
-     */
-    mode?: PfcModes;
-    /**
-     * Number of parallel phases / interleaved cells. 1 for boost/bridgeless/totemPole/buck
-     * variants; 2 or 3 for interleavedBoost; 3 for vienna.
-     */
-    numberOfPhases?: number;
-    /**
-     * The output power in watts
-     */
-    outputPower: number;
-    /**
-     * The DC output voltage (typically 385-400V for universal input)
-     */
-    outputVoltage: number;
-    /**
-     * The switching frequency of the PFC stage
-     */
-    switchingFrequency: number;
-    /**
-     * The PFC topology variant. 'boost' is the classical single-phase boost PFC (full-bridge
-     * rectifier + boost stage), the default. 'bridgeless' / 'semiBridgeless' / 'totemPole'
-     * eliminate the input rectifier bridge for higher efficiency. 'interleavedBoost' uses N>=2
-     * parallel boost cells phase-shifted for ripple cancellation. 'vienna' is the 3-phase
-     * 3-level rectifier used in telecom and EV chargers. 'buck' / 'buckBoost' / 'sepic' / 'cuk'
-     * are step-down or buck-boost variants used in low-power LED drivers and isolated PFC
-     * stages.
-     */
-    topologyVariant?: PfcTopologyVariants;
-    /**
-     * Whether the active switches are wide-bandgap (GaN/SiC) devices. Required true for
-     * totem-pole CCM PFC (Si MOSFET body-diode reverse recovery makes CCM totem-pole
-     * infeasible).
-     */
-    wideBandgapSwitch?: boolean;
-}
-
-/**
- * The conduction mode of the PFC
- */
-export enum PfcModes {
-    ContinuousConductionMode = "continuousConductionMode",
-    CriticalConductionMode = "criticalConductionMode",
-    DiscontinuousConductionMode = "discontinuousConductionMode",
-    TransitionMode = "transitionMode",
-}
-
-/**
- * The PFC topology variant. 'boost' is the classical single-phase boost PFC (full-bridge
- * rectifier + boost stage), the default. 'bridgeless' / 'semiBridgeless' / 'totemPole'
- * eliminate the input rectifier bridge for higher efficiency. 'interleavedBoost' uses N>=2
- * parallel boost cells phase-shifted for ripple cancellation. 'vienna' is the 3-phase
- * 3-level rectifier used in telecom and EV chargers. 'buck' / 'buckBoost' / 'sepic' / 'cuk'
- * are step-down or buck-boost variants used in low-power LED drivers and isolated PFC
- * stages.
- *
- * The PFC topology variant. See `topologyVariant` field for descriptions.
- */
-export enum PfcTopologyVariants {
-    Boost = "boost",
-    Bridgeless = "bridgeless",
-    Buck = "buck",
-    BuckBoost = "buckBoost",
-    Cuk = "cuk",
-    InterleavedBoost = "interleavedBoost",
-    SemiBridgeless = "semiBridgeless",
-    Sepic = "sepic",
-    TotemPole = "totemPole",
-    Vienna = "vienna",
-}
-
-/**
- * The description of a Push-Pull excitation
- */
-export interface PushPull {
-    /**
-     * The maximum current ripple allowed in the output
-     */
-    currentRippleRatio: number;
-    /**
-     * The voltage drop on the diode
-     */
-    diodeVoltageDrop: number;
-    /**
-     * Duty cycle for the converter, maximum 50%
-     */
-    dutyCycle?: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the pushPull
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum drain-source voltage in the selected switch
-     */
-    maximumDrainSourceVoltage?: number;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-}
-
-/**
- * SEPIC (Single-Ended Primary-Inductor Converter) excitation. Non-inverting fourth-order
- * DC-DC converter with capacitive energy transfer through the coupling capacitor Cs between
- * L1 and L2. Two wiring variants are supported via the boolean flags below: V1 uncoupled
- * (defaults; L1 and L2 are independent inductors) and V2 coupled-inductor
- * (coupledInductor=true; L1 and L2 share one core, ripple-steering per TI SLYT411).
- * Optional synchronousRectifier replaces the catch diode with a low-side MOSFET. The
- * magnetic returned by process_design_requirements is the input inductor L1 (or, when
- * coupledInductor=true, a 2-winding coupled inductor). The remaining reactive elements (L2,
- * Cs, Co) are emitted via get_extra_components_inputs.
- */
-export interface Sepic {
-    /**
-     * If true, L1 and L2 are wound on the same core (1:1 coupled) with coupling coefficient
-     * couplingCoefficient. Ripple-steering per TI SLYT411 reduces input-current ripple. The
-     * magnetic returned is a 2-winding coupled inductor.
-     */
-    coupledInductor?: boolean;
-    /**
-     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
-     * Typical values 0.95-0.999.
-     */
-    couplingCoefficient?: number;
-    /**
-     * The maximum input-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the SEPIC
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * If true, the catch diode is replaced by an actively-driven low-side synchronous MOSFET.
-     * Reduces conduction loss; common at low Vout.
-     */
-    synchronousRectifier?: boolean;
-}
-
-/**
- * The description of a Series Resonant Converter (SRC) excitation. Two-element series Lr+Cr
- * tank with no Lm branch. Gain M <= 1 (step-down only). Steigerwald 1988; Kazimierczuk Ch.
- * 4. See src/converter_models/SRC_PLAN.md for the full design rationale.
- */
-export interface SeriesResonant {
-    /**
-     * The type of primary bridge
-     */
-    bridgeType?: SrcBridgeType;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the SRC converter
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * Whether the converter has an isolation transformer between the resonant tank and the
-     * rectifier. When false, the tank drives the rectifier directly (non-isolated SRC).
-     */
-    isolated?: boolean;
-    /**
-     * The maximum switching frequency for regulation
-     */
-    maxSwitchingFrequency: number;
-    /**
-     * The minimum switching frequency for regulation
-     */
-    minSwitchingFrequency: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * The quality factor Q = sqrt(Lr/Cr) / Rload of the resonant tank. Determines gain-curve
-     * sharpness and Cr peak voltage stress (Vcr_peak ~ Q*Vin/pi at resonance for half-bridge).
-     */
-    qualityFactor?: number;
-    /**
-     * The secondary rectifier topology
-     */
-    rectifierType?: SrcRectifierType;
-    /**
-     * Optional explicit resonant capacitor (Cr) value in F. Overrides Q/fr derivation when set.
-     */
-    resonantCapacitance?: number;
-    /**
-     * The resonant frequency fr = 1/(2*pi*sqrt(Lr*Cr)) of the tank (optional, will be
-     * calculated if not provided)
-     */
-    resonantFrequency?: number;
-    /**
-     * Optional explicit resonant inductor (Lr) value in H. Overrides Q/fr derivation when set.
-     */
-    seriesInductance?: number;
-    /**
-     * Whether the secondary rectifier uses synchronous MOSFETs instead of diodes
-     */
-    useSynchronousRectifier?: boolean;
-}
-
-/**
- * The type of primary bridge
- *
- * The type of primary bridge for the SRC
- */
-export enum SrcBridgeType {
-    FullBridge = "fullBridge",
-    FullBridgePhaseShift = "fullBridgePhaseShift",
-    HalfBridge = "halfBridge",
-}
-
-/**
- * The secondary rectifier topology
- *
- * The secondary rectifier topology for the SRC
- */
-export enum SrcRectifierType {
-    CenterTappedDiode = "centerTappedDiode",
-    CurrentDoubler = "currentDoubler",
-    FullBridgeDiode = "fullBridgeDiode",
-}
-
-/**
- * The description of a Vienna rectifier (3-phase 3-level boost-type PFC, unidirectional).
- * Three identical line-frequency boost inductors carry pure-AC line current. Switch
- * blocking voltage = Vdc/2 (3-level advantage). Originally Kolar & Zach 1994; modern SiC
- * industrial implementations: TI TIDA-010257, ST STDES-VIENNARECT, Microchip
- * MSCSICPFC-REF5. See src/converter_models/VIENNA_PLAN.md for the full design rationale.
- */
-export interface ViennaRectifier {
-    /**
-     * DeltaI_L,pp / I_pk at peak-of-line (typical 0.2-0.3)
-     */
-    currentRippleRatio?: number;
-    /**
-     * Target efficiency
-     */
-    efficiency?: number;
-    /**
-     * Line frequency in Hz (typically 50 or 60)
-     */
-    lineFrequency?: number;
-    /**
-     * AC line-to-line RMS voltage (e.g. 400 V for EU, 480 V for US)
-     */
-    lineToLineVoltage: DimensionWithTolerance;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * Total DC bus voltage Vdc = Vdc+ + |Vdc-| (typical 700-800 V)
-     */
-    outputDcVoltage: number;
-    /**
-     * Number of interleaved Vienna channels in parallel (1 = single Vienna, >1 = multi-channel
-     * for >50 kW)
-     */
-    phaseCount?: number;
-    /**
-     * Target input power factor (typically >= 0.99)
-     */
-    powerFactor?: number;
-    /**
-     * How the line-cycle envelope is sampled: peakOfLineOnly = single sample at omega*t = pi/2
-     * (cheapest); peakOfLinePlusSectors = peak + 30/60-degree sector samples; fullLineCycle =
-     * 36 samples per cycle (THD validation only)
-     */
-    samplingStrategy?: ViennaSamplingStrategy;
-    /**
-     * Per-leg switching frequency in Hz
-     */
-    switchingFrequency: number;
-    /**
-     * How each per-leg bidirectional switch is realised: tType (modern SiC default, two
-     * anti-series MOSFETs to neutral); backToBackMosfet; singleMosfetIn4DiodeBridge (Kolar 1994
-     * classic)
-     */
-    switchType?: ViennaSwitchType;
-    /**
-     * If true, the 6 fast rectifier diodes are replaced with MOSFETs
-     */
-    synchronousRectifier?: boolean;
-    /**
-     * Vienna switch arrangement: viennaI = single bidirectional switch per leg (3 switches
-     * total, classic Kolar 1994); viennaII = two switches per leg (reduced conduction loss at
-     * >30 kW)
-     */
-    viennaVariant?: ViennaVariant;
-}
-
-/**
- * How the line-cycle envelope is sampled: peakOfLineOnly = single sample at omega*t = pi/2
- * (cheapest); peakOfLinePlusSectors = peak + 30/60-degree sector samples; fullLineCycle =
- * 36 samples per cycle (THD validation only)
- *
- * Line-cycle envelope sampling strategy
- */
-export enum ViennaSamplingStrategy {
-    FullLineCycle = "fullLineCycle",
-    PeakOfLineOnly = "peakOfLineOnly",
-    PeakOfLinePlusSectors = "peakOfLinePlusSectors",
-}
-
-/**
- * How each per-leg bidirectional switch is realised: tType (modern SiC default, two
- * anti-series MOSFETs to neutral); backToBackMosfet; singleMosfetIn4DiodeBridge (Kolar 1994
- * classic)
- *
- * Per-leg bidirectional switch realisation
- */
-export enum ViennaSwitchType {
-    BackToBackMOSFET = "backToBackMosfet",
-    SingleMOSFETIn4DiodeBridge = "singleMosfetIn4DiodeBridge",
-    TType = "tType",
-}
-
-/**
- * Vienna switch arrangement: viennaI = single bidirectional switch per leg (3 switches
- * total, classic Kolar 1994); viennaII = two switches per leg (reduced conduction loss at
- * >30 kW)
- *
- * Vienna switch arrangement variant
- */
-export enum ViennaVariant {
-    ViennaI = "viennaI",
-    ViennaII = "viennaII",
-}
-
-/**
- * Weinberg DC-DC converter (current-fed push-pull-derivative, isolated, boost-capable).
- * Spacecraft-heritage topology featuring a 1:1 input coupled inductor L1 with
- * energy-recovery diode D3 to Vin, plus a center-tapped main transformer with center-tapped
- * full-wave secondary rectifier. Intrinsically supports switch overlap above D=0.5 (boost
- * regime) without needing a freewheel switch. Variants supported: V1 classic (push-pull
- * primary, 2 switches) and V2 bridge (H-bridge primary, 4 switches) via the `variant` flag;
- * optional synchronousRectifier replaces secondary diodes with active SR MOSFETs. The
- * magnetic returned by process_design_requirements is the main 2-winding transformer (n =
- * Np_total/Ns_total); the input coupled inductor L1 and output capacitor Co are emitted via
- * get_extra_components_inputs.
- */
-export interface Weinberg {
-    /**
-     * Magnetic coupling coefficient k between the two L1 windings (1:1 input coupled inductor).
-     * Typical values 0.99-0.999.
-     */
-    couplingCoefficientInput?: number;
-    /**
-     * Magnetic coupling coefficient k for the main transformer (4-way coupling among Lpri_a,
-     * Lpri_b, Lsec_a, Lsec_b). Typical values 0.95-0.99 (some leakage required for SPICE
-     * convergence and ZCS).
-     */
-    couplingCoefficientMain?: number;
-    /**
-     * The maximum input-coupled-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg per
-     * winding)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the Weinberg
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * If true, the secondary CT-FW diodes (D_pos, D_neg) are replaced by actively-driven
-     * synchronous MOSFETs (S_pos, S_neg) gated complementary to the primary switches.
-     */
-    synchronousRectifier?: boolean;
-    /**
-     * Primary topology variant: 'classic' (V1 push-pull, 2 switches; switch V_DS = 2*Vin/(1-D))
-     * or 'bridge' (V2 H-bridge, 4 switches; switch V_DS = Vin).
-     */
-    variant?: Variant;
-}
-
-/**
- * Primary topology variant: 'classic' (V1 push-pull, 2 switches; switch V_DS = 2*Vin/(1-D))
- * or 'bridge' (V2 H-bridge, 4 switches; switch V_DS = Vin).
- */
-export enum Variant {
-    Bridge = "bridge",
-    Classic = "classic",
-}
-
-/**
- * Zeta excitation. Non-inverting fourth-order DC-DC converter — the dual of SEPIC: same
- * gain M = D/(1-D), but the LC filter is on the OUTPUT side (so output-voltage ripple is
- * small and there is no right-half-plane zero in CCM). The switch is HIGH-SIDE (PFET by
- * default in the SPICE model). Two wiring variants are supported via the boolean flags
- * below: V1 uncoupled (defaults; L1 magnetizing and L2 output filter are independent
- * inductors) and V2 coupled-inductor (coupledInductor=true; L1 and L2 share one core,
- * ripple-steering per TI SLYT411 — same condition as coupled-SEPIC because both inductors
- * see identical voltages during both subintervals). Optional synchronousRectifier replaces
- * the catch diode with a low-side MOSFET. The magnetic returned by
- * process_design_requirements is L1 (or, when coupledInductor=true, a 2-winding coupled
- * inductor). The remaining reactive elements (L2, Cc, Co) are emitted via
- * get_extra_components_inputs.
- */
-export interface Zeta {
-    /**
-     * If true, L1 and L2 are wound on the same core (1:1 coupled) with coupling coefficient
-     * couplingCoefficient. Ripple-steering per TI SLYT411 reduces input-current ripple. The
-     * magnetic returned is a 2-winding coupled inductor.
-     */
-    coupledInductor?: boolean;
-    /**
-     * Magnetic coupling coefficient k between L1 and L2 (used only when coupledInductor=true).
-     * Typical values 0.95-0.999.
-     */
-    couplingCoefficient?: number;
-    /**
-     * The maximum magnetizing-inductor (L1) current ripple ratio (delta-IL1 / IL1_avg)
-     */
-    currentRippleRatio?: number;
-    /**
-     * The voltage drop on the rectifier diode (ignored when synchronousRectifier=true)
-     */
-    diodeVoltageDrop: number;
-    /**
-     * The target efficiency
-     */
-    efficiency?: number;
-    /**
-     * The input voltage of the Zeta
-     */
-    inputVoltage: DimensionWithTolerance;
-    /**
-     * The maximum current that can go through the selected switch
-     */
-    maximumSwitchCurrent?: number;
-    /**
-     * A list of operating points
-     */
-    operatingPoints: TopologyExcitation[];
-    /**
-     * If true, the catch diode is replaced by an actively-driven low-side synchronous MOSFET.
-     * Reduces conduction loss; common at low Vout.
-     */
-    synchronousRectifier?: boolean;
 }
 
 /**
@@ -2670,6 +229,114 @@ export interface InsulationRequirements {
 }
 
 /**
+ * Required values for the temperature that the component can reach under operation, in
+ * Celsius
+ *
+ * Required values for the altitude
+ *
+ * A dimension with minimum, nominal, and maximum values.
+ *
+ * Voltage RMS of the main supply to which this transformer is connected to.
+ *
+ * Required values for the magnetizing inductance
+ *
+ * The maximum thickness of the insulation around the wire, in m
+ *
+ * The conducting area of the wire, in m². Used for some rectangular shapes where the area
+ * is smaller than expected due to rounded corners
+ *
+ * The conducting diameter of the wire, in m
+ *
+ * The outer diameter of the wire, in m
+ *
+ * The conducting height of the wire, in m
+ *
+ * The conducting width of the wire, in m
+ *
+ * The outer height of the wire, in m
+ *
+ * The outer width of the wire, in m
+ *
+ * The radius of the edge, in case of rectangular wire, in m
+ *
+ * The outer diameter of the wire. Unit: m.
+ *
+ * Length of one full twist of the litz bundle along the wire axis. Unit: m. Vendors quote
+ * this in mm or as 'lay length'; convert to metres before serialisation. No international
+ * standard exists for litz construction; this field captures the most commonly published
+ * vendor parameter.
+ *
+ * Specific heat capacity value according to manufacturer. Unit: J/(kg*K).
+ *
+ * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
+ *
+ * DC resistance in Ohms. nominal = typical value, maximum = datasheet max.
+ *
+ * Inductance in Henries, with tolerance.
+ *
+ * Inductance per winding in Henries, with tolerance.
+ *
+ * Leakage inductance in Henries.
+ *
+ * Magnetizing inductance in Henries, with tolerance.
+ *
+ * Rated common-mode inductance in Henries (the per-line inductance presented to common-mode
+ * current). Datasheet-specified for common-mode chokes; distinct from leakageInductance
+ * (the differential-mode term).
+ *
+ * Differential-mode (leakage) inductance in Henries.
+ *
+ * Body diameter in metres (for cylindrical parts).
+ *
+ * Body height in metres.
+ *
+ * Body length in metres.
+ *
+ * Pin length in metres.
+ *
+ * Body weight in kilograms.
+ *
+ * Body width in metres.
+ *
+ * Operating temperature in degrees Celsius.
+ *
+ * Value of the leakage inductance between the primary and a secondary winding given by the
+ * position in the array
+ *
+ * Value of the magnetizing inductance. Unit: H. The operating point at which this value
+ * applies (frequency, AC test amplitude, DC bias, temperature) is recorded in the optional
+ * `measurementCondition` block; if absent, small-signal at 0 A DC bias and the ambient
+ * temperature of the operating point is assumed.
+ */
+export interface DimensionWithTolerance {
+    /**
+     * True if the maximum value must be excluded from the range
+     */
+    excludeMaximum?: boolean;
+    /**
+     * True if the minimum value must be excluded from the range
+     */
+    excludeMinimum?: boolean;
+    /**
+     * The maximum value of the dimension.
+     */
+    maximum?: number;
+    /**
+     * The minimum value of the dimension.
+     */
+    minimum?: number;
+    /**
+     * The nominal value of the dimension.
+     */
+    nominal?: number;
+    /**
+     * Optional SI unit string (e.g. 'H', 'F', 'V', 'A', 'Ohm', 'm', 'kg'). When absent, the
+     * unit is implied by the field name.
+     */
+    unit?: string;
+}
+
+/**
  * Required CTI
  */
 export enum CTI {
@@ -2706,6 +373,9 @@ export enum OvervoltageCategory {
 
 /**
  * Required pollution for the magnetic to work under
+ *
+ * IEC 60664-1 pollution degree. String form PD1..PD4 (the original MAS vocabulary, kept
+ * family-wide so pre-existing MAS documents remain valid).
  */
 export enum PollutionDegree {
     Pd1 = "PD1",
@@ -2758,6 +428,34 @@ export interface MaximumDimensions {
     depth?:  number;
     height?: number;
     width?:  number;
+}
+
+/**
+ * An impedance value pinned to a specific frequency. The impedance is a structured
+ * impedancePoint with magnitude, phase and real/imaginary parts. Bare-magnitude callers
+ * populate magnitude only and leave phase / real / imaginary unset.
+ */
+export interface ImpedanceAtFrequency {
+    /**
+     * Frequency at which the impedance applies. Unit: Hz.
+     */
+    frequency: number;
+    impedance: ImpedancePoint;
+}
+
+/**
+ * Data describing one impendance value
+ *
+ * Impedance value. Uses the same impedancePoint structure as designRequirements.
+ */
+export interface ImpedancePoint {
+    imaginaryPart?: number;
+    /**
+     * Magnitude of the impedance, in Ohm
+     */
+    magnitude: number;
+    phase?:    number;
+    realPart?: number;
 }
 
 /**
@@ -3078,6 +776,28 @@ export interface ProcessedWaveform {
 }
 
 /**
+ * Label of the waveform, if applicable. Used for common waveforms
+ */
+export enum WaveformLabel {
+    BipolarRectangular = "bipolarRectangular",
+    BipolarTriangular = "bipolarTriangular",
+    Custom = "custom",
+    FlybackPrimary = "flybackPrimary",
+    FlybackSecondary = "flybackSecondary",
+    FlybackSecondaryWithDeadtime = "flybackSecondaryWithDeadtime",
+    Rectangular = "rectangular",
+    RectangularDCM = "rectangularDCM",
+    RectangularWithDeadtime = "rectangularWithDeadtime",
+    SecondaryRectangular = "secondaryRectangular",
+    SecondaryRectangularWithDeadtime = "secondaryRectangularWithDeadtime",
+    Sinusoidal = "sinusoidal",
+    Triangular = "triangular",
+    TriangularWithDeadtime = "triangularWithDeadtime",
+    UnipolarRectangular = "unipolarRectangular",
+    UnipolarTriangular = "unipolarTriangular",
+}
+
+/**
  * Data containing the points that define an arbitrary waveform with equidistant points
  *
  * Data containing the points that define an arbitrary waveform with non-equidistant points
@@ -3117,6 +837,10 @@ export interface Magnetic {
      * datasheetInfo block for catalogue-level data.
      */
     manufacturerInfo?: MagneticManufacturerInfo;
+    /**
+     * Human-readable name/reference of this magnetic component (e.g. the design or part label).
+     */
+    name?: string;
     /**
      * The rotation of the magnetic, by default the winding column goes vertical
      */
@@ -3160,7 +884,6 @@ export interface Coil {
      * analytical and finite element models
      */
     turnsDescription?: Turn[];
-    [property: string]: any;
 }
 
 /**
@@ -3183,7 +906,6 @@ export interface Bobbin {
      */
     name?:                 string;
     processedDescription?: CoreBobbinProcessedDescription;
-    [property: string]: any;
 }
 
 /**
@@ -3290,7 +1012,7 @@ export interface BobbinFunctionalDescription {
      * Bobbin dimensions. Keys are the dimension labels defined in IEC 62317 / IEC 63093 for the
      * parent core shape.
      */
-    dimensions: { [key: string]: number | DimensionWithTolerance };
+    dimensions: { [key: string]: DimensionWithTolerance | number };
     /**
      * Bobbin family, named after the core shape family it is intended to fit. See IEC 62317 /
      * IEC 63093.
@@ -3822,17 +1544,32 @@ export enum Direction {
 }
 
 /**
- * The description of a solid round magnet wire
+ * The description of a solid round magnet wire Discriminator: this file matches ONLY
+ * documents with type='round' (enforced by the if/required/else:false conditional, which
+ * stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  *
  * The description of a basic magnet wire
  *
- * The description of a solid foil magnet wire
+ * The description of a solid foil magnet wire Discriminator: this file matches ONLY
+ * documents with type='foil' (enforced by the if/required/else:false conditional, which
+ * stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  *
- * The description of a solid rectangular magnet wire
+ * The description of a solid rectangular magnet wire Discriminator: this file matches ONLY
+ * documents with type='rectangular' (enforced by the if/required/else:false conditional,
+ * which stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  *
- * The description of a stranded litz magnet wire
+ * The description of a stranded litz magnet wire Discriminator: this file matches ONLY
+ * documents with type='litz' (enforced by the if/required/else:false conditional, which
+ * stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  *
- * The description of a solid planar magnet wire
+ * The description of a solid planar magnet wire Discriminator: this file matches ONLY
+ * documents with type='planar' (enforced by the if/required/else:false conditional, which
+ * stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  */
 export interface Wire {
     /**
@@ -3938,7 +1675,6 @@ export interface InsulationWireCoating {
      * The type of the coating
      */
     type?: InsulationWireCoatingType;
-    [property: string]: any;
 }
 
 /**
@@ -4011,7 +1747,10 @@ export enum WireStandard {
 }
 
 /**
- * The description of a solid round magnet wire
+ * The description of a solid round magnet wire Discriminator: this file matches ONLY
+ * documents with type='round' (enforced by the if/required/else:false conditional, which
+ * stays invisible to code generators so the shared wireType enum keeps generating as
+ * WireType).
  *
  * The description of a basic magnet wire
  */
@@ -4747,6 +2486,12 @@ export interface PermeabilityPoint {
      */
     magneticFieldDcBias?: number;
     /**
+     * Peak magnetic field strength H of the measurement, in A/m. The H-side counterpart of
+     * magneticFluxDensityPeak: some manufacturers (e.g. Samwha) specify amplitude-permeability
+     * curves by peak H instead of peak B.
+     */
+    magneticFieldPeak?: number;
+    /**
      * magnetic flux density peak for the field value, in T
      */
     magneticFluxDensityPeak?: number;
@@ -5095,7 +2840,7 @@ export interface CoreShape {
      * The dimensions of a magnetic shape. Keys are the dimension labels defined in IEC 62317
      * (and the modernised IEC 63093 series for planar cores).
      */
-    dimensions?: { [key: string]: number | DimensionWithTolerance };
+    dimensions?: { [key: string]: DimensionWithTolerance | number };
     /**
      * The family of a magnetic shape
      */
@@ -5457,7 +3202,7 @@ export interface MagneticDatasheetApplication {
     /**
      * Input voltage range for which this component is designed, in Volts.
      */
-    inputVoltage?: number | DimensionWithTolerance;
+    inputVoltage?: DimensionWithTolerance | number;
     /**
      * Output currents per secondary winding in Amperes.
      */
@@ -5968,18 +3713,6 @@ export interface Thermal {
 }
 
 /**
- * Optional declaration of which MAS conformance class this document targets. Class A —
- * Inductor Basic. Class B — Transformer (multi-winding, insulation, isolated topologies).
- * Class C — Full (all schemas, all topologies). See docs/conformance.md and
- * schemas/conformance/.
- */
-export enum MASConformance {
-    A = "A",
-    B = "B",
-    C = "C",
-}
-
-/**
  * The description of the outputs that result of simulating a Magnetic
  */
 export interface Outputs {
@@ -6393,7 +4126,6 @@ export interface StrayCapacitanceOutput {
      * Voltage at the beginning of the physical turn
      */
     voltagePerTurn?: number[];
-    [property: string]: any;
 }
 
 export interface SixCapacitorNetworkPerWinding {
@@ -6883,449 +4615,11 @@ const typeMap: any = {
     "Mas": o([
         { json: "inputs", js: "inputs", typ: r("Inputs") },
         { json: "magnetic", js: "magnetic", typ: r("Magnetic") },
-        { json: "masConformance", js: "masConformance", typ: u(undefined, r("MASConformance")) },
-        { json: "masVersion", js: "masVersion", typ: u(undefined, "") },
         { json: "outputs", js: "outputs", typ: a(r("Outputs")) },
     ], false),
     "Inputs": o([
-        { json: "converterInformation", js: "converterInformation", typ: u(undefined, r("ConverterInformation")) },
         { json: "designRequirements", js: "designRequirements", typ: r("DesignRequirements") },
         { json: "operatingPoints", js: "operatingPoints", typ: a(r("OperatingPoint")) },
-    ], false),
-    "ConverterInformation": o([
-        { json: "supportedTopologies", js: "supportedTopologies", typ: u(undefined, r("SupportedTopologies")) },
-    ], false),
-    "SupportedTopologies": o([
-        { json: "asymmetricHalfBridge", js: "asymmetricHalfBridge", typ: u(undefined, r("AsymmetricHalfBridge")) },
-        { json: "boost", js: "boost", typ: u(undefined, r("Boost")) },
-        { json: "buck", js: "buck", typ: u(undefined, r("Buck")) },
-        { json: "cllcResonant", js: "cllcResonant", typ: u(undefined, r("CllcResonant")) },
-        { json: "clllcResonant", js: "clllcResonant", typ: u(undefined, r("ClllcResonant")) },
-        { json: "commonModeChoke", js: "commonModeChoke", typ: u(undefined, r("CommonModeChoke")) },
-        { json: "cuk", js: "cuk", typ: u(undefined, r("Cuk")) },
-        { json: "currentTransformer", js: "currentTransformer", typ: u(undefined, r("CurrentTransformer")) },
-        { json: "differentialModeChoke", js: "differentialModeChoke", typ: u(undefined, r("DifferentialModeChoke")) },
-        { json: "dualActiveBridge", js: "dualActiveBridge", typ: u(undefined, r("DualActiveBridge")) },
-        { json: "flyback", js: "flyback", typ: u(undefined, r("Flyback")) },
-        { json: "forward", js: "forward", typ: u(undefined, r("Forward")) },
-        { json: "fourSwitchBuckBoost", js: "fourSwitchBuckBoost", typ: u(undefined, r("FourSwitchBuckBoost")) },
-        { json: "isolatedBuck", js: "isolatedBuck", typ: u(undefined, r("IsolatedBuck")) },
-        { json: "isolatedBuckBoost", js: "isolatedBuckBoost", typ: u(undefined, r("IsolatedBuckBoost")) },
-        { json: "llcResonant", js: "llcResonant", typ: u(undefined, r("LlcResonant")) },
-        { json: "phaseShiftedFullBridge", js: "phaseShiftedFullBridge", typ: u(undefined, r("PhaseShiftedFullBridge")) },
-        { json: "phaseShiftedHalfBridge", js: "phaseShiftedHalfBridge", typ: u(undefined, r("PhaseShiftedHalfBridge")) },
-        { json: "powerFactorCorrection", js: "powerFactorCorrection", typ: u(undefined, r("PowerFactorCorrection")) },
-        { json: "pushPull", js: "pushPull", typ: u(undefined, r("PushPull")) },
-        { json: "sepic", js: "sepic", typ: u(undefined, r("Sepic")) },
-        { json: "seriesResonant", js: "seriesResonant", typ: u(undefined, r("SeriesResonant")) },
-        { json: "viennaRectifier", js: "viennaRectifier", typ: u(undefined, r("ViennaRectifier")) },
-        { json: "weinberg", js: "weinberg", typ: u(undefined, r("Weinberg")) },
-        { json: "zeta", js: "zeta", typ: u(undefined, r("Zeta")) },
-    ], false),
-    "AsymmetricHalfBridge": o([
-        { json: "dcBlockingCapacitance", js: "dcBlockingCapacitance", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "inputVoltageStepRange", js: "inputVoltageStepRange", typ: u(undefined, 3.14) },
-        { json: "leakageInductance", js: "leakageInductance", typ: u(undefined, 3.14) },
-        { json: "magnetizingInductance", js: "magnetizingInductance", typ: u(undefined, 3.14) },
-        { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("AhbOperatingPoint")) },
-        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
-        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("AhbRectifierType")) },
-        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
-    ], false),
-    "DimensionWithTolerance": o([
-        { json: "excludeMaximum", js: "excludeMaximum", typ: u(undefined, true) },
-        { json: "excludeMinimum", js: "excludeMinimum", typ: u(undefined, true) },
-        { json: "maximum", js: "maximum", typ: u(undefined, 3.14) },
-        { json: "minimum", js: "minimum", typ: u(undefined, 3.14) },
-        { json: "nominal", js: "nominal", typ: u(undefined, 3.14) },
-        { json: "unit", js: "unit", typ: u(undefined, "") },
-    ], "any"),
-    "AhbOperatingPoint": o([
-        { json: "dutyCycle", js: "dutyCycle", typ: 3.14 },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "Boost": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "TopologyExcitation": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "Buck": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "CllcResonant": o([
-        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
-        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("LlcBridgeType")) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "integratedResonantInductor1", js: "integratedResonantInductor1", typ: u(undefined, true) },
-        { json: "integratedResonantInductor2", js: "integratedResonantInductor2", typ: u(undefined, true) },
-        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
-        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("CllcOperatingPoint")) },
-        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
-        { json: "resonantCapacitorRatio", js: "resonantCapacitorRatio", typ: u(undefined, 3.14) },
-        { json: "resonantInductorRatio", js: "resonantInductorRatio", typ: u(undefined, 3.14) },
-        { json: "symmetricDesign", js: "symmetricDesign", typ: u(undefined, true) },
-    ], false),
-    "CllcOperatingPoint": o([
-        { json: "powerFlow", js: "powerFlow", typ: r("PowerFlowDirection") },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "ClllcResonant": o([
-        { json: "bridgeTypePrimary", js: "bridgeTypePrimary", typ: u(undefined, r("LlcBridgeType")) },
-        { json: "bridgeTypeSecondary", js: "bridgeTypeSecondary", typ: u(undefined, r("LlcBridgeType")) },
-        { json: "controlStrategy", js: "controlStrategy", typ: u(undefined, r("ClllcControlStrategy")) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "highVoltageBusVoltage", js: "highVoltageBusVoltage", typ: r("DimensionWithTolerance") },
-        { json: "inductanceRatioK", js: "inductanceRatioK", typ: u(undefined, 3.14) },
-        { json: "integratedResonantInductors", js: "integratedResonantInductors", typ: u(undefined, true) },
-        { json: "lowVoltageBusVoltage", js: "lowVoltageBusVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
-        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("ClllcOperatingPoint")) },
-        { json: "primaryResonantCapacitance", js: "primaryResonantCapacitance", typ: u(undefined, 3.14) },
-        { json: "primaryResonantFrequency", js: "primaryResonantFrequency", typ: u(undefined, 3.14) },
-        { json: "primarySeriesInductance", js: "primarySeriesInductance", typ: u(undefined, 3.14) },
-        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
-        { json: "tankSymmetryRatio", js: "tankSymmetryRatio", typ: u(undefined, 3.14) },
-    ], false),
-    "ClllcOperatingPoint": o([
-        { json: "phaseShiftDegrees", js: "phaseShiftDegrees", typ: u(undefined, 3.14) },
-        { json: "powerFlowDirection", js: "powerFlowDirection", typ: u(undefined, r("PowerFlowDirection")) },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "CommonModeChoke": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "lineFrequency", js: "lineFrequency", typ: 3.14 },
-        { json: "lineImpedance", js: "lineImpedance", typ: u(undefined, 3.14) },
-        { json: "maximumDcResistance", js: "maximumDcResistance", typ: u(undefined, 3.14) },
-        { json: "maximumLeakageInductance", js: "maximumLeakageInductance", typ: u(undefined, 3.14) },
-        { json: "minimumImpedance", js: "minimumImpedance", typ: a(r("ImpedanceAtFrequency")) },
-        { json: "operatingCurrent", js: "operatingCurrent", typ: 3.14 },
-        { json: "operatingVoltage", js: "operatingVoltage", typ: r("DimensionWithTolerance") },
-        { json: "targetInsertionLoss", js: "targetInsertionLoss", typ: u(undefined, a(r("InsertionLossAtFrequency"))) },
-    ], false),
-    "ImpedanceAtFrequency": o([
-        { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "impedance", js: "impedance", typ: r("ImpedancePoint") },
-    ], false),
-    "ImpedancePoint": o([
-        { json: "imaginaryPart", js: "imaginaryPart", typ: u(undefined, 3.14) },
-        { json: "magnitude", js: "magnitude", typ: 3.14 },
-        { json: "phase", js: "phase", typ: u(undefined, 3.14) },
-        { json: "realPart", js: "realPart", typ: u(undefined, 3.14) },
-    ], false),
-    "InsertionLossAtFrequency": o([
-        { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "insertionLoss", js: "insertionLoss", typ: 3.14 },
-    ], false),
-    "Cuk": o([
-        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
-        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
-        { json: "couplingCapacitanceSecondary", js: "couplingCapacitanceSecondary", typ: u(undefined, 3.14) },
-        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "isolated", js: "isolated", typ: u(undefined, true) },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("CukOperatingPoint")) },
-        { json: "synchronous", js: "synchronous", typ: u(undefined, true) },
-        { json: "turnsRatio", js: "turnsRatio", typ: u(undefined, 3.14) },
-    ], false),
-    "CukOperatingPoint": o([
-        { json: "powerFlow", js: "powerFlow", typ: u(undefined, r("PowerFlowDirection")) },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "CurrentTransformer": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "burdenResistor", js: "burdenResistor", typ: 3.14 },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "frequency", js: "frequency", typ: 3.14 },
-        { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: 3.14 },
-        { json: "maximumPrimaryCurrentPeak", js: "maximumPrimaryCurrentPeak", typ: 3.14 },
-        { json: "waveformLabel", js: "waveformLabel", typ: r("WaveformLabel") },
-    ], false),
-    "DifferentialModeChoke": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "configuration", js: "configuration", typ: u(undefined, r("Configuration")) },
-        { json: "filterCapacitance", js: "filterCapacitance", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "lineFrequency", js: "lineFrequency", typ: 3.14 },
-        { json: "maximumCoreTemperatureRise", js: "maximumCoreTemperatureRise", typ: u(undefined, 3.14) },
-        { json: "maximumDcResistance", js: "maximumDcResistance", typ: u(undefined, 3.14) },
-        { json: "minimumImpedance", js: "minimumImpedance", typ: u(undefined, a(r("ImpedanceAtFrequency"))) },
-        { json: "minimumInductance", js: "minimumInductance", typ: u(undefined, 3.14) },
-        { json: "operatingCurrent", js: "operatingCurrent", typ: 3.14 },
-        { json: "peakCurrent", js: "peakCurrent", typ: u(undefined, 3.14) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
-        { json: "targetAttenuation", js: "targetAttenuation", typ: u(undefined, a(r("AttenuationAtFrequency"))) },
-    ], "any"),
-    "AttenuationAtFrequency": o([
-        { json: "attenuation", js: "attenuation", typ: 3.14 },
-        { json: "frequency", js: "frequency", typ: 3.14 },
-    ], false),
-    "DualActiveBridge": o([
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("DabOperatingPoint")) },
-        { json: "perSecondaryLeakage", js: "perSecondaryLeakage", typ: u(undefined, a(3.14)) },
-        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
-        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
-    ], false),
-    "DabOperatingPoint": o([
-        { json: "innerPhaseShift1", js: "innerPhaseShift1", typ: u(undefined, 3.14) },
-        { json: "innerPhaseShift2", js: "innerPhaseShift2", typ: u(undefined, 3.14) },
-        { json: "innerPhaseShift3", js: "innerPhaseShift3", typ: u(undefined, 3.14) },
-        { json: "modulationType", js: "modulationType", typ: u(undefined, r("ModulationType")) },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "Flyback": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: 3.14 },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumDrainSourceVoltage", js: "maximumDrainSourceVoltage", typ: u(undefined, 3.14) },
-        { json: "maximumDutyCycle", js: "maximumDutyCycle", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("FlybackOperatingPoint")) },
-    ], false),
-    "FlybackOperatingPoint": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "mode", js: "mode", typ: u(undefined, r("FlybackModes")) },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
-    ], false),
-    "Forward": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "dutyCycle", js: "dutyCycle", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "FourSwitchBuckBoost": o([
-        { json: "bidirectional", js: "bidirectional", typ: u(undefined, true) },
-        { json: "controlMode", js: "controlMode", typ: u(undefined, r("ControlMode")) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "outputVoltageRippleRatio", js: "outputVoltageRippleRatio", typ: u(undefined, 3.14) },
-        { json: "phaseCount", js: "phaseCount", typ: u(undefined, 0) },
-        { json: "transitionHysteresisRatio", js: "transitionHysteresisRatio", typ: u(undefined, 3.14) },
-        { json: "transitionMode", js: "transitionMode", typ: u(undefined, r("TransitionMode")) },
-    ], false),
-    "IsolatedBuck": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "IsolatedBuckBoost": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "LlcResonant": o([
-        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("LlcBridgeType")) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inductanceRatio", js: "inductanceRatio", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "integratedResonantInductor", js: "integratedResonantInductor", typ: u(undefined, true) },
-        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
-        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
-        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("LlcRectifierType")) },
-        { json: "resonantCapacitance", js: "resonantCapacitance", typ: u(undefined, 3.14) },
-        { json: "resonantFrequency", js: "resonantFrequency", typ: u(undefined, 3.14) },
-        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
-    ], false),
-    "PhaseShiftedFullBridge": o([
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumPhaseShift", js: "maximumPhaseShift", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("PsfbOperatingPoint")) },
-        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
-        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("BRectifierType")) },
-        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
-        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
-    ], false),
-    "PsfbOperatingPoint": o([
-        { json: "phaseShift", js: "phaseShift", typ: 3.14 },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "PhaseShiftedHalfBridge": o([
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumPhaseShift", js: "maximumPhaseShift", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("PshbOperatingPoint")) },
-        { json: "outputInductance", js: "outputInductance", typ: u(undefined, 3.14) },
-        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("BRectifierType")) },
-        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
-        { json: "useLeakageInductance", js: "useLeakageInductance", typ: u(undefined, true) },
-    ], false),
-    "PshbOperatingPoint": o([
-        { json: "phaseShift", js: "phaseShift", typ: 3.14 },
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "outputCurrents", js: "outputCurrents", typ: a(3.14) },
-        { json: "outputCurrentsType", js: "outputCurrentsType", typ: u(undefined, r("OutputSType")) },
-        { json: "outputVoltages", js: "outputVoltages", typ: a(3.14) },
-        { json: "outputVoltagesType", js: "outputVoltagesType", typ: u(undefined, r("OutputSType")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-    ], "any"),
-    "PowerFactorCorrection": o([
-        { json: "ambientTemperature", js: "ambientTemperature", typ: 3.14 },
-        { json: "bulkCapacitance", js: "bulkCapacitance", typ: u(undefined, 3.14) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "lineFrequency", js: "lineFrequency", typ: u(undefined, 3.14) },
-        { json: "maximumCoreTemperatureRise", js: "maximumCoreTemperatureRise", typ: u(undefined, 3.14) },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "mode", js: "mode", typ: u(undefined, r("PfcModes")) },
-        { json: "numberOfPhases", js: "numberOfPhases", typ: u(undefined, 0) },
-        { json: "outputPower", js: "outputPower", typ: 3.14 },
-        { json: "outputVoltage", js: "outputVoltage", typ: 3.14 },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-        { json: "topologyVariant", js: "topologyVariant", typ: u(undefined, r("PfcTopologyVariants")) },
-        { json: "wideBandgapSwitch", js: "wideBandgapSwitch", typ: u(undefined, true) },
-    ], false),
-    "PushPull": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: 3.14 },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "dutyCycle", js: "dutyCycle", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumDrainSourceVoltage", js: "maximumDrainSourceVoltage", typ: u(undefined, 3.14) },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-    ], false),
-    "Sepic": o([
-        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
-        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
-    ], false),
-    "SeriesResonant": o([
-        { json: "bridgeType", js: "bridgeType", typ: u(undefined, r("SrcBridgeType")) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "isolated", js: "isolated", typ: u(undefined, true) },
-        { json: "maxSwitchingFrequency", js: "maxSwitchingFrequency", typ: 3.14 },
-        { json: "minSwitchingFrequency", js: "minSwitchingFrequency", typ: 3.14 },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "qualityFactor", js: "qualityFactor", typ: u(undefined, 3.14) },
-        { json: "rectifierType", js: "rectifierType", typ: u(undefined, r("SrcRectifierType")) },
-        { json: "resonantCapacitance", js: "resonantCapacitance", typ: u(undefined, 3.14) },
-        { json: "resonantFrequency", js: "resonantFrequency", typ: u(undefined, 3.14) },
-        { json: "seriesInductance", js: "seriesInductance", typ: u(undefined, 3.14) },
-        { json: "useSynchronousRectifier", js: "useSynchronousRectifier", typ: u(undefined, true) },
-    ], false),
-    "ViennaRectifier": o([
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "lineFrequency", js: "lineFrequency", typ: u(undefined, 3.14) },
-        { json: "lineToLineVoltage", js: "lineToLineVoltage", typ: r("DimensionWithTolerance") },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "outputDcVoltage", js: "outputDcVoltage", typ: 3.14 },
-        { json: "phaseCount", js: "phaseCount", typ: u(undefined, 0) },
-        { json: "powerFactor", js: "powerFactor", typ: u(undefined, 3.14) },
-        { json: "samplingStrategy", js: "samplingStrategy", typ: u(undefined, r("ViennaSamplingStrategy")) },
-        { json: "switchingFrequency", js: "switchingFrequency", typ: 3.14 },
-        { json: "switchType", js: "switchType", typ: u(undefined, r("ViennaSwitchType")) },
-        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
-        { json: "viennaVariant", js: "viennaVariant", typ: u(undefined, r("ViennaVariant")) },
-    ], false),
-    "Weinberg": o([
-        { json: "couplingCoefficientInput", js: "couplingCoefficientInput", typ: u(undefined, 3.14) },
-        { json: "couplingCoefficientMain", js: "couplingCoefficientMain", typ: u(undefined, 3.14) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
-        { json: "variant", js: "variant", typ: u(undefined, r("Variant")) },
-    ], false),
-    "Zeta": o([
-        { json: "coupledInductor", js: "coupledInductor", typ: u(undefined, true) },
-        { json: "couplingCoefficient", js: "couplingCoefficient", typ: u(undefined, 3.14) },
-        { json: "currentRippleRatio", js: "currentRippleRatio", typ: u(undefined, 3.14) },
-        { json: "diodeVoltageDrop", js: "diodeVoltageDrop", typ: 3.14 },
-        { json: "efficiency", js: "efficiency", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: r("DimensionWithTolerance") },
-        { json: "maximumSwitchCurrent", js: "maximumSwitchCurrent", typ: u(undefined, 3.14) },
-        { json: "operatingPoints", js: "operatingPoints", typ: a(r("TopologyExcitation")) },
-        { json: "synchronousRectifier", js: "synchronousRectifier", typ: u(undefined, true) },
     ], false),
     "DesignRequirements": o([
         { json: "allowedTechnologies", js: "allowedTechnologies", typ: u(undefined, a("")) },
@@ -7371,10 +4665,28 @@ const typeMap: any = {
         { json: "pollutionDegree", js: "pollutionDegree", typ: u(undefined, r("PollutionDegree")) },
         { json: "standards", js: "standards", typ: u(undefined, a(r("InsulationStandards"))) },
     ], false),
+    "DimensionWithTolerance": o([
+        { json: "excludeMaximum", js: "excludeMaximum", typ: u(undefined, true) },
+        { json: "excludeMinimum", js: "excludeMinimum", typ: u(undefined, true) },
+        { json: "maximum", js: "maximum", typ: u(undefined, 3.14) },
+        { json: "minimum", js: "minimum", typ: u(undefined, 3.14) },
+        { json: "nominal", js: "nominal", typ: u(undefined, 3.14) },
+        { json: "unit", js: "unit", typ: u(undefined, "") },
+    ], false),
     "MaximumDimensions": o([
         { json: "depth", js: "depth", typ: u(undefined, 3.14) },
         { json: "height", js: "height", typ: u(undefined, 3.14) },
         { json: "width", js: "width", typ: u(undefined, 3.14) },
+    ], false),
+    "ImpedanceAtFrequency": o([
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "impedance", js: "impedance", typ: r("ImpedancePoint") },
+    ], false),
+    "ImpedancePoint": o([
+        { json: "imaginaryPart", js: "imaginaryPart", typ: u(undefined, 3.14) },
+        { json: "magnitude", js: "magnitude", typ: 3.14 },
+        { json: "phase", js: "phase", typ: u(undefined, 3.14) },
+        { json: "realPart", js: "realPart", typ: u(undefined, 3.14) },
     ], false),
     "OperatingPoint": o([
         { json: "conditions", js: "conditions", typ: r("OperatingConditions") },
@@ -7451,6 +4763,7 @@ const typeMap: any = {
         { json: "core", js: "core", typ: u(undefined, r("MagneticCore")) },
         { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("MagneticManufacturerInfo")) },
+        { json: "name", js: "name", typ: u(undefined, "") },
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
     ], false),
     "Coil": o([
@@ -7460,14 +4773,14 @@ const typeMap: any = {
         { json: "layersDescription", js: "layersDescription", typ: u(undefined, a(r("Layer"))) },
         { json: "sectionsDescription", js: "sectionsDescription", typ: u(undefined, a(r("Section"))) },
         { json: "turnsDescription", js: "turnsDescription", typ: u(undefined, a(r("Turn"))) },
-    ], "any"),
+    ], false),
     "Bobbin": o([
         { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "functionalDescription", js: "functionalDescription", typ: u(undefined, r("BobbinFunctionalDescription")) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("ManufacturerInfo")) },
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "processedDescription", js: "processedDescription", typ: u(undefined, r("CoreBobbinProcessedDescription")) },
-    ], "any"),
+    ], false),
     "DistributorInfo": o([
         { json: "cost", js: "cost", typ: u(undefined, r("CurrencyAmount")) },
         { json: "country", js: "country", typ: u(undefined, u(null, "")) },
@@ -7493,7 +4806,7 @@ const typeMap: any = {
     ], false),
     "BobbinFunctionalDescription": o([
         { json: "connections", js: "connections", typ: u(undefined, a(r("PinWindingConnection"))) },
-        { json: "dimensions", js: "dimensions", typ: m(u(3.14, r("DimensionWithTolerance"))) },
+        { json: "dimensions", js: "dimensions", typ: m(u(r("DimensionWithTolerance"), 3.14)) },
         { json: "family", js: "family", typ: r("BobbinFamily") },
         { json: "familySubtype", js: "familySubtype", typ: u(undefined, "") },
         { json: "material", js: "material", typ: u(undefined, u(r("InsulationMaterial"), "")) },
@@ -7626,7 +4939,7 @@ const typeMap: any = {
         { json: "thickness", js: "thickness", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "thicknessLayers", js: "thicknessLayers", typ: u(undefined, 3.14) },
         { json: "type", js: "type", typ: u(undefined, r("InsulationWireCoatingType")) },
-    ], "any"),
+    ], false),
     "WireMaterial": o([
         { json: "name", js: "name", typ: "" },
         { json: "permeability", js: "permeability", typ: 3.14 },
@@ -7802,6 +5115,7 @@ const typeMap: any = {
     "PermeabilityPoint": o([
         { json: "frequency", js: "frequency", typ: u(undefined, 3.14) },
         { json: "magneticFieldDcBias", js: "magneticFieldDcBias", typ: u(undefined, 3.14) },
+        { json: "magneticFieldPeak", js: "magneticFieldPeak", typ: u(undefined, 3.14) },
         { json: "magneticFluxDensityPeak", js: "magneticFluxDensityPeak", typ: u(undefined, 3.14) },
         { json: "modifiers", js: "modifiers", typ: u(undefined, m(r("InitialPermeabilitModifier"))) },
         { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
@@ -7896,7 +5210,7 @@ const typeMap: any = {
     ], false),
     "CoreShape": o([
         { json: "aliases", js: "aliases", typ: u(undefined, a("")) },
-        { json: "dimensions", js: "dimensions", typ: u(undefined, m(u(3.14, r("DimensionWithTolerance")))) },
+        { json: "dimensions", js: "dimensions", typ: u(undefined, m(u(r("DimensionWithTolerance"), 3.14))) },
         { json: "family", js: "family", typ: r("CoreShapeFamily") },
         { json: "familySubtype", js: "familySubtype", typ: u(undefined, "") },
         { json: "magneticCircuit", js: "magneticCircuit", typ: u(undefined, r("MagneticCircuit")) },
@@ -7966,7 +5280,7 @@ const typeMap: any = {
     ], false),
     "MagneticDatasheetApplication": o([
         { json: "auxiliaryVoltage", js: "auxiliaryVoltage", typ: u(undefined, 3.14) },
-        { json: "inputVoltage", js: "inputVoltage", typ: u(undefined, u(3.14, r("DimensionWithTolerance"))) },
+        { json: "inputVoltage", js: "inputVoltage", typ: u(undefined, u(r("DimensionWithTolerance"), 3.14)) },
         { json: "outputCurrents", js: "outputCurrents", typ: u(undefined, a(3.14)) },
         { json: "outputVoltages", js: "outputVoltages", typ: u(undefined, a(3.14)) },
         { json: "switchingFrequency", js: "switchingFrequency", typ: u(undefined, 3.14) },
@@ -8185,7 +5499,7 @@ const typeMap: any = {
         { json: "voltageDividerStartPerTurn", js: "voltageDividerStartPerTurn", typ: u(undefined, a(3.14)) },
         { json: "voltageDropAmongTurns", js: "voltageDropAmongTurns", typ: u(undefined, m(m(3.14))) },
         { json: "voltagePerTurn", js: "voltagePerTurn", typ: u(undefined, a(3.14)) },
-    ], "any"),
+    ], false),
     "SixCapacitorNetworkPerWinding": o([
         { json: "C1", js: "C1", typ: 3.14 },
         { json: "C2", js: "C2", typ: 3.14 },
@@ -8283,136 +5597,6 @@ const typeMap: any = {
         { json: "turnIndex", js: "turnIndex", typ: u(undefined, 0) },
         { json: "turnLength", js: "turnLength", typ: u(undefined, 3.14) },
     ], false),
-    "OutputSType": [
-        "average",
-        "dc",
-        "peak",
-        "peakToPeak",
-        "rms",
-    ],
-    "AhbRectifierType": [
-        "ahbFlyback",
-        "centerTapped",
-        "currentDoubler",
-        "fullBridge",
-    ],
-    "LlcBridgeType": [
-        "fullBridge",
-        "halfBridge",
-    ],
-    "PowerFlowDirection": [
-        "forward",
-        "reverse",
-    ],
-    "ClllcControlStrategy": [
-        "fixedFrequencyPhaseShift",
-        "hybridPfmPsm",
-        "psm",
-        "pfm",
-    ],
-    "WaveformLabel": [
-        "bipolarRectangular",
-        "bipolarTriangular",
-        "custom",
-        "flybackPrimary",
-        "flybackSecondary",
-        "flybackSecondaryWithDeadtime",
-        "rectangular",
-        "rectangularDCM",
-        "rectangularWithDeadtime",
-        "secondaryRectangular",
-        "secondaryRectangularWithDeadtime",
-        "sinusoidal",
-        "triangular",
-        "triangularWithDeadtime",
-        "unipolarRectangular",
-        "unipolarTriangular",
-    ],
-    "Configuration": [
-        "singlePhase",
-        "singlePhaseBalanced",
-        "threePhase",
-        "threePhaseWithNeutral",
-    ],
-    "ModulationType": [
-        "DPS",
-        "EPS",
-        "SPS",
-        "TPS",
-    ],
-    "FlybackModes": [
-        "boundaryModeOperation",
-        "continuousConductionMode",
-        "discontinuousConductionMode",
-        "quasiResonantMode",
-    ],
-    "ControlMode": [
-        "averageCurrent",
-        "peakBuckPeakBoost",
-        "peakCurrent",
-        "voltageMode",
-    ],
-    "TransitionMode": [
-        "simultaneous",
-        "splitPwm",
-    ],
-    "LlcRectifierType": [
-        "centerTapped",
-        "currentDoubler",
-        "fullBridge",
-        "voltageDoubler",
-    ],
-    "BRectifierType": [
-        "centerTapped",
-        "currentDoubler",
-        "fullBridge",
-    ],
-    "PfcModes": [
-        "continuousConductionMode",
-        "criticalConductionMode",
-        "discontinuousConductionMode",
-        "transitionMode",
-    ],
-    "PfcTopologyVariants": [
-        "boost",
-        "bridgeless",
-        "buck",
-        "buckBoost",
-        "cuk",
-        "interleavedBoost",
-        "semiBridgeless",
-        "sepic",
-        "totemPole",
-        "vienna",
-    ],
-    "SrcBridgeType": [
-        "fullBridge",
-        "fullBridgePhaseShift",
-        "halfBridge",
-    ],
-    "SrcRectifierType": [
-        "centerTappedDiode",
-        "currentDoubler",
-        "fullBridgeDiode",
-    ],
-    "ViennaSamplingStrategy": [
-        "fullLineCycle",
-        "peakOfLineOnly",
-        "peakOfLinePlusSectors",
-    ],
-    "ViennaSwitchType": [
-        "backToBackMosfet",
-        "singleMosfetIn4DiodeBridge",
-        "tType",
-    ],
-    "ViennaVariant": [
-        "viennaI",
-        "viennaII",
-    ],
-    "Variant": [
-        "bridge",
-        "classic",
-    ],
     "CTI": [
         "groupI",
         "groupII",
@@ -8509,6 +5693,24 @@ const typeMap: any = {
         "printed",
         "stamped",
         "wound",
+    ],
+    "WaveformLabel": [
+        "bipolarRectangular",
+        "bipolarTriangular",
+        "custom",
+        "flybackPrimary",
+        "flybackSecondary",
+        "flybackSecondaryWithDeadtime",
+        "rectangular",
+        "rectangularDCM",
+        "rectangularWithDeadtime",
+        "secondaryRectangular",
+        "secondaryRectangularWithDeadtime",
+        "sinusoidal",
+        "triangular",
+        "triangularWithDeadtime",
+        "unipolarRectangular",
+        "unipolarTriangular",
     ],
     "BobbinFamily": [
         "e",
@@ -8767,11 +5969,6 @@ const typeMap: any = {
         "manufacturerDatasheet",
         "manufacturerParametric",
         "scrape",
-    ],
-    "MASConformance": [
-        "A",
-        "B",
-        "C",
     ],
     "ResultOrigin": [
         "manufacturer",
