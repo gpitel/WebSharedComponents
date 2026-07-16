@@ -17,8 +17,12 @@ let _ctx = null;
 // Everything else is intermediate working state.
 const FINAL_EVENTS = new Set(['design_report', 'design_export']);
 
-// ctx: { axios, sessionId, environment, appVersion, masProvider }
+// ctx: { axios, sessionId, environment, appVersion, masProvider,
+//        privatePartNamesProvider }
 //   masProvider: () => the current global MAS object (or null).
+//   privatePartNamesProvider (optional): () => names of the account's PRIVATE
+//     inventory parts — designs referencing any of them are recorded WITHOUT
+//     their MAS payload (see recordDesign).
 export function initTelemetry(ctx) {
     _ctx = ctx;
 }
@@ -60,11 +64,27 @@ function trackUmami(eventName, props) {
 // on a local MAS (e.g. cross-referencers). `stage` is derived from the event
 // type unless overridden.
 export function recordDesign({ event_type, source, mas, stage, topology, result_count = null }) {
-    const masData = (mas !== undefined)
+    let masData = (mas !== undefined)
         ? mas
         : (_ctx && _ctx.masProvider ? _ctx.masProvider() : null);
     const resolvedStage = stage || (FINAL_EVENTS.has(event_type) ? 'final' : 'intermediate');
     const resolvedTopology = topology || topologyOf(masData);
+    // Privacy: a design that references any of the account's PRIVATE inventory
+    // parts never ships its MAS to telemetry. The event itself is still
+    // recorded (usage stats stay complete) with mas_data stripped.
+    if (masData && _ctx && _ctx.privatePartNamesProvider) {
+        try {
+            const privateNames = _ctx.privatePartNamesProvider() || [];
+            if (privateNames.length > 0) {
+                const serialized = JSON.stringify(masData);
+                if (privateNames.some((name) => serialized.includes(JSON.stringify(String(name))))) {
+                    masData = null;
+                }
+            }
+        } catch (_) {
+            masData = null;  // if the privacy check itself fails, never leak
+        }
+    }
     _post({
         event_type,
         source,

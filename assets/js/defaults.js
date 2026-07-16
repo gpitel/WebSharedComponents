@@ -42,6 +42,11 @@ export const coreMaterialCrossReferencerPossibleLabels = [
 
 
 export const coreMaterialCrossReferencerPossibleCoreTypes = [
+    // Only the stock filter is consumed by the material cross referencer
+    // (CoreMaterialCrossReferencer.vue reads enabledCoreTypes.includes("Only
+    // Cores In Stock")). An empty list rendered the "Enabled Core Types"
+    // heading with no checkboxes.
+    "Only Cores In Stock",
 ];
 
 
