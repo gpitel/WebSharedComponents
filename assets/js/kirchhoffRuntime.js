@@ -13,8 +13,9 @@
 //   * generate_<topo>_ngspice_circuit(spec, ivIdx, opIdx) -> ngspice deck string
 // Raw Kirchhoff::api names (process_converter, design_tas, generate_ngspice_circuit, simulate_ngspice,
 // extract_operating_point, topology_waveforms, diagnostics, main_magnetic_inputs, generate_ltspice_circuit)
-// are forwarded 1:1. Anything else (e.g. simulate_flyback_with_magnetic, calculate_cmc_inputs,
-// determine_pfc_mode, process_current_transformer) returns an "Exception: ..." string so the caller's
+// are forwarded 1:1. determine_pfc_mode is translated through the shared spec builder. Anything
+// else (e.g. simulate_flyback_with_magnetic, process_current_transformer) returns an
+// "Exception: ..." string so the caller's
 // existing `result.startsWith('Exception')` check throws loudly instead of silently faking a result.
 
 import * as Comlink from 'comlink';
@@ -302,6 +303,20 @@ async function legacyConverterCall(workerProxy, name, args) {
             out.operatingPoints = out.inputs.operatingPoints;
         }
         return JSON.stringify(out);
+    }
+
+    // PFC "I know the design" conduction-mode hint: legacy webMKF determine_pfc_mode(paramsJson, L).
+    // Translate the wizard params through the shared spec builder and keep the OLD error contract
+    // ({"error": ...} JSON, not an "Exception:" string) — PfcWizard JSON.parses the result
+    // unconditionally, exactly like the removed webMKF function's contract.
+    if (name === 'determine_pfc_mode') {
+        const params = typeof args[0] === 'string' ? JSON.parse(args[0]) : (args[0] || {});
+        const spec = buildKhConverterSpec('pfc', params);
+        const raw = await workerProxy.callMethod('determine_pfc_mode', JSON.stringify(spec), args[1]);
+        if (typeof raw === 'string' && raw.startsWith('Exception')) {
+            return JSON.stringify({ error: raw });
+        }
+        return raw;
     }
 
     const parsed = parseLegacyName(name);

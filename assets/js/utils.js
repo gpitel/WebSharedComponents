@@ -903,6 +903,75 @@ export function processCoreTexts(data) {
     return localTexts;
 }
 
+// Format the processCoreTexts() output (the {text,value} rows that drive the
+// HTML core report) into a LaTeX body for the /process_latex PDF endpoint.
+// Shared by the Core Adviser summary and the Core Cross-Referencer PDF buttons
+// (both lost their computeLatex() in the 2023 tool-unification refactor, so the
+// PDF buttons threw). Escapes LaTeX specials and converts the unicode units the
+// display strings carry (mm², cm³, Ω, °, ·, µ, ×) so pdflatex does not choke.
+export function coreTextsToLatex(localTexts, reference) {
+    const lt = localTexts || {};
+    const ref = reference || 'Core';
+    const esc = (raw) => {
+        let s = String(raw == null ? '' : raw);
+        // LaTeX specials first (order matters: backslash before the rest).
+        s = s.replace(/\\/g, '\\textbackslash{}')
+             .replace(/([&%$#_{}])/g, '\\$1')
+             .replace(/\^/g, '\\textasciicircum{}')
+             .replace(/~/g, '\\textasciitilde{}');
+        // Then the unicode the value strings carry.
+        s = s.replace(/[μµ]/g, '$\\mu$')
+             .replace(/²/g, '\\textsuperscript{2}')
+             .replace(/³/g, '\\textsuperscript{3}')
+             .replace(/·/g, '\\textperiodcentered{}')
+             .replace(/°/g, '\\textdegree{}')
+             .replace(/Ω/g, '$\\Omega$')
+             .replace(/±/g, '$\\pm$')
+             .replace(/×/g, '$\\times$')
+             .replace(/[–—]/g, '--');
+        return s;
+    };
+    const rows = [];
+    const pair = (entry) => { if (entry && entry.text != null) rows.push(`${esc(entry.text)} & ${esc(entry.value)} \\\\ \\hline`); };
+    if (lt.effectiveParametersTable) {
+        const t = lt.effectiveParametersTable;
+        pair(t.effectiveLength); pair(t.effectiveArea); pair(t.minimumArea); pair(t.effectiveVolume);
+    }
+    pair(lt.coreMaterialInitialPermeabilityTable);
+    pair(lt.coreMaterialEffectivePermeabilityTable);
+    pair(lt.coreMaterialPermeanceTable);
+    pair(lt.coreMaterialResistivityTable);
+    pair(lt.coreMaterialDensityTable);
+    pair(lt.coreMaterialCurieTemperatureTable);
+    pair(lt.coreMaterialManufacturerNameTable);
+    pair(lt.coreMaterialManufacturerReferenceTable);
+    pair(lt.magneticFluxDensitySaturationTable);
+
+    let text = `\\fancyhf{}
+\\fancyhf[EHL]{${esc(ref)}}\\fancyhf[OHL]{${esc(ref)}}
+\\fancyhf[EHR]{\\today}\\fancyhf[OHR]{\\today}
+\\fancyhf[EFL]{Done automatically with OpenMagnetics}\\fancyhf[OFL]{Done automatically with OpenMagnetics}
+\\fancyhf[EFR]{\\thepage}\\fancyhf[OFR]{\\thepage}
+\\title{${esc(ref)}}
+\\date{\\today}
+\\maketitle
+\\section*{Core}
+`;
+    if (lt.coreDescription) text += `${esc(lt.coreDescription)}\n\n`;
+    if (lt.numberTurns != null) text += `\\noindent\\textbf{Turns}: ${esc(lt.numberTurns)}\n\n`;
+    if (rows.length) {
+        text += `\\begin{center}
+\\begin{tabular}{ |l|r| }
+\\hline
+\\multicolumn{2}{|Sc|}{\\larger[1]{Core Parameters}} \\\\ \\hline
+${rows.join('\n')}
+\\end{tabular}
+\\end{center}
+`;
+    }
+    return text;
+}
+
 export function processCoreMaterialTexts(data) {
     const localTexts = {
 

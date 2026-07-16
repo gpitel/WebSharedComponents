@@ -173,6 +173,12 @@ export default {
       mvbInitialized: false,
       theme: this.getTheme(),
       isMounted: false,
+      // Core-mesh failure tracking (ABT #147a): a build racing a coil
+      // mutation (Core Advise nulls turns before the auto re-wind lands) can
+      // fail buildCoreSTL transiently; the swallowed error used to leave a
+      // misleading bobbin-only "teal blob" render.
+      coreBuildFailed: false,
+      coreBuildRetried: false,
       // Internal visibility state (can be toggled by UI)
       internalShowCore: this.showCore,
       internalShowBobbin: this.showBobbin,
@@ -421,7 +427,12 @@ export default {
               this.coreMesh = this.addMeshFromSTL(buf, this.coreColor, { metalness: 0.1, roughness: 0.9 });
               if (this.coreMesh) { this.coreMesh.visible = this.internalShowCore; group.add(this.coreMesh); }
             }
-          } catch (err) { console.warn('Could not build core:', err.message); }
+            this.coreBuildFailed = false;
+            this.coreBuildRetried = false;
+          } catch (err) {
+            console.warn('Could not build core:', err.message);
+            this.coreBuildFailed = true;
+          }
 
           try {
             const buf = await buildSpacersSTL(mag);
@@ -508,6 +519,17 @@ export default {
           if (this.pendingBuild) {
             this.pendingBuild = false;
             this.tryToSend();
+          } else if (this.coreBuildFailed && !this.coreBuildRetried && this.showCore) {
+            // The core mesh failed and nothing newer is queued: retry ONCE
+            // after the coil settles (Core Advise nulls turns before the auto
+            // re-wind lands, so the first rebuild can race an incoherent
+            // magnetic). A second failure keeps coreBuildFailed set and the
+            // template shows the explicit overlay instead of the misleading
+            // bobbin-only render (ABT #147a).
+            this.coreBuildRetried = true;
+            setTimeout(() => {
+              if (this.isMounted && !this.building) this.buildMagnetic();
+            }, 1500);
           }
         }
       }
@@ -534,6 +556,7 @@ export default {
     },
 
     triggerUpdate() {
+      this.coreBuildRetried = false;
       this.updating = true;
       this.clearScene();
       this.currentMagnetic = deepCopy(this.magnetic);
@@ -566,6 +589,13 @@ export default {
       alt="loading" 
       :src="loadingGif"
     >
+    <label
+      v-if="coreBuildFailed && coreBuildRetried && !updating && internalShowCore"
+      :data-cy="`${dataTestLabel}-core-build-failed`"
+      class="core-build-failed-overlay"
+    >
+      3D core preview unavailable for this configuration
+    </label>
     <Renderer 
       :data-cy="`${dataTestLabel}-canvas`" 
       ref="renderer" 
@@ -628,6 +658,21 @@ export default {
   z-index: 10;
   height: auto;
   max-width: 100%;
+}
+
+.core-build-failed-overlay {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffb04d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .visibility-controls {

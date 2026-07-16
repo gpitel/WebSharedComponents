@@ -99,36 +99,48 @@ export default {
         update() {
             const hasError = this.checkErrors();
             const gapping = [];
-            const residualGap = {
+            // The number of gaps must match the number of columns of THIS core,
+            // not a fixed 3 (E-family assumption). U/UR cores have 2 columns, so
+            // hardcoding 3 gaps left a spacer/ground applied to the central
+            // column only while the lateral stayed residual (ABT #157). The
+            // reader (guessBasicGappingParameters) is already column-count-aware,
+            // so we mirror it here.
+            const columns = this.core?.processedDescription?.columns;
+            if (columns == null) {
+                throw new Error("CoreGappingSelector.update: core.processedDescription.columns is missing; cannot build gapping");
+            }
+            const numberColumns = columns.length;
+            const residualGap = () => ({
                 "length": 0.000005,
                 "type": "residual"
-            }
+            });
             if (this.localData.gapType == 'Ungapped') {
-                gapping.push(residualGap);
-                gapping.push(residualGap);
-                gapping.push(residualGap);
+                for (let i = 0; i < numberColumns; i++) {
+                    gapping.push(residualGap());
+                }
             }
             else if (this.localData.gapType == 'Ground') {
                 if (this.previousGapType == "Distributed") {
                     this.localData.numberGaps = 1;
                     this.localData.gapLength *= 3;
                 };
-                const coreGap = {
+                gapping.push({
                     "length": this.localData.gapLength,
                     "type": "subtractive"
+                });
+                for (let i = 1; i < numberColumns; i++) {
+                    gapping.push(residualGap());
                 }
-                gapping.push(coreGap);
-                gapping.push(residualGap);
-                gapping.push(residualGap);
             }
             else if (this.localData.gapType == 'Spacer') {
-                const coreGap = {
-                    "length": this.localData.gapLength,
-                    "type": "additive"
+                // A spacer separates every mating surface equally, so it adds one
+                // additive gap of the same length to every column.
+                for (let i = 0; i < numberColumns; i++) {
+                    gapping.push({
+                        "length": this.localData.gapLength,
+                        "type": "additive"
+                    });
                 }
-                gapping.push(coreGap);
-                gapping.push(coreGap);
-                gapping.push(coreGap);
             }
 
             else if (this.localData.gapType == 'Distributed') {
@@ -136,15 +148,15 @@ export default {
                     this.localData.numberGaps = 3;
                     this.localData.gapLength /= 3;
                 }
-                const coreGap = {
-                    "length": this.localData.gapLength,
-                    "type": "subtractive"
-                }
                 for (let i = this.localData.numberGaps - 1; i >= 0; i--) {
-                    gapping.push(coreGap);
+                    gapping.push({
+                        "length": this.localData.gapLength,
+                        "type": "subtractive"
+                    });
                 }
-                gapping.push(residualGap);
-                gapping.push(residualGap);
+                for (let i = 1; i < numberColumns; i++) {
+                    gapping.push(residualGap());
+                }
             }
 
             if (this.autoupdate) {
