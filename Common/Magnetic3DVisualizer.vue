@@ -6,6 +6,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { deepCopy, hexToRgb } from '../assets/js/utils.js';
 import { initMvbWorker, buildCoreSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
 import { enrichMagnetic } from '../assets/js/mkfRuntime.js';
+import { buildInstancedTurns } from '../assets/js/turnsInstanced.js';
 </script>
 
 <script>
@@ -133,6 +134,18 @@ export default {
     bobbinOpacity: {
       type: Number,
       default: 0.7,
+    },
+    // How to render turns: 'auto' uses client-side instanced geometry above
+    // `instancedTurnsThreshold` turns (avoids the multi-MB WASM STL that
+    // stalls the browser on large coils), 'instanced' forces it, 'stl' keeps
+    // the exact MVB++ solids for every design.
+    turnsRenderMode: {
+      type: String,
+      default: 'auto',
+    },
+    instancedTurnsThreshold: {
+      type: Number,
+      default: 100,
     },
     offset: {
       type: Number,
@@ -408,11 +421,24 @@ export default {
 
         // Pre-enrich via MKF worker (already running) so MVB++ skips its internal
         // autocomplete and goes straight to geometry — one autocomplete total.
+        // BUT: enrichMagnetic runs a full mas_autocomplete (advise + re-wind),
+        // which is O(minutes) / effectively hangs for large multi-winding coils.
+        // When the magnetic is ALREADY fully processed (core.processedDescription
+        // + a wound coil.turnsDescription), that re-autocomplete is redundant —
+        // MVB++ can enrich internally from the processed geometry — so skip it.
+        // This is what lets high-turn-count designs reach the render at all.
+        const alreadyProcessed =
+          magnetic.core?.processedDescription?.columns?.length > 0 &&
+          magnetic.coil?.turnsDescription?.length > 0;
         let mag;
-        try {
-          mag = await enrichMagnetic(JSON.parse(JSON.stringify(magnetic)));
-        } catch (e) {
+        if (alreadyProcessed) {
           mag = JSON.parse(JSON.stringify(magnetic));
+        } else {
+          try {
+            mag = await enrichMagnetic(JSON.parse(JSON.stringify(magnetic)));
+          } catch (e) {
+            mag = JSON.parse(JSON.stringify(magnetic));
+          }
         }
 
         const group = markRaw(new Group());
@@ -486,13 +512,46 @@ export default {
         }
 
         if (this.showTurns && hasTurnsData && !hasDummyWires) {
-          try {
-            const buf = await buildTurnsSTL(mag);
-            if (buf) {
-              const m = this.addMeshFromSTL(buf, this.turnsColor, { metalness: 0.2, roughness: 0.6 });
-              if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
+          const turnCount = coil.turnsDescription.length;
+          const useInstanced = this.turnsRenderMode === 'instanced' ||
+            (this.turnsRenderMode === 'auto' && turnCount > this.instancedTurnsThreshold);
+          let instanced = null;
+          if (useInstanced) {
+            // Client-side instanced geometry: one TubeGeometry/ring per layer
+            // radius x wire cross-section, instanced per turn. Returns null
+            // for unsupported topologies (toroids, rotated rectangular
+            // wires, ...) — then we fall back to the exact WASM STL below.
+            try {
+              const t0 = performance.now();
+              instanced = buildInstancedTurns(mag, {
+                materialFor: (turn, windingIdx) => this.createMaterial(
+                  getWireColorFromCoating(turn, coil, windingIdx),
+                  { metalness: 0.2, roughness: 0.6 }
+                ),
+              });
+              if (instanced) {
+                const turnsGroup = markRaw(instanced.group);
+                turnsGroup.visible = this.internalShowTurns;
+                group.add(turnsGroup);
+                this.turnsMeshes.push(turnsGroup);
+                console.log(`[3D] instanced turns: ${instanced.stats.turnCount} turns -> ` +
+                  `${instanced.stats.geometryCount} geometries, ${instanced.stats.meshCount} meshes, ` +
+                  `${instanced.stats.triangles} tris in ${Math.round(performance.now() - t0)}ms`);
+              }
+            } catch (err) {
+              console.warn('Instanced turns build failed, falling back to STL:', err.message);
+              instanced = null;
             }
-          } catch (err) { console.warn('Could not build turns:', err.message); }
+          }
+          if (!instanced) {
+            try {
+              const buf = await buildTurnsSTL(mag);
+              if (buf) {
+                const m = this.addMeshFromSTL(buf, this.turnsColor, { metalness: 0.2, roughness: 0.6 });
+                if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
+              }
+            } catch (err) { console.warn('Could not build turns:', err.message); }
+          }
         } else if (this.showTurns && hasTurnsData && hasDummyWires) {
           console.warn('Skipping turn STL build: one or more windings reference the "Dummy" wire sentinel. Pick a real wire in the coil builder before rendering 3D turns.');
         }
