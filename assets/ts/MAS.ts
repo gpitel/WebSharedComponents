@@ -4086,6 +4086,12 @@ export interface Group {
      * Type of the group
      */
     type: WiringTechnology;
+    /**
+     * Index of the winding window (in the windingWindows list of the governing bobbin or
+     * core processed description) the sections of this group are placed in. If not present,
+     * the first winding window (index 0) is assumed. Overridable per section
+     */
+    windingWindow?: number;
 }
 
 /**
@@ -7603,6 +7609,7 @@ const typeMap: any = {
         { json: "partialWindings", js: "partialWindings", typ: a(r("PartialWinding")) },
         { json: "sectionsOrientation", js: "sectionsOrientation", typ: r("WindingOrientation") },
         { json: "type", js: "type", typ: r("WiringTechnology") },
+        { json: "windingWindow", js: "windingWindow", typ: u(undefined, 0) },
     ], false),
     "PartialWinding": o([
         { json: "connections", js: "connections", typ: u(undefined, a(r("ConnectionElement"))) },
