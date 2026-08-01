@@ -1,4 +1,4 @@
-import { CTI, ConnectionType, CoreShapeFamily, CoreType, GapType, InsulationStandards, IsolationClass, IsolationSide, Market, OvervoltageCategory, PollutionDegree, Topology, WiringTechnology } from '../ts/MAS.ts'
+import { CTI, ConnectionType, CoreShapeFamily, CoreType, GapType, InsulationStandards, IsolationClass, IsolationSide, Market, OvervoltageCategory, PollutionDegree, TemperatureClassEnum, Topology, WiringTechnology } from '../ts/MAS.ts'
 export const coreAdviserWeights = {
     "Efficiency": 40,
     "Dimensions": 30,
@@ -298,6 +298,13 @@ export const defaultDesignRequirements = {
     "maximumDimensions": {"width": null, "height": 0.05, "depth": null},
     "terminalType": [ConnectionType.FlyingLead],
     "wiringTechnology": WiringTechnology.Wound
+}
+
+// Seed used when the user enables the certified insulation system (EIS) block
+// inside the insulation requirement. temperatureClass is required by the MAS
+// schema, so the block is created with one rather than as an empty object.
+export const defaultInsulationSystemRequirement = {
+    "temperatureClass": TemperatureClassEnum.H,
 }
 
 export const defaultOperatingPointExcitationForInsulation = {  

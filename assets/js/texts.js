@@ -7,7 +7,7 @@ export const tooltipsMagneticSynthesisDesignRequirements = {
     "leakageInductance": "List of leakage inductances, with tolerance, one for each secondary, each one referred to the primary",
     "strayCapacitance": "List of stray capacitances, with tolerance, one for each secondary, each one referred to the primary",
     "operatingTemperature": "Range of operation temperatures that the magnetic will be subjected to",
-    "insulation": "Group of inputs used to calculate the insulation coordination",
+    "insulation": "Group of inputs used to calculate the insulation coordination, including an optional certified insulation system (EIS) whose thermal class and approved materials bound the insulation and wire choices",
     "isolationSides": "Isolation side of each winding",
     "market": "Destination market for the magnetic component",
     "topology": "Topology where our magnetic will be used",
