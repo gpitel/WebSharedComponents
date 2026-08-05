@@ -1264,12 +1264,28 @@ export async function checkAndFixMas(mas, mkf=null) {
     if (mas.magnetic.core.functionalDescription.material != "" && mas.magnetic.core.functionalDescription.material != null) {
         if (mkf != null && (mas.magnetic.coil.bobbin == null || mas.magnetic.coil.bobbin == "Dummy" || mas.magnetic.core.processedDescription == null)) {
             try {
+                // Never write the autocompleted bobbin back over a per-column ARRAY.
+                //
+                // MKF answers with the MERGED single bobbin on purpose
+                // (Coil::merge_per_column_bobbins concatenates the parts' windows into one
+                // working bobbin), so assigning its answer here replaces the authored
+                // Convention A array -- bobbin[i] mounted on core.columns[i] -- with one
+                // bobbin describing one window. Nothing errors at that moment. The next
+                // recalculation then rejects the coil it had just accepted, with
+                // "references winding window 1 but the governing bobbin/core has 1 winding
+                // windows", which reads as an engine or exporter fault rather than a
+                // frontend one.
+                //
+                // The array is the authored truth and the merge is derived from it, so the
+                // array wins. A scalar bobbin keeps the old behaviour exactly.
+                const keepPerColumnBobbins = Array.isArray(mas.magnetic.coil.bobbin)
+                                             && mas.magnetic.coil.bobbin.length > 1;
                 // Check if mkf is a taskQueueStore (has masAutocomplete method)
                 if (typeof mkf.masAutocomplete === 'function') {
                     // Use taskQueueStore
                     const masResult = await mkf.masAutocomplete(mas, false, {});
                     mas.magnetic.core = masResult.magnetic.core;
-                    if (masResult.magnetic?.coil?.bobbin && masResult.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = masResult.magnetic.coil.bobbin;
+                    if (!keepPerColumnBobbins && masResult.magnetic?.coil?.bobbin && masResult.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = masResult.magnetic.coil.bobbin;
                 } else {
                     // Legacy mkf direct usage
                     await mkf.ready;
@@ -1281,7 +1297,7 @@ export async function checkAndFixMas(mas, mkf=null) {
                     else {
                         const _masR = JSON.parse(masJson);
                         mas.magnetic.core = _masR.magnetic.core;
-                        if (_masR.magnetic?.coil?.bobbin && _masR.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = _masR.magnetic.coil.bobbin;
+                        if (!keepPerColumnBobbins && _masR.magnetic?.coil?.bobbin && _masR.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = _masR.magnetic.coil.bobbin;
                     }
                 }
 
