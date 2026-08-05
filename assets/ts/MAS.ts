@@ -4266,6 +4266,13 @@ export interface Section {
      * Defines if the section is wound by consecutive turns or parallels
      */
     windingStyle?: WindingStyle;
+    /**
+     * Index of the winding window (in the windingWindows list of the governing bobbin or
+     * core processed description) this section is placed in. If not present, the group's
+     * windingWindow applies, else the first winding window (index 0). Coordinates stay
+     * referred to the center of the main column regardless of this value
+     */
+    windingWindow?: number;
 }
 
 /**
@@ -7646,6 +7653,7 @@ const typeMap: any = {
         { json: "type", js: "type", typ: r("ElectricalType") },
         { json: "windingOrder", js: "windingOrder", typ: u(undefined, r("WindingOrder")) },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, r("WindingStyle")) },
+        { json: "windingWindow", js: "windingWindow", typ: u(undefined, 0) },
     ], false),
     "MarginInfo": o([
         { json: "bottomOrRightWidth", js: "bottomOrRightWidth", typ: 3.14 },
