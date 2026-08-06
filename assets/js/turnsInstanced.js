@@ -162,55 +162,93 @@ export function buildInstancedTurns(magnetic, options = {}) {
 
   const columns = magnetic?.core?.processedDescription?.columns;
   if (!Array.isArray(columns) || columns.length === 0) return null;
-  const column = columns.find((c) => c.type === 'central') ?? columns[0];
-  const colShape = (column.shape ?? 'round').toLowerCase();
-  let hw;
-  let hd;
-  if (colShape === 'rectangular') {
-    hw = column.width / 2;
-    hd = column.depth / 2;
-  } else if (colShape === 'round') {
-    hw = 0;
-    hd = 0;
-  } else {
-    return null; // oblong/irregular columns: keep exact WASM geometry
-  }
-  const cx = column.coordinates?.[0] ?? 0;
-  const cz = column.coordinates?.[2] ?? 0;
+
+  // Per-column frames, not one frame for the whole coil. A multi-column magnetic winds one
+  // coil per leg (MAS Convention A: bobbin[i] on columns[i]), and each leg's turns loop
+  // around THEIR OWN column -- which can also differ in width from the centre one. Resolving
+  // every turn against the central column instead put the second leg's turns, at x ~ 0.10 m
+  // with their column at 0.119, into a loop of radius 0.10 m around the centre column. That
+  // passes the radial check below, so it renders silently wrong rather than falling back.
+  const frames = columns.map((c) => {
+    const shape = (c.shape ?? 'round').toLowerCase();
+    if (shape === 'rectangular') {
+      return { shape, hw: c.width / 2, hd: c.depth / 2,
+               cx: c.coordinates?.[0] ?? 0, cz: c.coordinates?.[2] ?? 0 };
+    }
+    if (shape === 'round') {
+      return { shape, hw: 0, hd: 0,
+               cx: c.coordinates?.[0] ?? 0, cz: c.coordinates?.[2] ?? 0 };
+    }
+    return null; // oblong/irregular: keep exact WASM geometry
+  });
+
+  // Nearest column in x. Both of a turn's mirrored coordinates agree on the same column, so
+  // this is unambiguous -- the gap between legs is always wider than a winding stack.
+  const frameFor = (x) => {
+    let best = 0;
+    for (let i = 1; i < frames.length; i += 1) {
+      if (Math.abs(x - (columns[i].coordinates?.[0] ?? 0))
+          < Math.abs(x - (columns[best].coordinates?.[0] ?? 0))) best = i;
+    }
+    return best;
+  };
 
   // Validate every turn before building anything.
-  for (const t of turns) {
+  const frameIndexPerTurn = new Array(turns.length);
+  for (let ti = 0; ti < turns.length; ti += 1) {
+    const t = turns[ti];
     if (t.coordinateSystem && t.coordinateSystem !== 'cartesian') return null;
-    if (Array.isArray(t.additionalCoordinates) && t.additionalCoordinates.length > 0) return null;
     if (!Array.isArray(t.coordinates) || t.coordinates.length < 2) return null;
+    const fi = frameFor(t.coordinates[0]);
+    const frame = frames[fi];
+    if (!frame) return null;
+    frameIndexPerTurn[ti] = fi;
     const shape = (t.crossSectionalShape ?? 'round').toLowerCase();
     if (shape !== 'round' && shape !== 'rectangular') return null;
     if (shape === 'rectangular' && ((t.rotation ?? 0) % 360) !== 0) return null;
     if (!Array.isArray(t.dimensions) || !(t.dimensions[0] > 0)) return null;
-    const radial = t.coordinates[0] - cx;
-    if (colShape === 'round' ? radial <= 0 : radial <= hw - EPS) return null;
+    const radial = Math.abs(t.coordinates[0] - frame.cx);
+    if (frame.shape === 'round' ? radial <= 0 : radial <= frame.hw - EPS) return null;
+
+    // An additional coordinate that MIRRORS the main one about this turn's column is not
+    // extra copper: the geometry built below is a closed loop AROUND the column, so it
+    // already covers that side. Accept it and draw nothing more -- emitting a second
+    // instance would double every turn. Anything that is not a mirror (toroidal wrap,
+    // genuinely separate positions) still falls back to the exact WASM path.
+    for (const add of t.additionalCoordinates ?? []) {
+      if (!Array.isArray(add) || add.length < 2) return null;
+      const mirroredX = 2 * frame.cx - t.coordinates[0];
+      const tolerance = Math.max(Math.abs(t.coordinates[0]), 1) * 1e-6;
+      if (Math.abs(add[0] - mirroredX) > tolerance) return null;
+      if (Math.abs(add[1] - t.coordinates[1]) > tolerance) return null;
+    }
   }
 
   const windingIndex = new Map(
     (coil.functionalDescription ?? []).map((w, i) => [w.name, i])
   );
 
-  // Group turns sharing a geometry (same cross-section, dims, radial pos)
-  // and a material (same winding).
+  // Group turns sharing a geometry (same cross-section, dims, radial pos, COLUMN) and a
+  // material (same winding). The column belongs in the key: the same radial offset around a
+  // different column is a different loop, and on a mirrored leg it is also a different place.
   const groups = new Map();
-  for (const t of turns) {
+  for (let ti = 0; ti < turns.length; ti += 1) {
+    const t = turns[ti];
+    const fi = frameIndexPerTurn[ti];
+    const frame = frames[fi];
     const shape = (t.crossSectionalShape ?? 'round').toLowerCase();
-    const radial = t.coordinates[0] - cx;
+    const radial = Math.abs(t.coordinates[0] - frame.cx);
     const key = [
       shape,
       t.dimensions[0].toFixed(9),
       (t.dimensions[1] ?? t.dimensions[0]).toFixed(9),
       radial.toFixed(9),
+      fi,
       t.winding ?? '',
     ].join('|');
     let g = groups.get(key);
     if (!g) {
-      g = { shape, radial, dims: t.dimensions, sample: t, turns: [] };
+      g = { shape, radial, frame, dims: t.dimensions, sample: t, turns: [] };
       groups.set(key, g);
     }
     g.turns.push(t);
@@ -227,10 +265,15 @@ export function buildInstancedTurns(magnetic, options = {}) {
   const matrix = new Matrix4();
 
   for (const g of groups.values()) {
-    const geoKey = [g.shape, g.dims[0], g.dims[1] ?? g.dims[0], g.radial.toFixed(9)].join('|');
+    const { hw, hd, cx, cz } = g.frame;
+    // The column's own half-extents are part of the geometry, so they belong in the cache key
+    // as well as the radius -- two legs of different width at the same radial offset are not
+    // the same loop.
+    const geoKey = [g.shape, g.dims[0], g.dims[1] ?? g.dims[0], g.radial.toFixed(9),
+                    hw.toFixed(9), hd.toFixed(9)].join('|');
     let geometry = geometryCache.get(geoKey);
     if (!geometry) {
-      const r = colShape === 'round' ? g.radial : g.radial - hw;
+      const r = g.frame.shape === 'round' ? g.radial : g.radial - hw;
       geometry = g.shape === 'round'
         ? roundTurnGeometry(hw, hd, r, g.dims[0] / 2, options)
         : rectTurnGeometry(hw, hd, r, g.dims[0], g.dims[1] ?? g.dims[0], options);
