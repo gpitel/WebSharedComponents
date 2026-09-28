@@ -4,7 +4,7 @@ import { MeshPhysicalMaterial, Object3D, Group, Mesh, Box3, Vector3 } from 'thre
 import { Camera, Renderer, SpotLight, Scene, AmbientLight } from 'troisjs';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { deepCopy, hexToRgb } from '../assets/js/utils.js';
-import { initMvbWorker, buildCoreSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
+import { initMvbWorker, buildCoreSTL, buildCoreShellSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
 import { enrichMagnetic } from '../assets/js/mkfRuntime.js';
 import { buildInstancedTurns } from '../assets/js/turnsInstanced.js';
 </script>
@@ -192,6 +192,10 @@ export default {
       // misleading bobbin-only "teal blob" render.
       coreBuildFailed: false,
       coreBuildRetried: false,
+      // Same idea for the winding: a turns build that fails must SAY so, not quietly
+      // leave a core-and-bobbin picture that reads as a design with no copper.
+      turnsBuildFailed: false,
+      turnsBuildError: '',
       // Internal visibility state (can be toggled by UI)
       internalShowCore: this.showCore,
       internalShowBobbin: this.showBobbin,
@@ -223,6 +227,11 @@ export default {
     showTurns(newVal) {
       this.internalShowTurns = newVal;
     },
+    // Real winding changes the GEOMETRY, not just visibility: the conductors have to be
+    // rebuilt, so this is a full update rather than a `mesh.visible` flip.
+    realWinding() {
+      this.triggerUpdate();
+    },
     // React to internal state changes
     internalShowCore(newVal) {
       if (this.coreMesh) {
@@ -241,6 +250,14 @@ export default {
     },
   },
   computed: {
+    // Real winding: draw ONE continuous copper body per (winding, parallel) — the real
+    // leads, pitch and dragbacks — instead of one idealised closed loop per turn. Owned by
+    // the "Real winding" switch in Tool menu > Settings > Display; read from the global
+    // settings store rather than taken as a prop so every 2D and 3D view in the app draws
+    // the same thing without nine call sites having to remember to pass it.
+    realWinding() {
+      return this.$settingsStore?.magneticBuilderSettings?.useRealWindingGeometry ?? false;
+    },
     hasMagneticLoaded() {
       // Check if there's a valid magnetic with core data
       const core = this.magnetic?.core;
@@ -437,6 +454,9 @@ export default {
           try {
             mag = await enrichMagnetic(JSON.parse(JSON.stringify(magnetic)));
           } catch (e) {
+            // Say so: a silent fallback here left MVB++ to autocomplete the raw
+            // magnetic itself, which fails on the placeholder "Dummy" wire (ABT #1100).
+            console.warn('3D: engine enrichment failed, drawing from the raw magnetic:', e?.message ?? e);
             mag = JSON.parse(JSON.stringify(magnetic));
           }
         }
@@ -446,11 +466,18 @@ export default {
         const shapeFamily = mag.core?.functionalDescription?.shape?.family?.toLowerCase() ?? '';
         const isToroidal = shapeFamily === 't' || shapeFamily === 'toroidal';
 
+        // A MOULDED body is opaque composite with the winding buried inside it, so an opaque
+        // render shows a featureless block and nothing of the construction. Draw it
+        // translucent — the winding is the only thing there is to see.
+        const isMolded = shapeFamily === 'molded';
+
         if (this.showCore) {
           try {
             const buf = await buildCoreSTL(mag);
             if (buf) {
-              this.coreMesh = this.addMeshFromSTL(buf, this.coreColor, { metalness: 0.1, roughness: 0.9 });
+              this.coreMesh = this.addMeshFromSTL(buf, this.coreColor, isMolded
+                ? { metalness: 0.0, roughness: 0.85, transparent: true, opacity: 0.35 }
+                : { metalness: 0.1, roughness: 0.9 });
               if (this.coreMesh) { this.coreMesh.visible = this.internalShowCore; group.add(this.coreMesh); }
             }
             this.coreBuildFailed = false;
@@ -459,6 +486,20 @@ export default {
             console.warn('Could not build core:', err.message);
             this.coreBuildFailed = true;
           }
+
+          // The semi-shielded drum's magnetic-epoxy shell is a COATING, not a core piece, so
+          // the engine delivers it separately and it is drawn translucent over the opaque
+          // drum. Fused they would hide the winding permanently, which is the one thing a
+          // semi-shielded part exists to enclose. Null for every other family, and null on an
+          // older engine that has no drawCoreShell, so this degrades to the drum alone.
+          try {
+            const shellBuf = await buildCoreShellSTL(mag);
+            if (shellBuf) {
+              const shell = this.addMeshFromSTL(shellBuf, this.coreColor,
+                { metalness: 0.0, roughness: 0.85, transparent: true, opacity: 0.3 });
+              if (shell) { shell.visible = this.internalShowCore; group.add(shell); this.shellMesh = shell; }
+            }
+          } catch (err) { console.warn('Could not build the shield shell:', err.message); }
 
           try {
             const buf = await buildSpacersSTL(mag);
@@ -474,7 +515,21 @@ export default {
         const hasBobbinData = coil.bobbin?.processedDescription &&
           Object.keys(coil.bobbin.processedDescription).length > 0;
 
-        if (this.showBobbin && !isToroidal && !isDummyBobbin && hasBobbinData) {
+        // A bobbin with NO WALL and NO COLUMN is not a physical part. MKF synthesises one to
+        // carry the winding window when the wire goes straight onto the core — every drum,
+        // drumRing and semi-shielded part is wound in the core's own groove, and moulded
+        // parts have no bobbin at all. Drawn anyway it becomes a solid cylinder sitting where
+        // the core's post is: WE 74402500030 showed a bare cylinder labelled "Bobbin" around
+        // a drum that has none.
+        //
+        // Thickness, not family, is the test: it is the property that says whether the bobbin
+        // encloses any material, and it stays true for any family that later gets a
+        // zero-thickness placeholder.
+        const bobbinProcessed = coil.bobbin?.processedDescription;
+        const isMasslessBobbin = bobbinProcessed != null &&
+          !(bobbinProcessed.wallThickness > 0) && !(bobbinProcessed.columnThickness > 0);
+
+        if (this.showBobbin && !isToroidal && !isDummyBobbin && hasBobbinData && !isMasslessBobbin) {
           try {
             const buf = await buildBobbinSTL(mag);
             if (buf) {
@@ -534,6 +589,8 @@ export default {
                 turnsGroup.visible = this.internalShowTurns;
                 group.add(turnsGroup);
                 this.turnsMeshes.push(turnsGroup);
+                this.turnsBuildFailed = false;
+                this.turnsBuildError = '';
                 console.log(`[3D] instanced turns: ${instanced.stats.turnCount} turns -> ` +
                   `${instanced.stats.geometryCount} geometries, ${instanced.stats.meshCount} meshes, ` +
                   `${instanced.stats.triangles} tris in ${Math.round(performance.now() - t0)}ms`);
@@ -545,12 +602,28 @@ export default {
           }
           if (!instanced) {
             try {
-              const buf = await buildTurnsSTL(mag);
+              // Real winding draws the conductor as MKF actually routes it — continuous
+              // copper per (winding, parallel), with leads, pitch and dragbacks — rather
+              // than one idealised closed loop per turn. Same builder the whole-magnetic
+              // STEP export uses, so the picture and the CAD file agree.
+              const buf = await buildTurnsSTL(mag, { useRealWindingGeometry: this.realWinding });
               if (buf) {
                 const m = this.addMeshFromSTL(buf, this.turnsColor, { metalness: 0.2, roughness: 0.6 });
                 if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
               }
-            } catch (err) { console.warn('Could not build turns:', err.message); }
+              this.turnsBuildFailed = false;
+              this.turnsBuildError = '';
+            } catch (err) {
+              // Do NOT let the copper just disappear. A swallowed failure here renders as a
+              // core-and-bobbin-only picture that looks like a design with no winding —
+              // indistinguishable from success unless you happen to have the console open.
+              // Real winding in particular refuses to route a conductor it cannot fit
+              // (ConductorBuilder collision), and the user needs to be told that rather
+              // than shown a magnetic with no turns.
+              console.warn('Could not build turns:', err.message);
+              this.turnsBuildFailed = true;
+              this.turnsBuildError = String(err.message ?? err);
+            }
           }
         } else if (this.showTurns && hasTurnsData && hasDummyWires) {
           console.warn('Skipping turn STL build: one or more windings reference the "Dummy" wire sentinel. Pick a real wire in the coil builder before rendering 3D turns.');
@@ -654,6 +727,16 @@ export default {
       class="core-build-failed-overlay"
     >
       3D core preview unavailable for this configuration
+    </label>
+    <label
+      v-if="turnsBuildFailed && !updating && internalShowTurns"
+      :data-cy="`${dataTestLabel}-turns-build-failed`"
+      class="core-build-failed-overlay"
+      :title="turnsBuildError"
+    >
+      {{ realWinding
+          ? 'The real winding could not be routed for this design — showing no turns'
+          : '3D winding preview unavailable for this configuration' }}
     </label>
     <Renderer 
       :data-cy="`${dataTestLabel}-canvas`" 

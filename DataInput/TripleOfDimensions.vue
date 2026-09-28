@@ -35,12 +35,12 @@ export default {
             default: 6
         },
         allowNegatives:{
-            type: Boolean,
-            default: false
+            type: Array[Boolean],
+            default: () => [false, false, false]
         },
         allowZeros:{
-            type: Boolean,
-            default: false
+            type: Array[Boolean],
+            default: () => [false, false, false]
         },
         dataTestLabel: {
             type: String,
@@ -146,8 +146,8 @@ export default {
                 :max="maxs[0]"
                 :justifyContent="true"
                 :forceUpdate="forceUpdate"
-                :allowNegatives="allowNegatives[0]"
-                :allowZeros="allowZeros[0]"
+                :allowNegative="allowNegatives[0]"
+                :allowZero="allowZeros[0]"
                 :modelValue="localData"
                 @update="dimensionUpdated($event, 0)"
                 :valueFontSize='valueFontSize'
@@ -168,8 +168,8 @@ export default {
                 :max="maxs[1]"
                 :justifyContent="true"
                 :forceUpdate="forceUpdate"
-                :allowNegatives="allowNegatives[1]"
-                :allowZeros="allowZeros[1]"
+                :allowNegative="allowNegatives[1]"
+                :allowZero="allowZeros[1]"
                 :modelValue="localData"
                 @update="dimensionUpdated($event, 1)"
                 :valueFontSize='valueFontSize'
@@ -190,8 +190,8 @@ export default {
                 :max="maxs[2]"
                 :justifyContent="true"
                 :forceUpdate="forceUpdate"
-                :allowNegatives="allowNegatives[2]"
-                :allowZeros="allowZeros[2]"
+                :allowNegative="allowNegatives[2]"
+                :allowZero="allowZeros[2]"
                 :modelValue="localData"
                 @update="dimensionUpdated($event, 2)"
                 :valueFontSize='valueFontSize'

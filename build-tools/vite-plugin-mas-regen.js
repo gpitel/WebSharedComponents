@@ -220,8 +220,44 @@ function regenerate(schemasDir, peasDir, targets) {
     fs.unlinkSync(tmp);
 }
 
+// The JSON Schema bundle the MAS sentry validates against (masValidator.js):
+// every MAS schema plus every PEAS schema they reach, as parsed objects sorted
+// by $id so the committed file only changes when a schema does. quicktype's
+// Convert.to* only checks types, enums and unknown keys; the sentry needs the
+// real schemas for bounds, patterns, oneOf, const and required-in-branches.
+export function buildSchemaBundle(schemasDir, peasDir) {
+    const masSchemas = listSchemas(schemasDir, ['conformance']);
+    // EVERY PEAS schema, not only the ones MAS references by absolute URL: PEAS
+    // files reference each other by RELATIVE path ("./outputBase.json"), which
+    // collectPeasSources does not follow, and the validator must resolve them all.
+    if (!peasDir) {
+        throw new Error('vite-plugin-mas-regen: no PEAS schemas found; MAS $refs PEAS, so the bundle needs them');
+    }
+    const peasSources = listSchemas(peasDir, ['conformance']);
+    const byId = new Map();
+    for (const file of [...masSchemas, ...peasSources]) {
+        const schema = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (typeof schema.$id !== 'string') {
+            throw new Error(`vite-plugin-mas-regen: schema ${file} has no $id; the validator resolves $refs by $id`);
+        }
+        if (byId.has(schema.$id)) {
+            throw new Error(`vite-plugin-mas-regen: two schemas share $id ${schema.$id}`);
+        }
+        byId.set(schema.$id, schema);
+    }
+    const ids = [...byId.keys()].sort();
+    return JSON.stringify({ schemas: ids.map((id) => byId.get(id)) }, null, 1) + '\n';
+}
+
+function writeAtomically(target, content) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const tmp = target + '.tmp.' + process.pid;
+    fs.writeFileSync(tmp, content);
+    fs.renameSync(tmp, target);
+}
+
 export default function masRegenPlugin(opts = {}) {
-    const { schemasDir: schemasDirOpt, peasDir: peasDirOpt, targets } = opts;
+    const { schemasDir: schemasDirOpt, peasDir: peasDirOpt, targets, schemaBundleTarget } = opts;
     if (!Array.isArray(targets) || targets.length === 0) {
         throw new Error('vite-plugin-mas-regen: `targets` (array of absolute paths) is required');
     }
@@ -239,6 +275,17 @@ export default function masRegenPlugin(opts = {}) {
             newestMtime(schemasDir, ['conformance']),
             peasDir ? newestMtime(peasDir, ['conformance']) : 0,
         );
+        // The validator's schema bundle needs no quicktype: refresh it whenever the
+        // schemas are newer (or it is missing), independently of MAS.ts.
+        if (schemaBundleTarget && (!fs.existsSync(schemaBundleTarget)
+                || fs.statSync(schemaBundleTarget).mtimeMs < newestSchema)) {
+            const bundle = buildSchemaBundle(schemasDir, peasDir);
+            if (!fs.existsSync(schemaBundleTarget) || fs.readFileSync(schemaBundleTarget, 'utf8') !== bundle) {
+                writeAtomically(schemaBundleTarget, bundle);
+                // eslint-disable-next-line no-console
+                console.log(`[mas-regen] (${label}) wrote the validator schema bundle -> ${schemaBundleTarget}`);
+            }
+        }
         let oldestTarget = Infinity;
         for (const t of targets) {
             if (!fs.existsSync(t)) { oldestTarget = -1; break; }

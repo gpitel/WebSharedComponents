@@ -1,6 +1,7 @@
 import * as Defaults from './defaults.js'
 import axios from "axios"
 import { recordExport } from './telemetry.js'
+import { formatInUnitSystem } from './units.js'
 import * as MAS from '/WebSharedComponents/assets/ts/MAS.ts'
 const { ConnectionType, CoreType, MagneticCircuit, WiringTechnology } = MAS;
 
@@ -22,16 +23,17 @@ const { ConnectionType, CoreType, MagneticCircuit, WiringTechnology } = MAS;
 // the current schema, and even if they did, the canonical lowercase form
 // is the same string anyway).
 const ENUM_KEYS_TO_ENUMS = {
+    // Topology parameters (bridgeType, mode, viennaVariant, rectifierType, …),
+    // masConformance and configuration are not listed: MAS 76d5e9e (2026-07-02)
+    // removed inputs.converterInformation and the conformance metadata, so those
+    // keys can no longer occur in a MAS document and MAS.ts no longer has their
+    // enums. They were left here pointing at undefined enums, which the loop
+    // below skipped in silence (ABT #1326). `variant` went with them: in MAS it
+    // is now a free-form bobbin string, not an enum.
     ancillaryLabel:      [MAS.WaveformLabel],
     application:         [MAS.MagneticApplication],
-    bridgeType:          [MAS.LlcBridgeType, MAS.SrcBridgeType],
-    bridgeTypePrimary:   [MAS.LlcBridgeType],
-    bridgeTypeSecondary: [MAS.LlcBridgeType],
     coating:             [MAS.CoatingType],
     columnShape:         [MAS.ColumnShape],
-    configuration:       [MAS.Configuration],
-    controlMode:         [MAS.ControlMode],
-    controlStrategy:     [MAS.ClllcControlStrategy],
     coordinateSystem:    [MAS.CoordinateSystem],
     crossSectionalShape: [MAS.TurnCrossSectionalShape],
     cti:                 [MAS.CTI],
@@ -46,26 +48,17 @@ const ENUM_KEYS_TO_ENUMS = {
     layersOrientation:   [MAS.WindingOrientation],
     magneticCircuit:     [MAS.MagneticCircuit],
     market:              [MAS.Market],
-    masConformance:      [MAS.MASConformance],
     // `material` is sometimes a free-form CoreMaterial/InsulationMaterial
     // object (recursed into) and sometimes a plain MaterialType enum
     // string ("ferrite", "powder", …). Normalise the string case.
     material:            [MAS.MaterialType],
     materialComposition: [MAS.MaterialComposition],
     method:              [MAS.InitialPermeabilitModifierMethod, MAS.MassCoreLossesMethodType, MAS.VolumetricCoreLossesMethodType],
-    mode:                [MAS.FlybackModes, MAS.PfcModes],
-    modulationType:      [MAS.ModulationType],
     mounting:            [MAS.ConnectionType],
     orientation:         [MAS.TurnOrientation, MAS.WindingOrientation],
     origin:              [MAS.ResultOrigin],
-    outputCurrentsType:  [MAS.OutputSType],
-    outputVoltagesType:  [MAS.OutputSType],
     overvoltageCategory: [MAS.OvervoltageCategory],
     pollutionDegree:     [MAS.PollutionDegree],
-    powerFlow:           [MAS.PowerFlowDirection],
-    powerFlowDirection:  [MAS.PowerFlowDirection],
-    rectifierType:       [MAS.AhbRectifierType, MAS.BRectifierType, MAS.SrcRectifierType],
-    samplingStrategy:    [MAS.ViennaSamplingStrategy],
     sectionsAlignment:   [MAS.CoilAlignment],
     sectionsOrientation: [MAS.WindingOrientation],
     // "shape" is also used for free-form core shape objects; we only
@@ -78,19 +71,14 @@ const ENUM_KEYS_TO_ENUMS = {
     // (PEAS makes it overridable per family; MAS does not constrain it to an enum),
     // so there is no MAS.ts enum to normalise against — values pass through as-is.
     subApplication:      [],
-    switchType:          [MAS.ViennaSwitchType],
     temperatureClass:    [MAS.TemperatureClassEnum],
     terminalType:        [MAS.ConnectionType],
     topology:            [MAS.Topology],
-    topologyVariant:     [MAS.PfcTopologyVariants],
-    transitionMode:      [MAS.TransitionMode],
     turnsAlignment:      [MAS.CoilAlignment],
     type:                [MAS.ColumnType, MAS.ConnectionType, MAS.CoreGeometricalDescriptionElementType,
                           MAS.CoreMaterialType, MAS.CoreType, MAS.ElectricalType,
                           MAS.FunctionalDescriptionType, MAS.GapType, MAS.InsulationWireCoatingType,
                           MAS.PinDescriptionType, MAS.WireType, MAS.WiringTechnology],
-    variant:             [MAS.Variant],
-    viennaVariant:       [MAS.ViennaVariant],
     voltageType:         [MAS.VoltageType],
     waveformLabel:       [MAS.WaveformLabel],
     windingStyle:        [MAS.WindingStyle],
@@ -111,7 +99,11 @@ const ENUM_NORMALISATION = (() => {
         const exact = new Map();
         const fuzzy = new Map();
         for (const enumObj of enums) {
-            if (enumObj == null) continue;
+            if (enumObj == null) {
+                // An enum MAS.ts does not export: the schema moved on and this
+                // table did not. Skipping it would silently stop normalising the key.
+                throw new Error(`ENUM_KEYS_TO_ENUMS["${key}"] names an enum that MAS.ts does not export; update the table to the current MAS schema`);
+            }
             for (const v of Object.values(enumObj)) {
                 if (typeof v !== 'string') continue;
                 exact.set(v.toLowerCase(), v);
@@ -472,16 +464,19 @@ export function formatMagneticFieldStrength(magneticFieldStrength) {
     return formatUnit(magneticFieldStrength, "A/m")
 }
 
+// Length / area / volume / temperature read-only text follows the user's unit
+// system (ABT #1099): imperial readers get in / mil / ft, in², in³ and °F,
+// SI readers the prefixed SI unit as before.
 export function formatDimension(dimension) {
-    return formatUnit(dimension, "m")
+    return formatInUnitSystem(dimension, "m") ?? formatUnit(dimension, "m")
 }
 
 export function formatArea(dimension) {
-    return formatUnit(dimension, "m²")
+    return formatInUnitSystem(dimension, "m²") ?? formatUnit(dimension, "m²")
 }
 
 export function formatVolume(dimension) {
-    return formatUnit(dimension, "m³")
+    return formatInUnitSystem(dimension, "m³") ?? formatUnit(dimension, "m³")
 }
 
 export function formatCurrent(current) {
@@ -493,7 +488,7 @@ export function formatVoltage(voltage) {
 }
 
 export function formatTemperature(temperature) {
-    return formatUnit(temperature, "°C")
+    return formatInUnitSystem(temperature, "°C") ?? formatUnit(temperature, "°C")
 }
 
 export function formatResistance(resistance) {
@@ -827,25 +822,25 @@ export function processCoreTexts(data) {
     {
         localTexts.effectiveParametersTable = {}
         {
-            const aux = formatUnit(data.magnetic.core.processedDescription.effectiveParameters.effectiveLength, 'm');
+            const aux = formatDimension(data.magnetic.core.processedDescription.effectiveParameters.effectiveLength);
             localTexts.effectiveParametersTable['effectiveLength'] = {}
             localTexts.effectiveParametersTable['effectiveLength'].text = 'Effective length';
             localTexts.effectiveParametersTable['effectiveLength'].value = `${removeTrailingZeroes(aux.label, 2)} ${aux.unit}`;
         }
         {
-            const aux = formatUnit(data.magnetic.core.processedDescription.effectiveParameters.effectiveArea, 'm²', 2);
+            const aux = formatArea(data.magnetic.core.processedDescription.effectiveParameters.effectiveArea);
             localTexts.effectiveParametersTable['effectiveArea'] = {}
             localTexts.effectiveParametersTable['effectiveArea'].text = 'Effective area';
             localTexts.effectiveParametersTable['effectiveArea'].value = `${removeTrailingZeroes(aux.label, 2)} ${aux.unit}`;
         }
         {
-            const aux = formatUnit(data.magnetic.core.processedDescription.effectiveParameters.effectiveVolume, 'm³', 3);
+            const aux = formatVolume(data.magnetic.core.processedDescription.effectiveParameters.effectiveVolume);
             localTexts.effectiveParametersTable['effectiveVolume'] = {}
             localTexts.effectiveParametersTable['effectiveVolume'].text = 'Effective volume';
             localTexts.effectiveParametersTable['effectiveVolume'].value = `${removeTrailingZeroes(aux.label, 2)} ${aux.unit}`;
         }
         {
-            const aux = formatUnit(data.magnetic.core.processedDescription.effectiveParameters.minimumArea, 'm²', 2);
+            const aux = formatArea(data.magnetic.core.processedDescription.effectiveParameters.minimumArea);
             localTexts.effectiveParametersTable['minimumArea'] = {}
             localTexts.effectiveParametersTable['minimumArea'].text = 'Minimum Area';
             localTexts.effectiveParametersTable['minimumArea'].value = `${removeTrailingZeroes(aux.label, 2)} ${aux.unit}`;
@@ -1048,6 +1043,20 @@ export function processCoreMaterialTexts(data) {
     return localTexts;
 }
 
+// ABT #819: strips values that carry no information — null, the string "null",
+// undefined, and empty OBJECTS. It deliberately does NOT strip empty ARRAYS.
+//
+// An empty array is data. In MAS, [] means "none" while absent means "unknown",
+// and the engine relies on that distinction: for an INDUCTOR,
+// inputs.designRequirements.turnsRatios is [] precisely because there is no
+// secondary. Deleting it made "Download MAS file with excitations" ship a file
+// the engine then refused to load with
+//     [json.exception.out_of_range.403] key 'turnsRatios' not found
+// so the export could not be round-tripped through the tool that produced it.
+//
+// Keeping empty arrays costs 39 characters in a 130,640-character MAS — 0.04%.
+// The null-stripping half of this function is worth about 22% and is genuinely
+// information-free; the empty-array half bought nothing and broke the file.
 export function clean(object) {
     Object
         .entries(object)
@@ -1055,7 +1064,8 @@ export function clean(object) {
             if (v && typeof v === 'object') {
                 clean(v);
             }
-            if (v && typeof v === 'object' && !Object.keys(v).length || v === null || v === "null" || v === undefined) {
+            const isEmptyObject = v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length;
+            if (isEmptyObject || v === null || v === "null" || v === undefined) {
                 if (Array.isArray(object)) {
                     object.splice(k, 1);
                 } else {
@@ -1064,6 +1074,34 @@ export function clean(object) {
             }
         });
     return object;
+}
+
+// MAS coil.bobbin ARRAY form: per-column bobbins (element 0 = the centre/main
+// column part, later elements ad-hoc lateral parts — separate BOM items).
+// Returns the merged effective bobbin geometry consumers should read: element 0
+// with every element's winding windows concatenated in array order (mirrors
+// OpenMagnetics::Coil::merge_per_column_bobbins in the engine). Scalar bobbins
+// (object or name string) pass through untouched. Elements given by NAME cannot
+// be resolved here — whoever builds the array must materialize full objects.
+export function effectiveBobbin(bobbin) {
+    if (!Array.isArray(bobbin)) {
+        return bobbin;
+    }
+    if (bobbin.length === 0) {
+        throw new Error('coil.bobbin is an empty array: the per-column form needs at least the centre-column bobbin (element 0)');
+    }
+    bobbin.forEach((part, index) => {
+        if (typeof part !== 'object' || part == null || part.processedDescription == null) {
+            throw new Error(`coil.bobbin[${index}] cannot be merged in the frontend: per-column bobbins must be full objects with a processedDescription (bobbin names are only resolvable in the engine)`);
+        }
+    });
+    return {
+        ...bobbin[0],
+        processedDescription: {
+            ...bobbin[0].processedDescription,
+            windingWindows: bobbin.flatMap((part) => part.processedDescription.windingWindows ?? []),
+        },
+    };
 }
 
 export function cleanCoil(coilToClean) {
@@ -1173,11 +1211,32 @@ export async function checkAndFixMas(mas, mkf=null) {
 
     if (mas.magnetic.core != null) {
         if (mas.magnetic.core.functionalDescription.shape != null && typeof(mas.magnetic.core.functionalDescription.shape) !== "string") {
+            // NB: magneticCircuit is deliberately NOT set here. MAS defines it on the
+            // SHAPE (CoreShape.magneticCircuit), and coreFunctionalDescription is
+            // additionalProperties:false over {coating, gapping, material,
+            // numberStacks, shape, type} — so writing it here produced a payload the
+            // MAS sentry rejects outright ("Invalid value for key core on Magnetic").
+            //
+            // Setting it was also wrong on the merits: this is a toroid/not-toroid
+            // guess, while MKF already sets shape.magneticCircuit per FAMILY in
+            // Utils.cpp. A drumRing is a closed circuit but not a toroid, so this
+            // wrote "open" onto a core MKF had correctly marked "closed" — two
+            // contradictory values in one payload.
             if (mas.magnetic.core.functionalDescription.shape.family == 't') {
                 mas.magnetic.core.functionalDescription.type = CoreType.Toroidal;
                 // magneticCircuit lives on the shape in current MAS (it was removed
                 // from coreFunctionalDescription, which is additionalProperties:false).
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Closed;
+                mas.magnetic.core.functionalDescription.gapping = [];
+            }
+            else if (mas.magnetic.core.functionalDescription.shape.family == 'drum' ||
+                     mas.magnetic.core.functionalDescription.shape.family == 'rod') {
+                // Open-circuit single piece (drum ABT #331, rod ABT #933): the return path
+                // is air, so a gap carried over from the previous core is meaningless and
+                // MKF refuses it ("an open-circuit core cannot be gapped", ABT #1071).
+                // Mirrors MKF's magnetic_autocomplete.
+                mas.magnetic.core.functionalDescription.type = CoreType.OpenShape;
+                mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Open;
                 mas.magnetic.core.functionalDescription.gapping = [];
             }
             else {
@@ -1259,6 +1318,14 @@ export async function checkAndFixMas(mas, mkf=null) {
                 }
             }
         }
+    }
+
+    // A document that reached here without magnetic.core (or without magnetic.coil)
+    // used to die on the next line with a bare "Cannot read properties of undefined
+    // (reading 'functionalDescription')". There is nothing to autocomplete without
+    // them, so say which one is missing.
+    if (mas.magnetic.core == null || mas.magnetic.coil == null) {
+        throw new Error(`This design has no magnetic ${mas.magnetic.core == null ? 'core' : 'coil'}, so it cannot be completed or loaded.`);
     }
 
     if (mas.magnetic.core.functionalDescription.material != "" && mas.magnetic.core.functionalDescription.material != null) {
@@ -1392,13 +1459,14 @@ export function download(data, strFileName, strMimeType) {
                 saver(payload) ; // everyone else can save dataURLs un-processed
         }
         
-    }else{//not data url, is it a string with special needs?
-        if(/([\x80-\xff])/.test(payload)){            
-            var i=0, tempUiArr= new Uint8Array(payload.length), mx=tempUiArr.length;
-            for(i;i<mx;++i) tempUiArr[i]= payload.charCodeAt(i);
-            payload=new myBlob([tempUiArr], {type: mimeType});
-        }         
     }
+    // NOTE: upstream download.js had a branch here that, for any payload matching
+    // /[\x80-\xff]/, rebuilt the bytes with `tempUiArr[i] = payload.charCodeAt(i)`.
+    // That truncates each UTF-16 code unit to one byte, i.e. it writes LATIN-1.
+    // Every exported MAS containing a planar wire ("Planar 173.99 µm", U+00B5) came
+    // out with a bare 0xB5 instead of UTF-8's 0xC2 0xB5, so the file was not valid
+    // UTF-8 and strict JSON parsers refused it. Dropping the branch lets the Blob
+    // constructor below encode the string as UTF-8, which is what it does natively.
     blob = payload instanceof myBlob ?
         payload :
         new myBlob([payload], {type: mimeType}) ;

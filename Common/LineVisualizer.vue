@@ -1,7 +1,7 @@
 <script setup>
-import { toCamelCase, formatUnit, removeTrailingZeroes, getMultiplier, deepCopy, roundWithDecimals } from '../assets/js/utils.js'
+import { toCamelCase, formatUnit, removeTrailingZeroes, getMultiplier, deepCopy } from '../assets/js/utils.js'
 import { use } from 'echarts/core'
-import { LineChart, ScatterChart, EffectScatterChart } from 'echarts/charts'
+import { LineChart, ScatterChart, EffectScatterChart, CustomChart, BarChart } from 'echarts/charts'
 import {
   TitleComponent,
   TooltipComponent,
@@ -12,7 +12,7 @@ import {
   MarkAreaComponent,
   MarkLineComponent,
 } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts';
 
 use([
@@ -27,7 +27,10 @@ use([
   ScatterChart,
   LineChart,
   EffectScatterChart,
-  CanvasRenderer
+  CustomChart,
+  BarChart,
+  CanvasRenderer,
+  SVGRenderer
 ])
 
 </script>
@@ -39,6 +42,26 @@ use([
 // theme colors as such var() strings (e.g. inputTextColor = "var(--wuerth-body-
 // color, #333333)"), so resolve any CSS color string to a concrete rgb() value
 // via a hidden probe element before handing it to the chart.
+// Consumers describe axis scales as 'log'/'linear' (the MeasurementSchema
+// vocabulary), but ECharts axis types are 'log'/'value'/'time'/'category' —
+// an unmapped 'linear' makes ECharts look up the non-existent component
+// "yAxis.linear" and abort the render. Normalize at the boundary.
+function toAxisType(scale) {
+    if (scale === 'log' || scale === 'time' || scale === 'category' || scale === 'value') {
+        return scale;
+    }
+    return 'value';
+}
+
+// The scale a series actually renders on, which is not always the one the caller
+// asked for: a bar is baselined at zero and a log axis cannot represent zero, so
+// bars are always linear. Single source of truth for that override — the axis
+// construction and the degenerate-range fallback must agree, or the axis is built
+// as one type and rescued as the other.
+function effectiveAxisType(datum) {
+    return datum.chartType === 'bar' ? 'linear' : datum.type;
+}
+
 function resolveCssColor(color) {
     if (typeof color !== 'string' || color === '' || !color.includes('var(')) {
         return color;
@@ -158,6 +181,26 @@ export default {
             type: Array,
             default: null
         },
+        // X-axis counterparts of forceAxisMin/forceAxisMax (which are y-only). Null
+        // keeps the data-derived, padded bounds.
+        forceXAxisMin:{
+            type: Number,
+            default: null
+        },
+        forceXAxisMax:{
+            type: Number,
+            default: null
+        },
+        // Explicit tick step. Null lets ECharts choose. Ignored on log axes, where a
+        // linear step is meaningless — decades are the only sensible tick there.
+        xAxisInterval:{
+            type: Number,
+            default: null
+        },
+        yAxisInterval:{
+            type: Number,
+            default: null
+        },
         forceAxisUniquePerSide:{
             type: Boolean,
             default: false
@@ -178,9 +221,18 @@ export default {
             type: Object,
             default: null,
         },
+        // 'canvas' (default) or 'svg'. SVG renders the chart as a <svg> DOM tree,
+        // which callers can serialize for scalable exports. Switching re-creates
+        // the chart (the instance is keyed on the renderer).
+        renderer: {
+            type: String,
+            default: 'canvas',
+        },
     },
     emits: [
         'click',
+        'datazoom',
+        'restore',
     ],
     data() {
         const limits = this.processLimits()
@@ -252,6 +304,9 @@ export default {
                         }
                         else {
                             const newIndex = param.seriesIndex - this.data.length;
+                            // Band (custom polygon) series sit after the points and
+                            // carry no hoverable data — skip them.
+                            if (!this.points[newIndex]) return '';
                             const xDatum = this.points[newIndex].data.x;
                             const yDatum = this.points[newIndex].data.y;
                             const xAux = formatUnit(xDatum, this.xAxisOptions.unit);
@@ -293,7 +348,7 @@ export default {
             xAxis: {
                 min: limits.xAxis.min,
                 max: limits.xAxis.max,
-                type: this.xAxisOptions.type,
+                type: toAxisType(this.xAxisOptions.type),
                 splitLine: {
                     show: this.showGrid,
                     // Theme-agnostic gridline: visible on both light and dark
@@ -424,16 +479,24 @@ export default {
         },
         processLimits() {
             const limits = []
+            const isLogX = this.xAxisOptions && this.xAxisOptions.type === 'log';
 
             let xMinimum = Number.MAX_VALUE;
-            let xMaximum = Number.MIN_VALUE;
+            // NOT Number.MIN_VALUE: that is 5e-324, a POSITIVE number, so a max
+            // accumulator seeded with it never drops below it and an all-negative
+            // (or empty) x set yields max < min — a degenerate axis that renders
+            // as a lone "0" tick.
+            let xMaximum = -Number.MAX_VALUE;
 
             // Calculate x limits across all data
             if (this.data && Array.isArray(this.data)) {
                 this.data.forEach((datum) => {
                     if (datum && datum.data && datum.data.x && Array.isArray(datum.data.x)) {
                         datum.data.x.forEach((elem) => {
-                            if (elem !== undefined && elem !== null && !Number.isNaN(elem)) {
+                            // A log x-axis cannot place x <= 0; including it drags the
+                            // axis minimum to 0 and flattens the plot (the y-axis loop
+                            // below already guards this for log series).
+                            if (elem !== undefined && elem !== null && Number.isFinite(elem) && !(isLogX && elem <= 0)) {
                                 xMaximum = Math.max(xMaximum, elem);
                                 xMinimum = Math.min(xMinimum, elem);
                             }
@@ -456,19 +519,32 @@ export default {
             limits.yAxis = []
             if (this.data && Array.isArray(this.data)) {
                 this.data.forEach((datum, index) => {
+                    // Number.MIN_VALUE is the smallest POSITIVE double (5e-324), not the
+                    // most negative one — seeding the max tracker with it means an
+                    // all-negative series never updates yMaximum, so the axis top lands
+                    // at ~0 and the data is squashed against it. -Number.MAX_VALUE is the
+                    // real lower bound.
                     let yMinimum = Number.MAX_VALUE;
-                    let yMaximum = Number.MIN_VALUE;
+                    let yMaximum = -Number.MAX_VALUE;
 
-                    if (datum && datum.data && datum.data.y && Array.isArray(datum.data.y)) {
-                        datum.data.y.forEach((elem) => {
-                            if (elem !== undefined && elem !== null && Number.isFinite(elem)) {
-                                yMaximum = Math.max(yMaximum, elem);
-                                if (datum.type == "log" && elem > Number.MIN_VALUE) {
-                                    yMinimum = Math.min(yMinimum, elem);
-                                } else if (datum.type != "log") {
-                                    yMinimum = Math.min(yMinimum, elem);
-                                }
+                    const updateWithValue = (elem) => {
+                        if (elem !== undefined && elem !== null && Number.isFinite(elem)) {
+                            yMaximum = Math.max(yMaximum, elem);
+                            if (effectiveAxisType(datum) == "log" && elem > Number.MIN_VALUE) {
+                                yMinimum = Math.min(yMinimum, elem);
+                            } else if (effectiveAxisType(datum) != "log") {
+                                yMinimum = Math.min(yMinimum, elem);
                             }
+                        }
+                    };
+                    if (datum && datum.data && datum.data.y && Array.isArray(datum.data.y)) {
+                        datum.data.y.forEach(updateWithValue)
+                    }
+                    // A tolerance band extends beyond the series itself — include
+                    // its envelope so the band is never clipped by the axis.
+                    if (datum && datum.band) {
+                        [datum.band.upper, datum.band.lower].forEach((edge) => {
+                            if (Array.isArray(edge)) edge.forEach(updateWithValue)
                         })
                     }
 
@@ -480,6 +556,18 @@ export default {
                                 yMinimum = Math.min(yMinimum, point.data.y);
                             }
                         })
+                    }
+
+                    // A bar encodes its magnitude as a length measured from zero, so its
+                    // axis MUST contain zero. Every other type wants the axis framed on
+                    // the data instead, which is why the bounds above are data-derived —
+                    // but applied to bars that makes the baseline the data minimum, so a
+                    // 1 Ω floor renders every bar as "value − 1 Ω" and a half-height bar
+                    // means nothing. Explicit forceAxisMin/Max still win: a caller that
+                    // states its bounds has already decided.
+                    if (datum.chartType === 'bar') {
+                        yMinimum = Math.min(yMinimum, 0);
+                        yMaximum = Math.max(yMaximum, 0);
                     }
 
                     limits.yAxis.push({
@@ -513,7 +601,10 @@ export default {
                 const axisColor = resolveCssColor(datum.colorLabel || this.lineColor)
                 const labelColor = this.yAxisLabelColor ? resolveCssColor(this.yAxisLabelColor) : axisColor
                 options.yAxis.push({
-                    type: datum.type,
+                    // Bars are baselined at zero (see processLimits), and a log axis
+                    // cannot represent zero at all — so a bar series forces its axis
+                    // linear regardless of the type the caller asked for.
+                    type: toAxisType(effectiveAxisType(datum)),
                     name: this.showYAxisName ? (datum.unit || '') : '',
                     nameLocation: 'middle',
                     nameGap: 25,
@@ -577,27 +668,37 @@ export default {
                 }
 
                 const seriesColor = axisColor;
+                // Per-series chart type. Defaults to 'line', so every existing consumer
+                // and every series that does not ask for a type behaves exactly as
+                // before. 'scatter' plots the points without joining them (measured
+                // samples that should not imply interpolation between them) and 'bar'
+                // compares discrete values. Only the properties that differ per type are
+                // varied; axes, tolerance bands, zoom and the dual-axis logic are shared.
+                const chartType = datum.chartType ?? 'line';
+                const isLine = chartType === 'line';
+                const isScatter = chartType === 'scatter';
                 options.series.push(
                     {
                         data: this.processData(index),
-                        type: 'line',
-                        smooth: datum.smooth ?? 0.15,
+                        type: chartType,
+                        smooth: isLine ? (datum.smooth ?? 0.15) : undefined,
                         name: this.legendLabels && this.legendLabels[index] ? this.legendLabels[index] : datum.label,
                         color: seriesColor,
-                        showSymbol: showPoints,
+                        showSymbol: isLine ? showPoints : undefined,
                         symbol: 'circle',
-                        symbolSize: 6,
-                        sampling: 'lttb',
+                        symbolSize: isScatter ? 8 : 6,
+                        sampling: isLine ? 'lttb' : undefined,
                         yAxisIndex: this.forceAxisUniquePerSide ? firstIndexPerSide[side] : index,
-                        lineStyle: {
+                        lineStyle: isLine ? {
                             type: datum.lineStyle ?? 'solid',
                             width: 1.5,
-                        },
+                        } : undefined,
+                        itemStyle: isLine ? undefined : { color: seriesColor },
                         emphasis: {
                             focus: 'series',
                             lineStyle: { width: 2 },
                         },
-                        areaStyle: this.showArea ? {
+                        areaStyle: this.showArea && isLine ? {
                             color: {
                                 type: 'linear',
                                 x: 0, y: 0, x2: 0, y2: 1,
@@ -641,9 +742,67 @@ export default {
                 );
             })
 
+            // Tolerance bands: a series may carry band = {upper: [...], lower: [...]}
+            // (same length as its x array). Rendered as a single custom polygon so it
+            // works on log axes too (stacked-area bands don't). Appended AFTER the
+            // data and points series so their index-based tooltip mapping holds.
+            this.data.forEach((datum, index) => {
+                const band = datum.band
+                if (!band || !Array.isArray(band.upper) || !Array.isArray(band.lower)) return
+                if (!datum.data || !Array.isArray(datum.data.x)) return
+
+                const bandColor = resolveCssColor(datum.colorLabel || this.lineColor)
+                const isLog = datum.type == 'log'
+                const usable = (value) => value !== undefined && value !== null && Number.isFinite(value) && (!isLog || value > 0)
+                const upperPoints = []
+                const lowerPoints = []
+                const pointCount = Math.min(datum.data.x.length, band.upper.length, band.lower.length)
+                for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+                    const xVal = datum.data.x[pointIndex]
+                    if (!usable(xVal) || !usable(band.upper[pointIndex]) || !usable(band.lower[pointIndex])) continue
+                    upperPoints.push([xVal, band.upper[pointIndex]])
+                    lowerPoints.push([xVal, band.lower[pointIndex]])
+                }
+                if (upperPoints.length < 2) return
+
+                const side = datum.position || (index === 0 ? 'left' : 'right');
+                options.series.push({
+                    type: 'custom',
+                    name: `${datum.label} tolerance`,
+                    color: bandColor,
+                    yAxisIndex: this.forceAxisUniquePerSide ? firstIndexPerSide[side] : index,
+                    silent: true,
+                    tooltip: { show: false },
+                    z: 1,
+                    // The single datum must be a VALID point on both axes — a
+                    // scalar 0 gets filtered by log scales and renderItem would
+                    // never run. Any real band point works; the polygon itself
+                    // is built from the closure.
+                    data: [upperPoints[0]],
+                    renderItem: (params, api) => ({
+                        type: 'polygon',
+                        shape: { points: upperPoints.map((p) => api.coord(p)).concat(lowerPoints.map((p) => api.coord(p)).reverse()) },
+                        style: {
+                            fill: bandColor + '26',
+                            stroke: bandColor + '99',
+                            lineDash: [4, 4],
+                            lineWidth: 1,
+                        },
+                    }),
+                })
+            })
+
             options.xAxis.min = limits.xAxis.min * (limits.xAxis.min < 0? this.linePaddings.left : 1.0 / this.linePaddings.left);
             options.xAxis.max = limits.xAxis.max * this.linePaddings.right;
-            options.xAxis.type = this.xAxisOptions.type;
+            options.xAxis.type = toAxisType(this.xAxisOptions.type);
+            // An explicit range replaces the padded, data-derived one outright: the
+            // caller asked for these bounds, so padding them would silently show a
+            // different window than the one requested.
+            if (this.forceXAxisMin !== null && this.forceXAxisMin !== undefined) options.xAxis.min = this.forceXAxisMin;
+            if (this.forceXAxisMax !== null && this.forceXAxisMax !== undefined) options.xAxis.max = this.forceXAxisMax;
+            if (this.xAxisInterval !== null && this.xAxisInterval !== undefined && options.xAxis.type !== 'log') {
+                options.xAxis.interval = this.xAxisInterval;
+            }
 
             // Store individual axis limits
             const individualAxisLimits = [];
@@ -671,15 +830,33 @@ export default {
                     options.tooltip.axisPointer.label.precision = numberDecimalsPointer;
                 }
 
-                let minimumValue = Number(removeTrailingZeroes(roundWithDecimals(elem.min * (elem.min < 0? this.linePaddings.bottom : 1.0 / this.linePaddings.bottom), 1.0 / Math.pow(10, numberDecimals)), numberDecimals));
-                let maximumValue = Number(removeTrailingZeroes(roundWithDecimals(elem.max * this.linePaddings.top, 1.0 / Math.pow(10, numberDecimals)), numberDecimals));
+                // Snap the padded bounds OUTWARD (floor the min, ceil the max) so the
+                // axis always contains every sample. The previous round-to-nearest snap
+                // (via removeTrailingZeroes, which additionally caps at toFixed(5)) could
+                // move the axis minimum ABOVE the smallest samples — e.g. an 18.5 µH data
+                // minimum became a 2e-5 H axis floor — and ECharts silently clips points
+                // outside the axis range, so the curve tail just vanished. Skip snapping
+                // when the precision step is coarser than the value itself: snapping
+                // would distort the bound by orders of magnitude (and a log axis cannot
+                // survive a minimum floored to 0).
+                const precision = 1.0 / Math.pow(10, numberDecimals);
+                const snapOutward = (value, roundFn) => {
+                    if (!Number.isFinite(value) || value === 0 || precision > Math.abs(value)) {
+                        return value;
+                    }
+                    return roundFn(value / precision) * precision;
+                };
+                const paddedMin = elem.min * (elem.min < 0? this.linePaddings.bottom : 1.0 / this.linePaddings.bottom);
+                const paddedMax = elem.max * (elem.max < 0? 1.0 / this.linePaddings.top : this.linePaddings.top);
+                let minimumValue = snapOutward(paddedMin, Math.floor);
+                let maximumValue = snapOutward(paddedMax, Math.ceil);
 
                 // Degenerate range: a constant series collapses min==max (and rounding
                 // can snap a tiny padded span back to a single value). A log axis cannot
                 // render that at all; a linear one draws a zero-height band. Expand around
                 // the value so a flat line still draws.
                 if (maximumValue <= minimumValue) {
-                    if (this.data[index].type == "log" && elem.max > 0) {
+                    if (effectiveAxisType(this.data[index]) == "log" && elem.max > 0) {
                         minimumValue = elem.max / 10;
                         maximumValue = elem.max * 10;
                     } else {
@@ -713,21 +890,83 @@ export default {
 
             if (this.forceAxisUniquePerSide) {
                 const uniqueYAxis = []
-                Object.entries(firstIndexPerSide).forEach(([_, axisIndex]) => {
+                const sideToNewIndex = {}
+                Object.entries(firstIndexPerSide).forEach(([side, axisIndex], newIndex) => {
+                    sideToNewIndex[side] = newIndex
                     uniqueYAxis.push(options.yAxis[axisIndex])
                 })
+                // The compressed axis inherits its TYPE from the side's first series,
+                // but it has to carry every series on that side. A caller that demoted
+                // one series to linear did so because it has values a log axis cannot
+                // represent (<= 0) — e.g. an absolute tolerance band whose lower edge
+                // dips below zero. Rendering it on the first series' log axis clips
+                // exactly the region the demotion existed to preserve, and the band
+                // silently vanishes there. So one linear series demotes the shared
+                // axis for its whole side, mirroring how the limits are merged below.
+                Object.keys(sideToNewIndex).forEach((side) => {
+                    const needsLinear = this.data.some((datum, index) => {
+                        const datumSide = datum.position || (index === 0 ? 'left' : 'right')
+                        return datumSide === side && toAxisType(effectiveAxisType(datum)) !== 'log'
+                    })
+                    if (needsLinear) uniqueYAxis[sideToNewIndex[side]].type = 'value'
+                })
+                // Each compressed axis spans only ITS side's series. The shared
+                // limits above merged every series (a linear/negative right-side
+                // series would poison a log left axis into a collapsed range).
+                Object.keys(sideToNewIndex).forEach((side) => {
+                    let sideMin = Number.MAX_VALUE
+                    let sideMax = -Number.MAX_VALUE
+                    this.data.forEach((datum, index) => {
+                        const datumSide = datum.position || (index === 0 ? 'left' : 'right')
+                        if (datumSide !== side || !individualAxisLimits[index]) return
+                        sideMin = Math.min(sideMin, individualAxisLimits[index].min)
+                        sideMax = Math.max(sideMax, individualAxisLimits[index].max)
+                    })
+                    if (sideMin <= sideMax) {
+                        uniqueYAxis[sideToNewIndex[side]].min = sideMin
+                        uniqueYAxis[sideToNewIndex[side]].max = sideMax
+                    }
+                })
                 options.yAxis = uniqueYAxis
+                // Series still point at the ORIGINAL axis index of their side's
+                // first series; remap them onto the compressed axis array (data
+                // series and band polygons alike) or right-side series would
+                // reference an out-of-bounds axis.
+                options.series.forEach((series) => {
+                    if (series.yAxisIndex === undefined) return
+                    const side = Object.keys(firstIndexPerSide).find((key) => firstIndexPerSide[key] === series.yAxisIndex)
+                    if (side !== undefined) series.yAxisIndex = sideToNewIndex[side]
+                })
+            }
+
+            // Applied last, so it covers the compressed per-side axes as well as the
+            // per-series ones. Log axes are skipped: a linear tick step there produces
+            // either two ticks or thousands.
+            if (this.yAxisInterval !== null && this.yAxisInterval !== undefined) {
+                options.yAxis.forEach((axis) => {
+                    if (axis.type !== 'log') axis.interval = this.yAxisInterval;
+                })
             }
         },
         onClick(event) {
             this.$emit('click', event);
-        }
+        },
+        onDataZoom(event) {
+            // Toolbox dataZoom fires with a batch carrying the selected value
+            // range. Forwarded so consumers can track the viewed x-window (the
+            // component is closed to template refs — script setup — so events
+            // are the supported channel).
+            this.$emit('datazoom', event);
+        },
+        onRestore() {
+            this.$emit('restore');
+        },
     },
 }
 </script>
 
 <template>
     <div ref="chartWrapper" class="chart" :style="chartStyle">
-        <v-chart v-if="chartVisible && options.yAxis.length > 0" class="chart" :option="options" autoresize :update-options="updateOpts" @click="onClick" style="width: 100%; height: 100%;"/>
+        <v-chart v-if="chartVisible && options.yAxis.length > 0" ref="vchart" :key="renderer" class="chart" :option="options" :init-options="{ renderer }" autoresize :update-options="updateOpts" @click="onClick" @datazoom="onDataZoom" @restore="onRestore" style="width: 100%; height: 100%;"/>
     </div>
 </template>

@@ -23,6 +23,11 @@ export interface Mas {
      * The description of the outputs that are produced after designing a Magnetic
      */
     outputs: Outputs[];
+    /**
+     * The MAS release this document conforms to. Optional; if absent, the latest MAS release is
+     * assumed.
+     */
+    schemaVersion?: string;
 }
 
 /**
@@ -161,11 +166,29 @@ export interface InsulationRequirements {
  *
  * Required values for the altitude
  *
+ * Board thickness the pattern is specified for, in m, when the datasheet states one
+ * (press-fit patterns are thickness-specific).
+ *
  * A dimension with minimum, nominal, and maximum values.
  *
  * Voltage RMS of the main supply to which this transformer is connected to.
  *
  * Required values for the magnetizing inductance
+ *
+ * Width of the slot that holds the wound ring on edge, for a vertical base. Unit: m.
+ *
+ * Overall height of the base, from the seating plane to its top face. Unit: m.
+ *
+ * Overall length of the base, along the longer side of its footprint. Unit: m.
+ *
+ * Depth of the pocket that receives the wound ring, for a horizontal base. Unit: m.
+ *
+ * Inner diameter of the pocket that receives the wound ring, for a horizontal base. Unit:
+ * m.
+ *
+ * Distance the base holds the wound part above the mounting surface. Unit: m.
+ *
+ * Overall width of the base, across its footprint. Unit: m.
  *
  * The maximum thickness of the insulation around the wire, in m
  *
@@ -193,9 +216,18 @@ export interface InsulationRequirements {
  * standard exists for litz construction; this field captures the most commonly published
  * vendor parameter.
  *
+ * Outer (copper) diameter of the via. Unit: m.
+ *
+ * Finished drill diameter of the via. Unit: m.
+ *
  * Specific heat capacity value according to manufacturer. Unit: J/(kg*K).
  *
  * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
+ *
+ * Thickness of the ribbon/lamination strip, according to manufacturer. This is the
+ * eddy-current-limiting dimension for tape-wound materials (nanocrystalline, amorphous,
+ * electrical steel) and is independent of the core's own macroscopic geometry; it does not
+ * apply to sintered/bulk materials (ferrite, powder). Unit: m.
  *
  * DC resistance in Ohms. nominal = typical value, maximum = datasheet max.
  *
@@ -212,6 +244,9 @@ export interface InsulationRequirements {
  * (the differential-mode term).
  *
  * Differential-mode (leakage) inductance in Henries.
+ *
+ * DC resistance of the threaded conductor in Ohms (usually negligible; present when the
+ * datasheet states it). nominal = typical value, maximum = datasheet max.
  *
  * Body diameter in metres (for cylindrical parts).
  *
@@ -320,6 +355,10 @@ export enum InsulationStandards {
 
 /**
  * Tag to identify windings that are sharing the same ground
+ *
+ * For type grounded: the isolation side whose local reference the core is bonded to
+ * (primary ground, secondary ground, ...), matching the isolationSide of the windings on
+ * that side. Absent means protective earth or chassis, a reference common to every side.
  */
 export enum IsolationSide {
     Denary = "denary",
@@ -667,7 +706,8 @@ export interface ProcessedWaveform {
     effectiveFrequency?: number;
     label:               WaveformLabel;
     /**
-     * The most-negative value of the waveform (always <= 0 for bipolar signals)
+     * The minimum value of the waveform (<= 0 for bipolar signals; may be positive for
+     * DC-biased/unipolar signals that never cross zero)
      */
     negativePeak?: number;
     /**
@@ -687,7 +727,8 @@ export interface ProcessedWaveform {
      */
     phase?: number;
     /**
-     * The maximum positive value of the waveform
+     * The maximum value of the waveform (>= 0 for bipolar signals; may be negative for
+     * negatively-biased signals that never cross zero)
      */
     positivePeak?: number;
     /**
@@ -756,6 +797,20 @@ export interface Magnetic {
      */
     core?: MagneticCore;
     /**
+     * How the core is referenced electrically in the assembled component. A ferrite or powder
+     * core has no terminal of its own: it sits at whatever potential the surrounding conductors
+     * impose on it, unless it is deliberately bonded, through a mounting clip, a copper strap
+     * or flux band, or conductive tape, to a circuit reference or to one end of a winding. The
+     * choice decides how the winding-to-core capacitances appear at the terminals (a
+     * charge-balanced floating node gives C0/12 of a winding's distributed capacitance for a
+     * linear potential ramp; a core tied to either end of that winding gives C0/3; the live end
+     * innermost against a bonded core approaches C0) and whether the
+     * primary-to-core-to-secondary common-mode path is closed through the core or diverted to
+     * the reference. Absent means floating: a core with no clip, strap or tape, which is also
+     * the assumption every model made before this field existed.
+     */
+    coreElectricalReference?: CoreElectricalReference;
+    /**
      * The lists of distributors of the magnetic
      */
     distributorsInfo?: DistributorInfo[];
@@ -772,6 +827,24 @@ export interface Magnetic {
      * The rotation of the magnetic, by default the winding column goes vertical
      */
     rotation?: number[];
+    /**
+     * Magnetic shunts fitted to the assembled component: pieces of permeable material placed in
+     * or beside the winding window to carry leakage flux deliberately, as an integrated leakage
+     * transformer needs. They belong to neither the core nor the coil, and are listed here in
+     * the order they are assembled.
+     */
+    shunts?: MagneticShunt[];
+    /**
+     * Replacement parts for this one: manufacturer-named successors and second sources. An
+     * entry with type 'successor' means THIS part is superseded by the named one, one hop, as
+     * the manufacturer states it - never inferred from a status of obsolete or from part-number
+     * similarity. The schema cannot check that the named part exists in the catalogue, or
+     * exists exactly once; that is the referential pass's job, as for CIAS component URIs.
+     * Evidence for the claim goes in the record's provenance[] with fields:
+     * ["substitutesInfo"], carrying the same sourceUrl, retrievedDate and verification stamp as
+     * any datasheet field.
+     */
+    substitutesInfo?: SubstituteInfo[];
 }
 
 /**
@@ -932,6 +1005,11 @@ export interface CurrencyAmount {
  */
 export interface BobbinFunctionalDescription {
     /**
+     * Mounting base of the bobbin, the mechanical body that carries the wound part and its
+     * pins. Only meaningful for family t, where the base plays the former's role for a toroid.
+     */
+    base?: BobbinBase;
+    /**
      * List of connections between windings and pins
      */
     connections?: PinWindingConnection[];
@@ -951,9 +1029,14 @@ export interface BobbinFunctionalDescription {
     familySubtype?: string;
     material?:      InsulationMaterial | string;
     /**
+     * Number of winding chambers the former is divided into by interior dividers; 1 (or absent)
+     * is a plain two-flange former.
+     */
+    numberChambers?: number;
+    /**
      * Mounting orientation of the bobbin
      */
-    orientation?: Orientation;
+    orientation?: OrientationEnum;
     pinout?:      Pinout;
     /**
      * Name of the core shape this bobbin is matched to.
@@ -967,6 +1050,65 @@ export interface BobbinFunctionalDescription {
      * Variant name of the bobbin (e.g. flanged, foot-print)
      */
     variant?: string;
+}
+
+/**
+ * Mounting base of the bobbin, the mechanical body that carries the wound part and its
+ * pins. Only meaningful for family t, where the base plays the former's role for a toroid.
+ */
+export interface BobbinBase {
+    /**
+     * Width of the slot that holds the wound ring on edge, for a vertical base. Unit: m.
+     */
+    boatWidth?: DimensionWithTolerance;
+    /**
+     * Overall height of the base, from the seating plane to its top face. Unit: m.
+     */
+    height: DimensionWithTolerance;
+    /**
+     * Overall length of the base, along the longer side of its footprint. Unit: m.
+     */
+    length: DimensionWithTolerance;
+    /**
+     * Largest wound-core height the base accepts. Unit: m.
+     */
+    maximumCoreHeight?: number;
+    /**
+     * Largest wound-core outer diameter the base accepts. Unit: m.
+     */
+    maximumCoreOuterDiameter?: number;
+    /**
+     * How the wound part sits on the base: horizontal lays the ring flat in a pocket, vertical
+     * stands it on edge in a boat.
+     */
+    mounting: OrientationEnum;
+    /**
+     * Depth of the pocket that receives the wound ring, for a horizontal base. Unit: m.
+     */
+    pocketDepth?: DimensionWithTolerance;
+    /**
+     * Inner diameter of the pocket that receives the wound ring, for a horizontal base. Unit: m.
+     */
+    pocketInnerDiameter?: DimensionWithTolerance;
+    /**
+     * Distance the base holds the wound part above the mounting surface. Unit: m.
+     */
+    standoff: DimensionWithTolerance;
+    /**
+     * Overall width of the base, across its footprint. Unit: m.
+     */
+    width: DimensionWithTolerance;
+}
+
+/**
+ * How the wound part sits on the base: horizontal lays the ring flat in a pocket, vertical
+ * stands it on edge in a boat.
+ *
+ * Mounting orientation of the bobbin
+ */
+export enum OrientationEnum {
+    Horizontal = "horizontal",
+    Vertical = "vertical",
 }
 
 export interface PinWindingConnection {
@@ -1011,13 +1153,34 @@ export interface InsulationMaterial {
     /**
      * The composition of a insulation material
      */
-    composition?:       string;
+    composition?: string;
+    /**
+     * Comparative tracking index of the material per IEC 60112, the voltage at which it
+     * withstands 50 drops of test solution without tracking. Unit: V. The material group used
+     * in insulation coordination (I, II, IIIA, IIIB) follows from it per IEC 60664-1.
+     */
+    cti?:               number;
     dielectricStrength: DielectricStrengthElement[];
-    manufacturerInfo?:  ManufacturerInfo;
+    /**
+     * The form the material is supplied in, which decides where it can be used: tape is wound
+     * on, film is placed as a sheet, sleeve is slid over a lead, varnish is impregnated.
+     */
+    form?:             Form;
+    manufacturerInfo?: ManufacturerInfo;
     /**
      * The melting temperature of the insulation material, in Celsius
      */
     meltingPoint?: number;
+    /**
+     * Smallest centreline radius the material can be bent to, per size, for a material of form
+     * 'sleeve' (tubing over a lead). The bend radius of tubing depends on its size and wall --
+     * Zeus measures its PTFE tubing at roughly ten times its outside diameter, and states it is
+     * governed by 'outside diameter (OD) of the tubing, wall thickness, and resin' -- so it is
+     * given per point rather than as one number. A consumer uses the point matching the sleeve
+     * it drew; with no matching point it has no rated value and must not invent one. Every
+     * point carries the provenance of the figure.
+     */
+    minimumBendRadius?: MinimumBendRadiusElement[];
     /**
      * The name of a insulation material
      */
@@ -1076,6 +1239,17 @@ export interface DielectricStrengthElement {
 }
 
 /**
+ * The form the material is supplied in, which decides where it can be used: tape is wound
+ * on, film is placed as a sheet, sleeve is slid over a lead, varnish is impregnated.
+ */
+export enum Form {
+    Film = "film",
+    Sleeve = "sleeve",
+    Tape = "tape",
+    Varnish = "varnish",
+}
+
+/**
  * Shared manufacturer-info fields. Each component family builds its OWN closed
  * manufacturerInfo by $ref-ing these field definitions (by JSON pointer) and adding its
  * datasheetInfo; families do NOT allOf-extend this (incompatible with
@@ -1103,6 +1277,13 @@ export interface ManufacturerInfo {
      */
     orderCode?: string;
     /**
+     * Where this component's data came from. Optional here so that any PEAS-based record
+     * carrying manufacturerInfo -- including ones whose own schema has no datasheet-info
+     * section, such as a bobbin -- can cite the source of each value rather than only a
+     * datasheet URL.
+     */
+    provenance?: Provenance[];
+    /**
      * Manufacturer part number
      */
     reference?: string;
@@ -1122,6 +1303,176 @@ export interface ManufacturerInfo {
 }
 
 /**
+ * Where this component's data came from. Optional here so that any PEAS-based record
+ * carrying manufacturerInfo -- including ones whose own schema has no datasheet-info
+ * section, such as a bobbin -- can cite the source of each value rather than only a
+ * datasheet URL.
+ *
+ * Data-provenance trail for this record's data. A list, because different fields may come
+ * from different sources (e.g. core specs from the manufacturer datasheet, current rating
+ * from a distributor, a missing field back-filled by librarian enrichment). Most records
+ * that carry this are PARTS, where the trail describes their datasheetInfo — but the
+ * definition is deliberately record-neutral: CIAS $refs it for a whole circuit brick, which
+ * has no datasheetInfo at all, and a DERIVED brick's trail describes how the brick itself
+ * was generated.
+ */
+export interface Provenance {
+    /**
+     * For source='derived': the rule the value follows, as a short phrase (e.g. 'contact array
+     * from pitch, positions and rows', 'IPC-7351B nominal land pattern for the case code'). No
+     * field paths, scripts, tools, ticket numbers or reasoning.
+     */
+    derivation?: string;
+    /**
+     * Optional: which fields of this record this source provided (for mixed-source records). On
+     * a part that means datasheetInfo fields; on a record with no datasheetInfo (e.g. a CIAS
+     * brick) it means whatever fields the source is claiming.
+     */
+    fields?: string[];
+    /**
+     * true when this entry has been WITHDRAWN: the claim it records is no longer asserted. A
+     * retracted entry is KEPT, never deleted, so the withdrawal stays traceable — but consumers
+     * MUST NOT count it as provenance for any field, and MUST NOT treat its
+     * sourceUrl/sourceName as a live citation. This exists because a withdrawal has nowhere to
+     * live today and is therefore written as a NEW entry that impersonates a source: 91,416 TAS
+     * entries carry retraction prose in `sourceName`, spread across five different `source`
+     * enum values for the same act.
+     */
+    retracted?: boolean;
+    /**
+     * Why the entry was withdrawn, as a short label. Required when `retracted` is true. E.g.
+     * 'placeholder value', 'cited document is for a different part', 'superseded'. No history,
+     * reasoning or ticket numbers. The fields the withdrawal covers go in `fields`, exactly as
+     * for a positive claim.
+     */
+    retractionReason?: string;
+    /**
+     * Date the data was retrieved (YYYY-MM-DD). For source='derived' there is nothing to
+     * retrieve, so this is the date the value was COMPUTED — the two readings are deliberately
+     * unified rather than given separate keys, because in both cases the question it answers is
+     * 'as of when is this true'.
+     */
+    retrievedDate?: null | string;
+    /**
+     * Kind of source this data came from. 'derived' marks values COMPUTED from other fields of
+     * the same record (never measured, never read from a document) — a derived entry must say
+     * how in `derivation`, so a consumer can distinguish vendor fact from arithmetic.
+     */
+    source: ProvenanceSource;
+    /**
+     * Human-readable source identifier, e.g. 'TI parametric API', 'WE - Passive
+     * Components.mdb', 'DigiKey'. A NAME ONLY. Verification state belongs in
+     * `verification`/`verificationMethod`, a withdrawal in `retracted`/`retractionReason`, and
+     * a computation in `derivation` — none of it in this field. Writing them here is what
+     * produced 507 distinct bracketed phrasings of what should be a closed vocabulary.
+     */
+    sourceName?: string;
+    /**
+     * URL the data was retrieved from, if applicable. MUST NOT be set when source='derived': a
+     * computation has nothing to retrieve, and a URL on a derived entry reads as a citation
+     * that was never made (37,075 such entries exist in the TAS corpus today, 315 of them
+     * citing a URL scheme retired in 2026). Put the inputs in `derivation` instead.
+     */
+    sourceUrl?: null | string;
+    /**
+     * What was actually DONE to establish this entry, as a closed vocabulary. `source` says
+     * WHERE the data is claimed to come from; `verification` says HOW FAR anyone got in
+     * confirming that claim. The two are independent: a manufacturerDatasheet entry may be
+     * anything from notAttempted to valuesReadFromSource. ABSENT means UNSTATED — never a claim
+     * of verification — which is what makes this key additive for the 1.7M entries written
+     * before it existed. Values, weakest to strongest: 'notAttempted' nobody tried to confirm
+     * the claim; 'sourceUnreachable' a fetch was attempted and the source could not be reached
+     * (dead URL, gated host, network failure) — evidence about the CITATION, never about the
+     * part; 'documentUnreadable' the source was retrieved but yields no usable content (scanned
+     * image, no text layer, textless CAD drawing); 'citationOnly' the cited document was
+     * retrieved and is a real document, but nothing in it was matched to this record;
+     * 'existenceConfirmed' an authoritative catalogue or database confirms this part number
+     * exists, without any document being read; 'seriesConfirmed' the retrieved document covers
+     * this part's SERIES but does not print this individual order code; 'partNamed' the
+     * retrieved document names this exact part number; 'valuesReadFromSource' the stored VALUES
+     * for the fields listed in `fields` were actually read or re-derived from the source — the
+     * only value that asserts the NUMBERS were checked, and deliberately the hardest to claim;
+     * 'disproven' the source was retrieved and CONTRADICTS this record (does not mention the
+     * part, or names a different one); 'inferredNotVerified' the entry was constructed from the
+     * record itself (its own URL, its own manufacturer name, a templated search query) with no
+     * retrieval of any kind — such an entry is NOT evidence and must never be counted as a
+     * citation.
+     */
+    verification?: Verification;
+    /**
+     * Date (YYYY-MM-DD) on which the act recorded in `verification` was performed. Distinct
+     * from `retrievedDate`, which dates the DATA; this dates the CHECK. Required whenever
+     * `verification` is present and is not 'notAttempted'.
+     */
+    verificationDate?: Date;
+    /**
+     * The measurement CONDITIONS and bounds under which the source states the value, read off
+     * the source and kept because the schema has nowhere else for them — e.g. 'Measured at 10
+     * mA Max.', '200V AC for 1 minute', 'Dielectric Withstanding Voltage 1000 VRMS Min', 'Ptot
+     * max, TC=25 C', 'Qg 55 nC (VGS 10 V)'. Several fields are typed as bare numbers, so the
+     * Min/Max sense and the RMS or temperature basis survive only here. This is NOT a place to
+     * record HOW the row was obtained: no endpoint or HTTP method, no script or tool name, no
+     * staging path, no matcher rule, no ticket number, no agent or campaign identity, no audit
+     * note or superseded-value history. That belongs in the commit and the issue tracker — it
+     * is not part of the record. It must not be written into `sourceName` either.
+     */
+    verificationMethod?: string;
+}
+
+/**
+ * Kind of source this data came from. 'derived' marks values COMPUTED from other fields of
+ * the same record (never measured, never read from a document) — a derived entry must say
+ * how in `derivation`, so a consumer can distinguish vendor fact from arithmetic.
+ */
+export enum ProvenanceSource {
+    Derived = "derived",
+    Distributor = "distributor",
+    LibrarianEnrichment = "librarianEnrichment",
+    Manual = "manual",
+    ManufacturerDatabase = "manufacturerDatabase",
+    ManufacturerDatasheet = "manufacturerDatasheet",
+    ManufacturerParametric = "manufacturerParametric",
+    Scrape = "scrape",
+}
+
+/**
+ * What was actually DONE to establish this entry, as a closed vocabulary. `source` says
+ * WHERE the data is claimed to come from; `verification` says HOW FAR anyone got in
+ * confirming that claim. The two are independent: a manufacturerDatasheet entry may be
+ * anything from notAttempted to valuesReadFromSource. ABSENT means UNSTATED — never a claim
+ * of verification — which is what makes this key additive for the 1.7M entries written
+ * before it existed. Values, weakest to strongest: 'notAttempted' nobody tried to confirm
+ * the claim; 'sourceUnreachable' a fetch was attempted and the source could not be reached
+ * (dead URL, gated host, network failure) — evidence about the CITATION, never about the
+ * part; 'documentUnreadable' the source was retrieved but yields no usable content (scanned
+ * image, no text layer, textless CAD drawing); 'citationOnly' the cited document was
+ * retrieved and is a real document, but nothing in it was matched to this record;
+ * 'existenceConfirmed' an authoritative catalogue or database confirms this part number
+ * exists, without any document being read; 'seriesConfirmed' the retrieved document covers
+ * this part's SERIES but does not print this individual order code; 'partNamed' the
+ * retrieved document names this exact part number; 'valuesReadFromSource' the stored VALUES
+ * for the fields listed in `fields` were actually read or re-derived from the source — the
+ * only value that asserts the NUMBERS were checked, and deliberately the hardest to claim;
+ * 'disproven' the source was retrieved and CONTRADICTS this record (does not mention the
+ * part, or names a different one); 'inferredNotVerified' the entry was constructed from the
+ * record itself (its own URL, its own manufacturer name, a templated search query) with no
+ * retrieval of any kind — such an entry is NOT evidence and must never be counted as a
+ * citation.
+ */
+export enum Verification {
+    CitationOnly = "citationOnly",
+    Disproven = "disproven",
+    DocumentUnreadable = "documentUnreadable",
+    ExistenceConfirmed = "existenceConfirmed",
+    InferredNotVerified = "inferredNotVerified",
+    NotAttempted = "notAttempted",
+    PartNamed = "partNamed",
+    SeriesConfirmed = "seriesConfirmed",
+    SourceUnreachable = "sourceUnreachable",
+    ValuesReadFromSource = "valuesReadFromSource",
+}
+
+/**
  * Production status
  */
 export enum Status {
@@ -1130,6 +1481,29 @@ export enum Status {
     Preview = "preview",
     Production = "production",
     Prototype = "prototype",
+}
+
+/**
+ * One rated minimum bend radius of a tubing size
+ */
+export interface MinimumBendRadiusElement {
+    /**
+     * Inner diameter of the tubing size the value is for, in m
+     */
+    innerDiameter: number;
+    /**
+     * Where the value comes from: the manufacturer's measured or rated figure, never an
+     * estimate.
+     */
+    provenance: Provenance[];
+    /**
+     * Minimum centreline bend radius, in m
+     */
+    value: number;
+    /**
+     * Wall thickness of the tubing size the value is for, in m
+     */
+    wallThickness: number;
 }
 
 /**
@@ -1158,14 +1532,6 @@ export enum TemperatureClassEnum {
     The220 = "220",
     The250 = "250",
     Y = "Y",
-}
-
-/**
- * Mounting orientation of the bobbin
- */
-export enum Orientation {
-    Horizontal = "horizontal",
-    Vertical = "vertical",
 }
 
 /**
@@ -1213,6 +1579,11 @@ export interface Pin {
      */
     name?: string;
     /**
+     * Whether the pin may be cut off or omitted by the winder to open up creepage, as bobbin
+     * makers offer for corner pins.
+     */
+    removable?: boolean;
+    /**
      * The rotation of the pin, default is vertical
      */
     rotation?: number[];
@@ -1255,6 +1626,14 @@ export enum FunctionalDescriptionType {
 
 export interface CoreBobbinProcessedDescription {
     /**
+     * Radius of the corners of the central column, where the wire bends around it while being
+     * wound. Only meaningful for rectangular and irregular columns: for a round column the
+     * radius is columnWidth, and for an oblong one it is columnDepth / 2. Moulded bobbins
+     * always have a finite corner radius; a wire whose minimum bend radius exceeds this one
+     * cannot follow the corner and lifts off the flat faces instead
+     */
+    columnCornerRadius?: number;
+    /**
      * The depth of the central column wall, including thickness, in the z axis
      */
     columnDepth: number;
@@ -1272,6 +1651,11 @@ export interface CoreBobbinProcessedDescription {
      * referred to the center of the main column.
      */
     coordinates?: number[];
+    /**
+     * Interior walls that split the winding area into chambers, in the order they appear along
+     * the column.
+     */
+    dividers?: BobbinDivider[];
     /**
      * List of pins, geometrically defining how and where it is
      */
@@ -1297,6 +1681,47 @@ export enum ColumnShape {
 }
 
 /**
+ * One interior wall of a multi-chamber former.
+ */
+export interface BobbinDivider {
+    /**
+     * The coordinates of the centre of the divider, referred to the centre of the main column.
+     */
+    coordinates: number[];
+    /**
+     * Notch cut in the divider through which a wire crosses from one chamber to the next.
+     */
+    crossingSlot?: DividerCrossingSlot;
+    /**
+     * Radial reach of the divider from the column surface outwards; absent means it reaches as
+     * far as the flanges. Unit: m.
+     */
+    height?: number;
+    /**
+     * Thickness of the divider wall, measured along the column axis. Unit: m.
+     */
+    thickness: number;
+}
+
+/**
+ * Notch cut in the divider through which a wire crosses from one chamber to the next.
+ */
+export interface DividerCrossingSlot {
+    /**
+     * Angular position of the slot around the column, from the positive x axis. Unit: degree.
+     */
+    angle?: number;
+    /**
+     * Depth of the slot, measured radially inwards from the divider rim. Unit: m.
+     */
+    depth?: number;
+    /**
+     * Width of the slot, measured along the divider rim. Unit: m.
+     */
+    width?: number;
+}
+
+/**
  * List of rectangular winding windows
  *
  * It is the area between the winding column and the closest lateral column, and it
@@ -1316,6 +1741,12 @@ export interface WindingWindowElement {
      * Area of the winding window
      */
     area?: number;
+    /**
+     * Index of the column (in the columns list of the core processed description) that the
+     * turns placed in this winding window are wound around. If not present, the main column is
+     * assumed (the first central column, or the first column if there is no central one)
+     */
+    column?: number;
     /**
      * The coordinates of the center of the winding window, referred to the center of the main
      * column. In the case of half-sets, the center will be in the top point, where it would
@@ -1432,7 +1863,14 @@ export interface CoilFunctionalDescription {
      * Number of turns (per IEV 151-13-14) in the winding.
      */
     numberTurns: number;
-    wire:        Wire | string;
+    /**
+     * Index of the winding window (in the windingWindows list of the governing bobbin or core
+     * processed description) this winding is intended to be placed in, used by auto-winders and
+     * advisers before sections exist. If not present, the first winding window (index 0) is
+     * assumed. Overridable per group and per section
+     */
+    windingWindow?: number;
+    wire:           Wire | string;
     /**
      * List of winding names that are wound together with this winding.
      */
@@ -1444,9 +1882,33 @@ export interface CoilFunctionalDescription {
  */
 export interface ConnectionElement {
     /**
+     * Pin diameter for pin terminals. Unit: m.
+     */
+    diameter?: number;
+    /**
      * Direction of the current in the connection.
      */
     direction?: Direction;
+    /**
+     * Which end of the winding this connection terminates: start is the dot end (the first turn
+     * wound), finish the last turn wound, tap an intermediate junction shared with a series
+     * section.
+     */
+    end?: End;
+    /**
+     * Library footprint realising this terminal on a PCB, as <library>:<footprint> (e.g.
+     * Connector_Pin:Pin_D1.0mm_L10.0mm). When absent the generator derives a footprint from
+     * type, diameter and metric.
+     */
+    footprint?: string;
+    /**
+     * Terminal gender, for screw/press-fit terminal blocks.
+     */
+    gender?: Gender;
+    /**
+     * Recommended land pattern of the terminal (PEAS).
+     */
+    landPattern?: LandPattern;
     /**
      * Length of the connection, from the exit of the last turn to the terminal. Unit: m.
      */
@@ -1456,10 +1918,32 @@ export interface ConnectionElement {
      */
     metric?: number;
     /**
+     * Mounting of the terminal on the PCB.
+     */
+    mounting?: ConnectionMounting;
+    /**
+     * For pcbPad terminals: pad extent along the board depth. Unit: m.
+     */
+    padDepth?: number;
+    /**
+     * For pcbPad terminals: pad extent along the board width. Unit: m.
+     */
+    padWidth?: number;
+    /**
+     * Index of the parallel strand of the winding that terminates here; absent means every
+     * parallel of the winding terminates together on this terminal.
+     */
+    parallel?: number;
+    /**
      * Name of the pin where the wire is connected, if applicable.
      */
     pinName?: string;
-    type?:    ConnectionType;
+    /**
+     * Insulating sleeve fitted over this lead, from the terminal back into the winding, where
+     * the bare or enamelled lead alone does not provide the required insulation.
+     */
+    sleeve?: ConnectionSleeve;
+    type?:   ConnectionType;
 }
 
 /**
@@ -1468,6 +1952,184 @@ export interface ConnectionElement {
 export enum Direction {
     Input = "input",
     Output = "output",
+}
+
+/**
+ * Which end of the winding this connection terminates: start is the dot end (the first turn
+ * wound), finish the last turn wound, tap an intermediate junction shared with a series
+ * section.
+ */
+export enum End {
+    Finish = "finish",
+    Start = "start",
+    Tap = "tap",
+}
+
+/**
+ * Terminal gender, for screw/press-fit terminal blocks.
+ */
+export enum Gender {
+    Female = "female",
+    Male = "male",
+}
+
+/**
+ * Recommended land pattern of the terminal (PEAS).
+ *
+ * Manufacturer-RECOMMENDED PCB land pattern (the 'recommended layout' drawing of the
+ * datasheet): pad centres, copper sizes and drills, exactly as published. Datasheet-layer
+ * facts only — no derived values, no courtyard/keep-out/3-D envelope (those stay
+ * family-side, e.g. CONAS geometry.keepOut/boundingEnvelope). Distinct from any scalar
+ * mounting-area figure (CAS capacitor 'footprint' is an area in m^2 and is NOT this type).
+ * Family-wide shared type hoisted to PEAS (2026-08); previously only CONAS carried a local
+ * variant.
+ */
+export interface LandPattern {
+    /**
+     * What (0,0) of the pad coordinates refers to. A coordinate list with no stated datum is
+     * not reusable data.
+     */
+    originDatum?: OriginDatum;
+    /**
+     * Land/hole pattern, one entry per pad.
+     */
+    pads: LandPatternPad[];
+    /**
+     * Coarse topology hint for browse/filter; the pads array is the authority.
+     */
+    pattern?: Pattern;
+    /**
+     * Board thickness the pattern is specified for, in m, when the datasheet states one
+     * (press-fit patterns are thickness-specific).
+     */
+    recommendedBoardThickness?: DimensionWithTolerance;
+}
+
+/**
+ * What (0,0) of the pad coordinates refers to. A coordinate list with no stated datum is
+ * not reusable data.
+ */
+export enum OriginDatum {
+    BodyCenter = "bodyCenter",
+    Other = "other",
+    PadCentroid = "padCentroid",
+    Pin1 = "pin1",
+}
+
+/**
+ * One pad or hole of a manufacturer-recommended PCB land pattern. Geometry (shape) is
+ * deliberately separate from through-board character (drill/plated) — conflating them (a
+ * 'plated-hole' shape) cannot express a rectangular THT pad; KiCad separates pad type from
+ * pad shape for the same reason. SMT pad: no drill. THT/press-fit pad: drill (+ copper
+ * size). Non-plated mechanical hole: drill + plated:false, no width. Slotted hole (terminal
+ * blocks): drill = slot short dimension + slotLength.
+ */
+export interface LandPatternPad {
+    /**
+     * Finished hole diameter, in m; presence marks a through-board pad (THT / press-fit /
+     * mechanical). When slotLength is present this is the slot's short dimension.
+     */
+    drill?: number;
+    /**
+     * Copper size along the pad's local Y, in m. Omit for round pads.
+     */
+    height?: number;
+    /**
+     * Pad designator as printed in the land-pattern drawing. Joins pinout[].pin (and, for
+     * connectors, the CONAS contactSystem contact id) where applicable; purely mechanical pads
+     * use their own ids ('MH1').
+     */
+    id: string;
+    /**
+     * Whether the hole barrel is plated. Only meaningful together with drill; omit for SMT pads.
+     */
+    plated?: boolean;
+    /**
+     * Rotation of the pad about its own centre, in degrees counter-clockwise; 0 (the default
+     * when absent) puts width along +X. Degrees are a documented exception to SI radians,
+     * matching the MAS coil turn-rotation convention and universal EDA practice.
+     */
+    rotation?: number;
+    /**
+     * Copper (or hole) outline. Pure geometry — never encodes plating.
+     */
+    shape: Shape;
+    /**
+     * Long dimension of a slotted (oval) drill, in m. Requires drill.
+     */
+    slotLength?: number;
+    /**
+     * Copper size along the pad's local X (before rotation), in m; the diameter for round pads.
+     * Omit for hole-only pads.
+     */
+    width?: number;
+    /**
+     * Pad-centre X in the land-pattern frame, in m (see landPattern.originDatum).
+     */
+    x: number;
+    /**
+     * Pad-centre Y in the land-pattern frame, in m.
+     */
+    y: number;
+}
+
+/**
+ * Copper (or hole) outline. Pure geometry — never encodes plating.
+ */
+export enum Shape {
+    Oval = "oval",
+    Rectangle = "rectangle",
+    Round = "round",
+    RoundedRectangle = "roundedRectangle",
+}
+
+/**
+ * Coarse topology hint for browse/filter; the pads array is the authority.
+ */
+export enum Pattern {
+    Custom = "custom",
+    DualRow = "dualRow",
+    Grid = "grid",
+    SingleRow = "singleRow",
+}
+
+/**
+ * Mounting of the terminal on the PCB.
+ */
+export enum ConnectionMounting {
+    Blind = "blind",
+    Castellated = "castellated",
+    Surface = "surface",
+    ThroughHole = "throughHole",
+}
+
+/**
+ * Insulating sleeve fitted over this lead, from the terminal back into the winding, where
+ * the bare or enamelled lead alone does not provide the required insulation.
+ */
+export interface ConnectionSleeve {
+    /**
+     * Inner diameter of the sleeve, which fits over the lead. Unit: m.
+     */
+    innerDiameter: number;
+    /**
+     * Sleeve stock the lead is insulated with, either the full insulation material or the name
+     * of one.
+     */
+    material: InsulationMaterial | string;
+    /**
+     * Number of sleeve layers fitted over the lead, one inside the next.
+     */
+    numberLayers?: number;
+    /**
+     * Length by which the sleeve reaches past the point where the lead leaves the winding, back
+     * over the wound part. Unit: m.
+     */
+    overlapIntoWinding?: number;
+    /**
+     * Wall thickness of the sleeve. Unit: m.
+     */
+    wallThickness: number;
 }
 
 /**
@@ -1755,6 +2417,13 @@ export interface Group {
      */
     partialWindings: PartialWinding[];
     /**
+     * PCB manufacturing description of the board that realises a printed group (MAS-RFC 0012).
+     * Optional: consumers that draw the board (PCB generation, planar real-winding placement)
+     * require it and fail without it; electromagnetic consumers ignore it. Forbidden on
+     * non-printed groups.
+     */
+    pcb?: PCB;
+    /**
      * Way in which the sections are oriented inside the winding window
      */
     sectionsOrientation: WindingOrientation;
@@ -1762,6 +2431,12 @@ export interface Group {
      * Type of the group
      */
     type: WiringTechnology;
+    /**
+     * Index of the winding window (in the windingWindows list of the governing bobbin or core
+     * processed description) the sections of this group are placed in. If not present, the
+     * first winding window (index 0) is assumed. Overridable per section
+     */
+    windingWindow?: number;
 }
 
 /**
@@ -1790,6 +2465,125 @@ export interface PartialWinding {
      * Name of the winding that this part belongs to.
      */
     winding: string;
+}
+
+/**
+ * PCB manufacturing description of the board that realises a printed group (MAS-RFC 0012).
+ * Optional: consumers that draw the board (PCB generation, planar real-winding placement)
+ * require it and fail without it; electromagnetic consumers ignore it. Forbidden on
+ * non-printed groups.
+ *
+ * Manufacturing description of the printed circuit board that realises a printed group. A
+ * printed group is one PCB; a stacked planar magnetic is one printed group per board.
+ * Optional on the group: only PCB-drawing consumers need it (MAS-RFC 0012).
+ */
+export interface PCB {
+    designRules:      PCBDesignRules;
+    outerDielectric?: PCBOuterDielectric;
+    outline:          PCBOutline;
+    vias:             PCBVias;
+}
+
+/**
+ * Copper spacing rules the layout is drawn to. Unit: m. Minimums; the generator places
+ * copper at exactly these distances.
+ */
+export interface PCBDesignRules {
+    /**
+     * Copper edge to the board outline. Defaults to coreToTrack when absent (stated rule, not a
+     * fallback).
+     */
+    copperToEdge?: number;
+    /**
+     * Copper edge to the core cut-outs (central column and lateral legs). Also the
+     * copper-to-board-edge rule unless copperToEdge is given.
+     */
+    coreToTrack: number;
+    /**
+     * Drill edge to copper of another net (fabrication rule).
+     */
+    holeToCopper?: number;
+    /**
+     * Drill edge to drill edge between any two holes (fabrication rule).
+     */
+    holeToHole?: number;
+    /**
+     * Copper edge to copper edge between adjacent tracks (turn pitch minus track width).
+     */
+    trackToTrack: number;
+    /**
+     * Copper edge between a via and a track of another net.
+     */
+    viaToTrack: number;
+    /**
+     * Copper edge to copper edge between adjacent vias.
+     */
+    viaToVia: number;
+}
+
+/**
+ * Dielectric above the top copper and below the bottom copper (prepreg, solder mask).
+ * Inter-layer dielectrics are the insulation layers of layersDescription. Unit: m.
+ */
+export interface PCBOuterDielectric {
+    bottomThickness?: number;
+    /**
+     * Same vocabulary as layer.insulationMaterial (e.g. FR4).
+     */
+    material?:     string;
+    topThickness?: number;
+}
+
+/**
+ * Board outline. The core cut-outs are derived from the core processed description, not
+ * stored here. Unit: m.
+ */
+export interface PCBOutline {
+    /**
+     * Gap between the core column faces and the cut-out edges. Defaults to coreToTrack when
+     * absent (stated rule).
+     */
+    coreCutoutClearance?: number;
+    /**
+     * Radius of the board corners. 0 or absent: square corners.
+     */
+    cornerRadius?: number;
+    /**
+     * Board extent along the lateral legs axis.
+     */
+    depth: number;
+    /**
+     * Board extent along the axis that crosses the winding window (terminal side to terminal
+     * side).
+     */
+    width: number;
+}
+
+/**
+ * Via specification shared by every layer transition of the board.
+ */
+export interface PCBVias {
+    /**
+     * Outer (copper) diameter of the via. Unit: m.
+     */
+    diameter: DimensionWithTolerance;
+    /**
+     * Finished drill diameter of the via. Unit: m.
+     */
+    drillDiameter: DimensionWithTolerance;
+    /**
+     * Via construction.
+     */
+    type?: ViasType;
+}
+
+/**
+ * Via construction.
+ */
+export enum ViasType {
+    Blind = "blind",
+    Buried = "buried",
+    Through = "through",
 }
 
 /**
@@ -1936,6 +2730,13 @@ export interface Section {
      * Defines if the section is wound by consecutive turns or parallels
      */
     windingStyle?: WindingStyle;
+    /**
+     * Index of the winding window (in the windingWindows list of the governing bobbin or core
+     * processed description) this section is placed in. If not present, the group's
+     * windingWindow applies, else the first winding window (index 0). Coordinates stay referred
+     * to the center of the main column regardless of this value
+     */
+    windingWindow?: number;
 }
 
 /**
@@ -2083,8 +2884,23 @@ export interface CoreFunctionalDescription {
     /**
      * The lists of gaps in the magnetic core
      */
-    gapping:  CoreGap[];
-    material: CoreMaterial | string;
+    gapping: CoreGap[];
+    /**
+     * The material(s) the core is made of. A single material (by record or by name) for the
+     * overwhelming majority of cores. A LIST when the assembly genuinely comprises pieces of
+     * different grades that the analytical models must treat separately — e.g. a shielded drum
+     * whose closing ring is a different ferrite from the drum (ABT #576). Order is significant:
+     * the FIRST entry is the primary piece (the drum / the wound piece), subsequent entries are
+     * the closing pieces in the order the magnetic circuit crosses them. A one-element list
+     * means the same thing as the bare form. For the molded family the entries are the REGIONS
+     * of one pressed body rather than separate pieces, in the order the flux crosses them from
+     * the post upward: a two-entry list is [post, rest] (the inner and outer powders of a body
+     * pressed in two steps), a three-entry list is [post, cover, base] (a body pressed in three
+     * steps: the base plate, the post, and the cover moulded over the coil). The reserved name
+     * "air" may stand in the post position only, and means the coil sits on a plastic bobbin
+     * with no magnetic post inside it (ABT #1002).
+     */
+    material: Array<CoreMaterial | string> | CoreMaterial | string;
     /**
      * The number of stacked cores
      */
@@ -2120,6 +2936,7 @@ export interface CoreCoating {
 export enum CoatingType {
     Epoxy = "epoxy",
     Glass = "glass",
+    MagneticEpoxy = "magneticEpoxy",
     Nylon = "nylon",
     Parylene = "parylene",
 }
@@ -2208,7 +3025,14 @@ export interface CoreMaterial {
      * Thermal conductivity value according to manufacturer. Unit: W/(m*K).
      */
     heatConductivity?: DimensionWithTolerance;
-    manufacturerInfo:  ManufacturerInfo;
+    /**
+     * Thickness of the ribbon/lamination strip, according to manufacturer. This is the
+     * eddy-current-limiting dimension for tape-wound materials (nanocrystalline, amorphous,
+     * electrical steel) and is independent of the core's own macroscopic geometry; it does not
+     * apply to sintered/bulk materials (ferrite, powder). Unit: m.
+     */
+    laminationThickness?: DimensionWithTolerance;
+    manufacturerInfo:     ManufacturerInfo;
     /**
      * Mass-specific core losses. Values throughout this block are in watts per kilogram (W/kg).
      * Note: this is the per-mass form used for tape-wound, amorphous and nanocrystalline
@@ -2237,6 +3061,15 @@ export interface CoreMaterial {
      */
     permeability: Permeabilities;
     /**
+     * Relative permittivity of the material. Ferrites (MnZn grades in particular) have a very
+     * large, frequency-dependent permittivity that, together with the permeability, sets the
+     * in-material electromagnetic wavelength lambda = c / (f * sqrt(mu' * eps')) and therefore
+     * the onset of dimensional effects (dimensional resonance) and the effective usable
+     * bandwidth of a given core size. Optional; primarily relevant to high-frequency (MHz)
+     * modelling and to tools that account for displacement current.
+     */
+    permittivity?: Permittivities;
+    /**
      * Manufacturer recommended operating conditions for this material
      */
     recommendations?: CoreMaterialRecommendations;
@@ -2247,7 +3080,7 @@ export interface CoreMaterial {
     /**
      * Resistivity value according to manufacturer
      */
-    resistivity: ResistivityPoint[];
+    resistivity?: ResistivityPoint[];
     /**
      * BH curve points characterising the saturation flux density of the material. By
      * convention, saturation is reported at the field strength at which the relative
@@ -2355,6 +3188,7 @@ export enum MaterialComposition {
     FeNIMo = "FeNiMo",
     FeSi = "FeSi",
     FeSiAl = "FeSiAl",
+    FeSiCR = "FeSiCr",
     Iron = "iron",
     MgZn = "MgZn",
     MnZn = "MnZn",
@@ -2592,6 +3426,55 @@ export interface ComplexPermeabilityData {
 }
 
 /**
+ * Relative permittivity of the material. Ferrites (MnZn grades in particular) have a very
+ * large, frequency-dependent permittivity that, together with the permeability, sets the
+ * in-material electromagnetic wavelength lambda = c / (f * sqrt(mu' * eps')) and therefore
+ * the onset of dimensional effects (dimensional resonance) and the effective usable
+ * bandwidth of a given core size. Optional; primarily relevant to high-frequency (MHz)
+ * modelling and to tools that account for displacement current.
+ */
+export interface Permittivities {
+    /**
+     * Complex relative permittivity (eps' + j*eps''), following the same sign convention as
+     * complex permeability above: the imaginary part is stored as a positive loss magnitude.
+     * Used for dimensional-effect and displacement-current modelling at high frequency.
+     */
+    complex?: ComplexPermittivityData;
+}
+
+/**
+ * Complex relative permittivity (eps' + j*eps''), following the same sign convention as
+ * complex permeability above: the imaginary part is stored as a positive loss magnitude.
+ * Used for dimensional-effect and displacement-current modelling at high frequency.
+ */
+export interface ComplexPermittivityData {
+    imaginary: PermittivityPoint[] | PermittivityPoint;
+    real:      PermittivityPoint[] | PermittivityPoint;
+}
+
+/**
+ * data for describing one point of permittivity
+ */
+export interface PermittivityPoint {
+    /**
+     * Frequency of the electric field, in Hz
+     */
+    frequency?: number;
+    /**
+     * temperature for the field value, in Celsius
+     */
+    temperature?: number;
+    /**
+     * tolerance for the field value
+     */
+    tolerance?: number;
+    /**
+     * Relative permittivity value (dimensionless)
+     */
+    value: number;
+}
+
+/**
  * Manufacturer recommended operating conditions for this material
  */
 export interface CoreMaterialRecommendations {
@@ -2807,21 +3690,35 @@ export interface CoreShape {
  * The family of a magnetic shape
  */
 export enum CoreShapeFamily {
+    Block = "block",
     C = "c",
     Drum = "drum",
+    DrumPlate = "drumPlate",
+    DrumRing = "drumRing",
+    DrumSemishielded = "drumSemishielded",
+    Ds = "ds",
     E = "e",
     Ec = "ec",
+    Eer = "eer",
+    Ef = "ef",
     Efd = "efd",
     Ei = "ei",
     El = "el",
     Elp = "elp",
     Ep = "ep",
+    Epc = "epc",
+    Epq = "epq",
+    Ept = "ept",
+    Epw = "epw",
     Epx = "epx",
     Eq = "eq",
     Er = "er",
     Etd = "etd",
     H = "h",
+    Hs = "hs",
+    Lep = "lep",
     Lp = "lp",
+    Molded = "molded",
     P = "p",
     PlanarE = "planarE",
     PlanarEL = "planarEL",
@@ -2831,6 +3728,7 @@ export enum CoreShapeFamily {
     Pqi = "pqi",
     Rm = "rm",
     Rod = "rod",
+    Rs = "rs",
     T = "t",
     U = "u",
     UI = "ui",
@@ -2852,6 +3750,7 @@ export enum MagneticCircuit {
  */
 export enum CoreType {
     ClosedShape = "closedShape",
+    OpenShape = "openShape",
     PieceAndPlate = "pieceAndPlate",
     Toroidal = "toroidal",
     TwoPieceSet = "twoPieceSet",
@@ -2972,6 +3871,14 @@ export interface ColumnElement {
      */
     coordinates: number[];
     /**
+     * Radius of the corners of the column cross-section, where a wire wound directly on the
+     * column bends around it. Only meaningful for rectangular and irregular columns: for a
+     * round column the radius is width / 2, and for an oblong one it is depth / 2. For a toroid
+     * it is the radius of the core cross-section edges (or of its coating, when coated), which
+     * is what the wire is pulled over
+     */
+    cornerRadius?: number;
+    /**
      * Depth of the column
      */
     depth: number;
@@ -2987,9 +3894,15 @@ export interface ColumnElement {
      * Minimum width of the column, if irregular
      */
     minimumWidth?: number;
-    shape:         ColumnShape;
     /**
-     * Name of the column
+     * Name given to the column, so it can be referenced. If not present, the column is
+     * identified by its index in the columns list and by its coordinates
+     */
+    name?: string;
+    shape: ColumnShape;
+    /**
+     * Type of the column, according to its position in the core: central column or lateral
+     * (return) column
      */
     type: ColumnType;
     /**
@@ -2999,7 +3912,8 @@ export interface ColumnElement {
 }
 
 /**
- * Name of the column
+ * Type of the column, according to its position in the core: central column or lateral
+ * (return) column
  */
 export enum ColumnType {
     Central = "central",
@@ -3028,6 +3942,72 @@ export interface EffectiveParameters {
      * This is the minimum area seen by the magnetic flux along its path
      */
     minimumArea: number;
+}
+
+/**
+ * How the core is referenced electrically in the assembled component. A ferrite or powder
+ * core has no terminal of its own: it sits at whatever potential the surrounding conductors
+ * impose on it, unless it is deliberately bonded, through a mounting clip, a copper strap
+ * or flux band, or conductive tape, to a circuit reference or to one end of a winding. The
+ * choice decides how the winding-to-core capacitances appear at the terminals (a
+ * charge-balanced floating node gives C0/12 of a winding's distributed capacitance for a
+ * linear potential ramp; a core tied to either end of that winding gives C0/3; the live end
+ * innermost against a bonded core approaches C0) and whether the
+ * primary-to-core-to-secondary common-mode path is closed through the core or diverted to
+ * the reference. Absent means floating: a core with no clip, strap or tape, which is also
+ * the assumption every model made before this field existed.
+ */
+export interface CoreElectricalReference {
+    /**
+     * For type grounded: the isolation side whose local reference the core is bonded to
+     * (primary ground, secondary ground, ...), matching the isolationSide of the windings on
+     * that side. Absent means protective earth or chassis, a reference common to every side.
+     */
+    isolationSide?: IsolationSide;
+    /**
+     * For type tiedToWinding: which end of that winding the core is bonded to. start is the end
+     * where the first turn of the winding is wound, end is where the last turn finishes.
+     * Required when type is tiedToWinding.
+     */
+    terminal?: WindingTerminal;
+    /**
+     * floating: the core is not bonded to anything and takes the charge-balanced potential of
+     * the conductors around it. grounded: the core is bonded to a reference node with no
+     * potential swing relative to the circuit reference of the side given by isolationSide (its
+     * local ground), or to protective earth or chassis when isolationSide is absent.
+     * tiedToWinding: the core is bonded to one end of a named winding and follows that node's
+     * potential.
+     */
+    type: CoreElectricalReferenceType;
+    /**
+     * For type tiedToWinding: the name of the winding the core is bonded to, matching
+     * coil.functionalDescription[].name. Required when type is tiedToWinding.
+     */
+    winding?: string;
+}
+
+/**
+ * For type tiedToWinding: which end of that winding the core is bonded to. start is the end
+ * where the first turn of the winding is wound, end is where the last turn finishes.
+ * Required when type is tiedToWinding.
+ */
+export enum WindingTerminal {
+    End = "end",
+    Start = "start",
+}
+
+/**
+ * floating: the core is not bonded to anything and takes the charge-balanced potential of
+ * the conductors around it. grounded: the core is bonded to a reference node with no
+ * potential swing relative to the circuit reference of the side given by isolationSide (its
+ * local ground), or to protective earth or chassis when isolationSide is absent.
+ * tiedToWinding: the core is bonded to one end of a named winding and follows that node's
+ * potential.
+ */
+export enum CoreElectricalReferenceType {
+    Floating = "floating",
+    Grounded = "grounded",
+    TiedToWinding = "tiedToWinding",
 }
 
 /**
@@ -3064,6 +4044,13 @@ export interface MagneticManufacturerInfo {
      * Manufacturer order code
      */
     orderCode?: string;
+    /**
+     * Where this component's data came from. Optional here so that any PEAS-based record
+     * carrying manufacturerInfo -- including ones whose own schema has no datasheet-info
+     * section, such as a bobbin -- can cite the source of each value rather than only a
+     * datasheet URL.
+     */
+    provenance?: Provenance[];
     /**
      * Manufacturer part number
      */
@@ -3166,10 +4153,22 @@ export interface MagneticDatasheetApplication {
  * Datasheet electrical characteristics of a common-mode choke.
  *
  * Datasheet electrical characteristics of a chip bead (ferrite bead).
+ *
+ * Datasheet electrical characteristics of a clamp-on / cable ferrite core (a 1-port
+ * common-mode suppression core the cable is threaded through: clip-on ferrites, cable
+ * rings, split/snap-on cores). Electrically a 1-port impedance like a chip bead, but a
+ * distinct part class — retrofit/threaded onto a cable rather than reflow-soldered. Per the
+ * array-of-configurations idiom, a datasheet that publishes |Z| for several pass counts
+ * contributes one entry per pass count, discriminated by numberTurns; the toroid/ring
+ * geometry (inner/outer diameter, height) and ferrite material live in the shared core
+ * description, not here.
  */
 export interface MagneticDatasheetElectrical {
     /**
      * DC resistance in Ohms. nominal = typical value, maximum = datasheet max.
+     *
+     * DC resistance of the threaded conductor in Ohms (usually negligible; present when the
+     * datasheet states it). nominal = typical value, maximum = datasheet max.
      */
     dcResistance?: DimensionWithTolerance;
     /**
@@ -3178,6 +4177,9 @@ export interface MagneticDatasheetElectrical {
      * Common-mode impedance vs. frequency points.
      *
      * Impedance vs. frequency points, optionally parameterised by DC bias current.
+     *
+     * Common-mode impedance vs. frequency points for this pass count, optionally parameterised
+     * by DC bias current (impedancePoint.current) for the bias-derating curve.
      */
     impedancePoints?: DatasheetImpedancePoint[];
     /**
@@ -3204,12 +4206,32 @@ export interface MagneticDatasheetElectrical {
     /**
      * Label of this connection configuration as given in the datasheet (e.g. '4 x current
      * compensated', '4 turns'). Omit for a part with a single configuration.
+     *
+     * Label of this connection configuration as given in the datasheet (e.g. '1 turn', '2
+     * turns', 'single pass'). Omit for a part with a single configuration.
      */
     name?: string;
     /**
      * Effective number of turns for this connection configuration.
+     *
+     * Number of cable passes through the core for this configuration's |Z| curve (1 = single
+     * pass). Datasheets that tabulate 1/2/3-turn impedance contribute one electrical entry per
+     * turn count.
      */
     numberTurns?: number;
+    /**
+     * Rated-current table qualified by temperature-rise criterion. Preferred over the bare
+     * ratedCurrents array because it carries the ΔT basis, enabling apples-to-apples
+     * cross-manufacturer comparison. Omit when the datasheet states only an unqualified
+     * rating.
+     *
+     * Rated-current table qualified by temperature-rise criterion (per element for a bead
+     * array). Preferred over the bare ratedCurrents array because it carries the ΔT basis,
+     * enabling apples-to-apples cross-manufacturer comparison — bead vendors rate '1 A'
+     * anywhere from a 10 K to a 40 K rise. Omit when the datasheet states only an unqualified
+     * rating.
+     */
+    ratedCurrentPoints?: DatasheetRatedCurrent[];
     /**
      * Rated DC current, as a single-entry array.
      *
@@ -3221,12 +4243,32 @@ export interface MagneticDatasheetElectrical {
      *
      * Rated DC current per element (one entry per element of a bead array; a single-entry array
      * for a single bead).
+     *
+     * Rated DC current in Amperes (one entry per conductor; a single-entry array for a single
+     * cable). Above this the core's impedance derates through partial saturation.
      */
     ratedCurrents?: number[];
+    /**
+     * Reactance vs. frequency points, optionally parameterised by DC bias current.
+     */
+    reactancePoints?: DatasheetReactancePoint[];
+    /**
+     * Resistance vs. frequency points, optionally parameterised by DC bias current.
+     */
+    resistancePoints?: DatasheetResistancePoint[];
     /**
      * Peak saturation current in Amperes (I_sat from datasheet). A single unqualified I_sat;
      * when the datasheet states I_sat at explicit inductance-drop criteria, use
      * saturationCurrents instead (or in addition).
+     *
+     * Peak saturation current in Amperes (I_sat from datasheet), referred to the winding(s) the
+     * datasheet states it on (normally the primary). A single unqualified I_sat; when the
+     * datasheet states I_sat at explicit inductance-drop criteria, use saturationCurrents
+     * instead (or in addition).
+     *
+     * Peak saturation current in Amperes (I_sat from datasheet). For a current-compensated
+     * common-mode choke this is the bias (differential/unbalance) current at which the core
+     * saturates, as specified by the manufacturer.
      */
     saturationCurrentPeak?: number;
     /**
@@ -3234,6 +4276,10 @@ export interface MagneticDatasheetElectrical {
      * the datasheet specifies them. Preferred over the single saturationCurrentPeak scalar
      * because it carries the roll-off basis, enabling apples-to-apples cross-manufacturer
      * comparison. Omit for a part whose datasheet gives only one unqualified I_sat.
+     *
+     * Saturation-current table: I_sat at one or more inductance-drop criteria (|dL/L| %),
+     * referred to the winding(s) the datasheet states it on (normally the primary). Preferred
+     * over the single saturationCurrentPeak scalar because it carries the roll-off basis.
      */
     saturationCurrents?: DatasheetSaturationCurrent[];
     /**
@@ -3287,7 +4333,28 @@ export interface MagneticDatasheetElectrical {
      */
     commonModeFilter?: CommonModeFilter;
     /**
+     * Common-mode insertion loss vs. frequency, in dB. The reference impedance the loss was
+     * measured in (50 ohm for this class) belongs in commonModeFilter.attenuationTestCondition,
+     * not on every point.
+     */
+    commonModeInsertionLossPoints?: InsertionLossAtFrequency[];
+    /**
+     * Differential-mode impedance vs. frequency points. The counterpart of impedancePoints for
+     * the other mode; leakageInductance is a single scalar and does not describe this curve's
+     * shape or where it resonates.
+     */
+    differentialModeImpedancePoints?: DatasheetImpedancePoint[];
+    /**
+     * Differential-mode insertion loss vs. frequency, in dB. Uses the same point type as the
+     * common-mode curve: the structure of a (frequency, dB) pair does not change with the mode,
+     * and one field name for one physical quantity is worth more than matching each topology's
+     * local vocabulary.
+     */
+    differentialModeInsertionLossPoints?: InsertionLossAtFrequency[];
+    /**
      * Tolerance on the impedance values, expressed as a percentage (e.g. 20 means +/-20%).
+     *
+     * Tolerance on the impedance values, expressed as a percentage (e.g. 25 means +/-25%).
      */
     impedanceTolerance?: number;
     /**
@@ -3299,13 +4366,16 @@ export interface MagneticDatasheetElectrical {
      */
     pulsePoints?: DatasheetPulsePoint[];
     /**
-     * Reactance vs. frequency points, optionally parameterised by DC bias current.
+     * Largest cable / bundle outer diameter in metres that fits through the core (the
+     * inner-diameter fit limit) — a primary selection parameter for a cable core.
      */
-    reactancePoints?: DatasheetReactancePoint[];
+    maximumCableOuterDiameter?: number;
     /**
-     * Resistance vs. frequency points, optionally parameterised by DC bias current.
+     * How the core is fitted to the cable: a closed 'solidRing' the cable is threaded through
+     * at build, a hinged 'snapOn' clip that opens for retrofit, a two-piece 'split' core, or a
+     * 'screwable' housing. Distinguishes retrofit-installable clamps from build-time rings.
      */
-    resistancePoints?: DatasheetResistancePoint[];
+    mountingForm?: MountingForm;
 }
 
 /**
@@ -3326,6 +4396,20 @@ export interface CommonModeFilter {
      * -3 dB cut-off frequency of the common-mode filter in Hz.
      */
     cutOffFrequency?: number;
+}
+
+/**
+ * Insertion loss requirement at a specific frequency
+ */
+export interface InsertionLossAtFrequency {
+    /**
+     * The frequency in Hz
+     */
+    frequency: number;
+    /**
+     * The target insertion loss in dB at this frequency
+     */
+    insertionLoss: number;
 }
 
 /**
@@ -3374,6 +4458,18 @@ export interface DatasheetInductancePoint {
 }
 
 /**
+ * How the core is fitted to the cable: a closed 'solidRing' the cable is threaded through
+ * at build, a hinged 'snapOn' clip that opens for retrofit, a two-piece 'split' core, or a
+ * 'screwable' housing. Distinguishes retrofit-installable clamps from build-time rings.
+ */
+export enum MountingForm {
+    Screwable = "screwable",
+    SnapOn = "snapOn",
+    SolidRing = "solidRing",
+    Split = "split",
+}
+
+/**
  * Number of pulses vs. maximum pulse current point from the datasheet.
  */
 export interface DatasheetNumberPulsesPoint {
@@ -3409,6 +4505,30 @@ export interface DatasheetPulsePoint {
      * single-winding parts.
      */
     winding?: string;
+}
+
+/**
+ * Rated current stated at a specific temperature-rise criterion — one row of a datasheet's
+ * rated-current table. Manufacturer-agnostic: a vendor that quotes the rating at several
+ * self-heating criteria (e.g. Würth IR1 at ΔT=20 K and IR2 at ΔT=40 K) contributes one
+ * entry per criterion; a vendor that quotes a single unqualified rating keeps using the
+ * plain ratedCurrents array.
+ */
+export interface DatasheetRatedCurrent {
+    /**
+     * Rated DC current in Amperes at the stated temperature rise.
+     */
+    current: number;
+    /**
+     * Ambient reference temperature in degrees Celsius, when the datasheet states it.
+     */
+    temperature?: number;
+    /**
+     * Self-heating criterion: the temperature rise above ambient, in K, at which this current
+     * is rated. Vendors range from 10 K to 40 K for the same '1 A' class of part, so
+     * cross-manufacturer comparison is only valid on a common basis.
+     */
+    temperatureRise: number;
 }
 
 /**
@@ -3482,6 +4602,7 @@ export interface DatasheetSaturationCurrent {
 }
 
 export enum ElectricalSubtype {
+    CableCore = "cableCore",
     ChipBead = "chipBead",
     CommonModeChoke = "commonModeChoke",
     CoupledInductor = "coupledInductor",
@@ -3618,50 +4739,6 @@ export interface Part {
 }
 
 /**
- * Data-provenance trail (see provenance).
- *
- * Data-provenance trail for this part's datasheetInfo. A list, because different fields may
- * come from different sources (e.g. core specs from the manufacturer datasheet, current
- * rating from a distributor, a missing field back-filled by librarian enrichment).
- */
-export interface Provenance {
-    /**
-     * Optional: which datasheetInfo fields this source provided (for mixed-source records).
-     */
-    fields?: string[];
-    /**
-     * Date the data was retrieved (YYYY-MM-DD).
-     */
-    retrievedDate?: null | string;
-    /**
-     * Kind of source this data came from.
-     */
-    source: Source;
-    /**
-     * Human-readable source identifier, e.g. 'TI parametric API', 'WE - Passive
-     * Components.mdb', 'DigiKey'.
-     */
-    sourceName?: string;
-    /**
-     * URL the data was retrieved from, if applicable.
-     */
-    sourceUrl?: null | string;
-}
-
-/**
- * Kind of source this data came from.
- */
-export enum Source {
-    Distributor = "distributor",
-    LibrarianEnrichment = "librarianEnrichment",
-    Manual = "manual",
-    ManufacturerDatabase = "manufacturerDatabase",
-    ManufacturerDatasheet = "manufacturerDatasheet",
-    ManufacturerParametric = "manufacturerParametric",
-    Scrape = "scrape",
-}
-
-/**
  * Operating temperature range from the datasheet.
  *
  * Operating temperature range.
@@ -3680,6 +4757,141 @@ export interface Thermal {
      * Thermal resistance. Unit: K/W (numerically equivalent to °C/W).
      */
     thermalResistance?: number;
+}
+
+/**
+ * One magnetic shunt.
+ */
+export interface MagneticShunt {
+    /**
+     * The coordinates of the centre of the shunt, referred to the centre of the main column.
+     */
+    coordinates: number[];
+    /**
+     * Dimensions of the box enclosing the shunt: width radially, height along the column axis
+     * (the sheet thickness of a flat shunt), depth across the window.
+     */
+    dimensions: number[];
+    /**
+     * Air gaps left between the shunt and the columns it bridges.
+     */
+    gapToColumns?: MagneticShuntGapToColumns;
+    /**
+     * Material of the shunt, either the full core-material record or the name of one.
+     * Ferrite-polymer and flexible-ferrite sheets are described as core materials like any
+     * other permeable material.
+     */
+    material: CoreMaterial | string;
+    /**
+     * Name given to the shunt, used to refer to it from outputs and geometry.
+     */
+    name?: string;
+    /**
+     * Where the shunt sits: inWindow anywhere inside the winding window, betweenSections in the
+     * insulation gap between two sections, onColumn wrapped on or against a column so that it
+     * also carries main flux, outsideWindow outside the window against the core.
+     */
+    placement: MagneticShuntPlacement;
+    /**
+     * Segmentation of the shunt along its length, when it is built from several pieces
+     * separated by gaps instead of one continuous piece.
+     */
+    segments?: MagneticShuntSegment[];
+}
+
+/**
+ * Air gaps left between the shunt and the columns it bridges.
+ */
+export interface MagneticShuntGapToColumns {
+    /**
+     * Gap between the shunt and the inner (central) column. Unit: m.
+     */
+    inner?: number;
+    /**
+     * Gap between the shunt and the outer (lateral) column. Unit: m.
+     */
+    outer?: number;
+}
+
+/**
+ * Where the shunt sits: inWindow anywhere inside the winding window, betweenSections in the
+ * insulation gap between two sections, onColumn wrapped on or against a column so that it
+ * also carries main flux, outsideWindow outside the window against the core.
+ */
+export enum MagneticShuntPlacement {
+    BetweenSections = "betweenSections",
+    InWindow = "inWindow",
+    OnColumn = "onColumn",
+    OutsideWindow = "outsideWindow",
+}
+
+/**
+ * One piece of a segmented shunt and the gap that follows it.
+ */
+export interface MagneticShuntSegment {
+    /**
+     * Gap between this piece and the next. Unit: m.
+     */
+    gap?: number;
+    /**
+     * Length of the shunt piece. Unit: m.
+     */
+    length?: number;
+}
+
+/**
+ * A substitute or equivalent component that can replace this one.
+ */
+export interface SubstituteInfo {
+    /**
+     * Manufacturer of the substitute. Omitted on a 'successor' entry it means the same
+     * manufacturer as this part, since a manufacturer supersedes its own part; write it anyway,
+     * and it MUST be written when it differs.
+     */
+    manufacturer?: null | string;
+    /**
+     * Differences or caveats.
+     */
+    notes?: null | string;
+    /**
+     * Part number of the substitute.
+     */
+    partNumber: string;
+    /**
+     * Where this substitution was identified.
+     */
+    source?: SubstitutesInfoSource | null;
+    /**
+     * Kind of substitution. 'successor' is directional and asserts that THIS part is superseded
+     * by the named one - one hop, as the manufacturer states it, never inferred from an
+     * obsolete status or from a part-number pattern; a successor that is itself superseded
+     * names its own successor on its own record. The other values are symmetric: either part
+     * may be bought in place of the other.
+     */
+    type?: SubstitutesInfoType;
+}
+
+export enum SubstitutesInfoSource {
+    CrossReference = "cross-reference",
+    Distributor = "distributor",
+    Engineering = "engineering",
+    Manufacturer = "manufacturer",
+}
+
+/**
+ * Kind of substitution. 'successor' is directional and asserts that THIS part is superseded
+ * by the named one - one hop, as the manufacturer states it, never inferred from an
+ * obsolete status or from a part-number pattern; a successor that is itself superseded
+ * names its own successor on its own record. The other values are symmetric: either part
+ * may be bought in place of the other.
+ */
+export enum SubstitutesInfoType {
+    Downgrade = "downgrade",
+    DropIn = "drop-in",
+    Functional = "functional",
+    NearEquivalent = "near-equivalent",
+    Successor = "successor",
+    Upgrade = "upgrade",
 }
 
 /**
@@ -4586,6 +5798,7 @@ const typeMap: any = {
         { json: "inputs", js: "inputs", typ: r("Inputs") },
         { json: "magnetic", js: "magnetic", typ: r("Magnetic") },
         { json: "outputs", js: "outputs", typ: a(r("Outputs")) },
+        { json: "schemaVersion", js: "schemaVersion", typ: u(undefined, "") },
     ], false),
     "Inputs": o([
         { json: "designRequirements", js: "designRequirements", typ: r("DesignRequirements") },
@@ -4717,10 +5930,13 @@ const typeMap: any = {
     "Magnetic": o([
         { json: "coil", js: "coil", typ: u(undefined, r("Coil")) },
         { json: "core", js: "core", typ: u(undefined, r("MagneticCore")) },
+        { json: "coreElectricalReference", js: "coreElectricalReference", typ: u(undefined, r("CoreElectricalReference")) },
         { json: "distributorsInfo", js: "distributorsInfo", typ: u(undefined, a(r("DistributorInfo"))) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("MagneticManufacturerInfo")) },
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
+        { json: "shunts", js: "shunts", typ: u(undefined, a(r("MagneticShunt"))) },
+        { json: "substitutesInfo", js: "substitutesInfo", typ: u(undefined, a(r("SubstituteInfo"))) },
     ], false),
     "Coil": o([
         { json: "bobbin", js: "bobbin", typ: u(a(u(r("Bobbin"), "")), r("Bobbin"), "") },
@@ -4761,16 +5977,30 @@ const typeMap: any = {
         { json: "value", js: "value", typ: 3.14 },
     ], false),
     "BobbinFunctionalDescription": o([
+        { json: "base", js: "base", typ: u(undefined, r("BobbinBase")) },
         { json: "connections", js: "connections", typ: u(undefined, a(r("PinWindingConnection"))) },
         { json: "dimensions", js: "dimensions", typ: m(u(r("DimensionWithTolerance"), 3.14)) },
         { json: "family", js: "family", typ: r("BobbinFamily") },
         { json: "familySubtype", js: "familySubtype", typ: u(undefined, "") },
         { json: "material", js: "material", typ: u(undefined, u(r("InsulationMaterial"), "")) },
-        { json: "orientation", js: "orientation", typ: u(undefined, r("Orientation")) },
+        { json: "numberChambers", js: "numberChambers", typ: u(undefined, 0) },
+        { json: "orientation", js: "orientation", typ: u(undefined, r("OrientationEnum")) },
         { json: "pinout", js: "pinout", typ: u(undefined, r("Pinout")) },
         { json: "shape", js: "shape", typ: "" },
         { json: "type", js: "type", typ: r("FunctionalDescriptionType") },
         { json: "variant", js: "variant", typ: u(undefined, "") },
+    ], false),
+    "BobbinBase": o([
+        { json: "boatWidth", js: "boatWidth", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "height", js: "height", typ: r("DimensionWithTolerance") },
+        { json: "length", js: "length", typ: r("DimensionWithTolerance") },
+        { json: "maximumCoreHeight", js: "maximumCoreHeight", typ: u(undefined, 3.14) },
+        { json: "maximumCoreOuterDiameter", js: "maximumCoreOuterDiameter", typ: u(undefined, 3.14) },
+        { json: "mounting", js: "mounting", typ: r("OrientationEnum") },
+        { json: "pocketDepth", js: "pocketDepth", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "pocketInnerDiameter", js: "pocketInnerDiameter", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "standoff", js: "standoff", typ: r("DimensionWithTolerance") },
+        { json: "width", js: "width", typ: r("DimensionWithTolerance") },
     ], false),
     "PinWindingConnection": o([
         { json: "pin", js: "pin", typ: u(undefined, "") },
@@ -4779,9 +6009,12 @@ const typeMap: any = {
     "InsulationMaterial": o([
         { json: "aliases", js: "aliases", typ: u(undefined, a("")) },
         { json: "composition", js: "composition", typ: u(undefined, "") },
+        { json: "cti", js: "cti", typ: u(undefined, 3.14) },
         { json: "dielectricStrength", js: "dielectricStrength", typ: a(r("DielectricStrengthElement")) },
+        { json: "form", js: "form", typ: u(undefined, r("Form")) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: u(undefined, r("ManufacturerInfo")) },
         { json: "meltingPoint", js: "meltingPoint", typ: u(undefined, 3.14) },
+        { json: "minimumBendRadius", js: "minimumBendRadius", typ: u(undefined, a(r("MinimumBendRadiusElement"))) },
         { json: "name", js: "name", typ: "" },
         { json: "relativePermittivity", js: "relativePermittivity", typ: u(undefined, 3.14) },
         { json: "resistivity", js: "resistivity", typ: u(undefined, a(r("ResistivityPoint"))) },
@@ -4802,11 +6035,31 @@ const typeMap: any = {
         { json: "family", js: "family", typ: u(undefined, "") },
         { json: "name", js: "name", typ: "" },
         { json: "orderCode", js: "orderCode", typ: u(undefined, "") },
+        { json: "provenance", js: "provenance", typ: u(undefined, a(r("Provenance"))) },
         { json: "reference", js: "reference", typ: u(undefined, "") },
         { json: "series", js: "series", typ: u(undefined, "") },
         { json: "spiceModel", js: "spiceModel", typ: u(undefined, m("any")) },
         { json: "status", js: "status", typ: u(undefined, r("Status")) },
     ], "any"),
+    "Provenance": o([
+        { json: "derivation", js: "derivation", typ: u(undefined, "") },
+        { json: "fields", js: "fields", typ: u(undefined, a("")) },
+        { json: "retracted", js: "retracted", typ: u(undefined, true) },
+        { json: "retractionReason", js: "retractionReason", typ: u(undefined, "") },
+        { json: "retrievedDate", js: "retrievedDate", typ: u(undefined, u(null, "")) },
+        { json: "source", js: "source", typ: r("ProvenanceSource") },
+        { json: "sourceName", js: "sourceName", typ: u(undefined, "") },
+        { json: "sourceUrl", js: "sourceUrl", typ: u(undefined, u(null, "")) },
+        { json: "verification", js: "verification", typ: u(undefined, r("Verification")) },
+        { json: "verificationDate", js: "verificationDate", typ: u(undefined, Date) },
+        { json: "verificationMethod", js: "verificationMethod", typ: u(undefined, "") },
+    ], false),
+    "MinimumBendRadiusElement": o([
+        { json: "innerDiameter", js: "innerDiameter", typ: 3.14 },
+        { json: "provenance", js: "provenance", typ: a(r("Provenance")) },
+        { json: "value", js: "value", typ: 3.14 },
+        { json: "wallThickness", js: "wallThickness", typ: 3.14 },
+    ], false),
     "ResistivityPoint": o([
         { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
         { json: "value", js: "value", typ: 3.14 },
@@ -4824,22 +6077,37 @@ const typeMap: any = {
         { json: "coordinates", js: "coordinates", typ: u(undefined, a(3.14)) },
         { json: "dimensions", js: "dimensions", typ: a(3.14) },
         { json: "name", js: "name", typ: u(undefined, "") },
+        { json: "removable", js: "removable", typ: u(undefined, true) },
         { json: "rotation", js: "rotation", typ: u(undefined, a(3.14)) },
         { json: "shape", js: "shape", typ: r("PinShape") },
         { json: "type", js: "type", typ: r("PinDescriptionType") },
     ], false),
     "CoreBobbinProcessedDescription": o([
+        { json: "columnCornerRadius", js: "columnCornerRadius", typ: u(undefined, 3.14) },
         { json: "columnDepth", js: "columnDepth", typ: 3.14 },
         { json: "columnShape", js: "columnShape", typ: r("ColumnShape") },
         { json: "columnThickness", js: "columnThickness", typ: 3.14 },
         { json: "columnWidth", js: "columnWidth", typ: u(undefined, 3.14) },
         { json: "coordinates", js: "coordinates", typ: u(undefined, a(3.14)) },
+        { json: "dividers", js: "dividers", typ: u(undefined, a(r("BobbinDivider"))) },
         { json: "pins", js: "pins", typ: u(undefined, a(r("Pin"))) },
         { json: "wallThickness", js: "wallThickness", typ: 3.14 },
         { json: "windingWindows", js: "windingWindows", typ: a(r("WindingWindowElement")) },
     ], false),
+    "BobbinDivider": o([
+        { json: "coordinates", js: "coordinates", typ: a(3.14) },
+        { json: "crossingSlot", js: "crossingSlot", typ: u(undefined, r("DividerCrossingSlot")) },
+        { json: "height", js: "height", typ: u(undefined, 3.14) },
+        { json: "thickness", js: "thickness", typ: 3.14 },
+    ], false),
+    "DividerCrossingSlot": o([
+        { json: "angle", js: "angle", typ: u(undefined, 3.14) },
+        { json: "depth", js: "depth", typ: u(undefined, 3.14) },
+        { json: "width", js: "width", typ: u(undefined, 3.14) },
+    ], false),
     "WindingWindowElement": o([
         { json: "area", js: "area", typ: u(undefined, 3.14) },
+        { json: "column", js: "column", typ: u(undefined, 0) },
         { json: "coordinates", js: "coordinates", typ: u(undefined, a(3.14)) },
         { json: "height", js: "height", typ: u(undefined, 3.14) },
         { json: "sectionsAlignment", js: "sectionsAlignment", typ: u(undefined, r("CoilAlignment")) },
@@ -4856,15 +6124,51 @@ const typeMap: any = {
         { json: "name", js: "name", typ: "" },
         { json: "numberParallels", js: "numberParallels", typ: 0 },
         { json: "numberTurns", js: "numberTurns", typ: 0 },
+        { json: "windingWindow", js: "windingWindow", typ: u(undefined, 0) },
         { json: "wire", js: "wire", typ: u(r("Wire"), "") },
         { json: "woundWith", js: "woundWith", typ: u(undefined, a("")) },
     ], false),
     "ConnectionElement": o([
+        { json: "diameter", js: "diameter", typ: u(undefined, 3.14) },
         { json: "direction", js: "direction", typ: u(undefined, r("Direction")) },
+        { json: "end", js: "end", typ: u(undefined, r("End")) },
+        { json: "footprint", js: "footprint", typ: u(undefined, "") },
+        { json: "gender", js: "gender", typ: u(undefined, r("Gender")) },
+        { json: "landPattern", js: "landPattern", typ: u(undefined, r("LandPattern")) },
         { json: "length", js: "length", typ: u(undefined, 3.14) },
         { json: "metric", js: "metric", typ: u(undefined, 0) },
+        { json: "mounting", js: "mounting", typ: u(undefined, r("ConnectionMounting")) },
+        { json: "padDepth", js: "padDepth", typ: u(undefined, 3.14) },
+        { json: "padWidth", js: "padWidth", typ: u(undefined, 3.14) },
+        { json: "parallel", js: "parallel", typ: u(undefined, 0) },
         { json: "pinName", js: "pinName", typ: u(undefined, "") },
+        { json: "sleeve", js: "sleeve", typ: u(undefined, r("ConnectionSleeve")) },
         { json: "type", js: "type", typ: u(undefined, r("ConnectionType")) },
+    ], false),
+    "LandPattern": o([
+        { json: "originDatum", js: "originDatum", typ: u(undefined, r("OriginDatum")) },
+        { json: "pads", js: "pads", typ: a(r("LandPatternPad")) },
+        { json: "pattern", js: "pattern", typ: u(undefined, r("Pattern")) },
+        { json: "recommendedBoardThickness", js: "recommendedBoardThickness", typ: u(undefined, r("DimensionWithTolerance")) },
+    ], false),
+    "LandPatternPad": o([
+        { json: "drill", js: "drill", typ: u(undefined, 3.14) },
+        { json: "height", js: "height", typ: u(undefined, 3.14) },
+        { json: "id", js: "id", typ: "" },
+        { json: "plated", js: "plated", typ: u(undefined, true) },
+        { json: "rotation", js: "rotation", typ: u(undefined, 3.14) },
+        { json: "shape", js: "shape", typ: r("Shape") },
+        { json: "slotLength", js: "slotLength", typ: u(undefined, 3.14) },
+        { json: "width", js: "width", typ: u(undefined, 3.14) },
+        { json: "x", js: "x", typ: 3.14 },
+        { json: "y", js: "y", typ: 3.14 },
+    ], false),
+    "ConnectionSleeve": o([
+        { json: "innerDiameter", js: "innerDiameter", typ: 3.14 },
+        { json: "material", js: "material", typ: u(r("InsulationMaterial"), "") },
+        { json: "numberLayers", js: "numberLayers", typ: u(undefined, 0) },
+        { json: "overlapIntoWinding", js: "overlapIntoWinding", typ: u(undefined, 3.14) },
+        { json: "wallThickness", js: "wallThickness", typ: 3.14 },
     ], false),
     "Wire": o([
         { json: "conductingDiameter", js: "conductingDiameter", typ: u(undefined, r("DimensionWithTolerance")) },
@@ -4930,13 +6234,46 @@ const typeMap: any = {
         { json: "dimensions", js: "dimensions", typ: a(3.14) },
         { json: "name", js: "name", typ: "" },
         { json: "partialWindings", js: "partialWindings", typ: a(r("PartialWinding")) },
+        { json: "pcb", js: "pcb", typ: u(undefined, r("PCB")) },
         { json: "sectionsOrientation", js: "sectionsOrientation", typ: r("WindingOrientation") },
         { json: "type", js: "type", typ: r("WiringTechnology") },
+        { json: "windingWindow", js: "windingWindow", typ: u(undefined, 0) },
     ], false),
     "PartialWinding": o([
         { json: "connections", js: "connections", typ: u(undefined, a(r("ConnectionElement"))) },
         { json: "parallelsProportion", js: "parallelsProportion", typ: a(3.14) },
         { json: "winding", js: "winding", typ: "" },
+    ], false),
+    "PCB": o([
+        { json: "designRules", js: "designRules", typ: r("PCBDesignRules") },
+        { json: "outerDielectric", js: "outerDielectric", typ: u(undefined, r("PCBOuterDielectric")) },
+        { json: "outline", js: "outline", typ: r("PCBOutline") },
+        { json: "vias", js: "vias", typ: r("PCBVias") },
+    ], false),
+    "PCBDesignRules": o([
+        { json: "copperToEdge", js: "copperToEdge", typ: u(undefined, 3.14) },
+        { json: "coreToTrack", js: "coreToTrack", typ: 3.14 },
+        { json: "holeToCopper", js: "holeToCopper", typ: u(undefined, 3.14) },
+        { json: "holeToHole", js: "holeToHole", typ: u(undefined, 3.14) },
+        { json: "trackToTrack", js: "trackToTrack", typ: 3.14 },
+        { json: "viaToTrack", js: "viaToTrack", typ: 3.14 },
+        { json: "viaToVia", js: "viaToVia", typ: 3.14 },
+    ], false),
+    "PCBOuterDielectric": o([
+        { json: "bottomThickness", js: "bottomThickness", typ: u(undefined, 3.14) },
+        { json: "material", js: "material", typ: u(undefined, "") },
+        { json: "topThickness", js: "topThickness", typ: u(undefined, 3.14) },
+    ], false),
+    "PCBOutline": o([
+        { json: "coreCutoutClearance", js: "coreCutoutClearance", typ: u(undefined, 3.14) },
+        { json: "cornerRadius", js: "cornerRadius", typ: u(undefined, 3.14) },
+        { json: "depth", js: "depth", typ: 3.14 },
+        { json: "width", js: "width", typ: 3.14 },
+    ], false),
+    "PCBVias": o([
+        { json: "diameter", js: "diameter", typ: r("DimensionWithTolerance") },
+        { json: "drillDiameter", js: "drillDiameter", typ: r("DimensionWithTolerance") },
+        { json: "type", js: "type", typ: u(undefined, r("ViasType")) },
     ], false),
     "Layer": o([
         { json: "additionalCoordinates", js: "additionalCoordinates", typ: u(undefined, a(a(3.14))) },
@@ -4968,6 +6305,7 @@ const typeMap: any = {
         { json: "type", js: "type", typ: r("ElectricalType") },
         { json: "windingOrder", js: "windingOrder", typ: u(undefined, r("WindingOrder")) },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, r("WindingStyle")) },
+        { json: "windingWindow", js: "windingWindow", typ: u(undefined, 0) },
     ], false),
     "MarginInfo": o([
         { json: "bottomOrRightWidth", js: "bottomOrRightWidth", typ: 3.14 },
@@ -5003,7 +6341,7 @@ const typeMap: any = {
     "CoreFunctionalDescription": o([
         { json: "coating", js: "coating", typ: u(undefined, u(r("CoreCoating"), "")) },
         { json: "gapping", js: "gapping", typ: a(r("CoreGap")) },
-        { json: "material", js: "material", typ: u(r("CoreMaterial"), "") },
+        { json: "material", js: "material", typ: u(a(u(r("CoreMaterial"), "")), r("CoreMaterial"), "") },
         { json: "numberStacks", js: "numberStacks", typ: u(undefined, 0) },
         { json: "shape", js: "shape", typ: u(r("CoreShape"), "") },
         { json: "type", js: "type", typ: r("CoreType") },
@@ -5034,15 +6372,17 @@ const typeMap: any = {
         { json: "family", js: "family", typ: u(undefined, "") },
         { json: "heatCapacity", js: "heatCapacity", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "heatConductivity", js: "heatConductivity", typ: u(undefined, r("DimensionWithTolerance")) },
+        { json: "laminationThickness", js: "laminationThickness", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "manufacturerInfo", js: "manufacturerInfo", typ: r("ManufacturerInfo") },
         { json: "massLosses", js: "massLosses", typ: u(undefined, m(a(u(a(r("MassLossesPoint")), r("MagnetecCoreLossesMethodData"))))) },
         { json: "material", js: "material", typ: r("MaterialType") },
         { json: "materialComposition", js: "materialComposition", typ: u(undefined, r("MaterialComposition")) },
         { json: "name", js: "name", typ: "" },
         { json: "permeability", js: "permeability", typ: r("Permeabilities") },
+        { json: "permittivity", js: "permittivity", typ: u(undefined, r("Permittivities")) },
         { json: "recommendations", js: "recommendations", typ: u(undefined, r("CoreMaterialRecommendations")) },
         { json: "remanence", js: "remanence", typ: u(undefined, a(r("BhCycleElement"))) },
-        { json: "resistivity", js: "resistivity", typ: a(r("ResistivityPoint")) },
+        { json: "resistivity", js: "resistivity", typ: u(undefined, a(r("ResistivityPoint"))) },
         { json: "saturation", js: "saturation", typ: a(r("BhCycleElement")) },
         { json: "type", js: "type", typ: r("CoreMaterialType") },
         { json: "volumetricLosses", js: "volumetricLosses", typ: m(a(u(a(r("VolumetricLossesPoint")), r("CoreLossesMethodData")))) },
@@ -5116,6 +6456,19 @@ const typeMap: any = {
     "ComplexPermeabilityData": o([
         { json: "imaginary", js: "imaginary", typ: u(a(r("PermeabilityPoint")), r("PermeabilityPoint")) },
         { json: "real", js: "real", typ: u(a(r("PermeabilityPoint")), r("PermeabilityPoint")) },
+    ], false),
+    "Permittivities": o([
+        { json: "complex", js: "complex", typ: u(undefined, r("ComplexPermittivityData")) },
+    ], false),
+    "ComplexPermittivityData": o([
+        { json: "imaginary", js: "imaginary", typ: u(a(r("PermittivityPoint")), r("PermittivityPoint")) },
+        { json: "real", js: "real", typ: u(a(r("PermittivityPoint")), r("PermittivityPoint")) },
+    ], false),
+    "PermittivityPoint": o([
+        { json: "frequency", js: "frequency", typ: u(undefined, 3.14) },
+        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "tolerance", js: "tolerance", typ: u(undefined, 3.14) },
+        { json: "value", js: "value", typ: 3.14 },
     ], false),
     "CoreMaterialRecommendations": o([
         { json: "maximumFrequency", js: "maximumFrequency", typ: u(undefined, 3.14) },
@@ -5199,10 +6552,12 @@ const typeMap: any = {
     "ColumnElement": o([
         { json: "area", js: "area", typ: 3.14 },
         { json: "coordinates", js: "coordinates", typ: a(3.14) },
+        { json: "cornerRadius", js: "cornerRadius", typ: u(undefined, 3.14) },
         { json: "depth", js: "depth", typ: 3.14 },
         { json: "height", js: "height", typ: 3.14 },
         { json: "minimumDepth", js: "minimumDepth", typ: u(undefined, 3.14) },
         { json: "minimumWidth", js: "minimumWidth", typ: u(undefined, 3.14) },
+        { json: "name", js: "name", typ: u(undefined, "") },
         { json: "shape", js: "shape", typ: r("ColumnShape") },
         { json: "type", js: "type", typ: r("ColumnType") },
         { json: "width", js: "width", typ: 3.14 },
@@ -5213,6 +6568,12 @@ const typeMap: any = {
         { json: "effectiveVolume", js: "effectiveVolume", typ: 3.14 },
         { json: "minimumArea", js: "minimumArea", typ: 3.14 },
     ], false),
+    "CoreElectricalReference": o([
+        { json: "isolationSide", js: "isolationSide", typ: u(undefined, r("IsolationSide")) },
+        { json: "terminal", js: "terminal", typ: u(undefined, r("WindingTerminal")) },
+        { json: "type", js: "type", typ: r("CoreElectricalReferenceType") },
+        { json: "winding", js: "winding", typ: u(undefined, "") },
+    ], false),
     "MagneticManufacturerInfo": o([
         { json: "datasheetInfo", js: "datasheetInfo", typ: u(undefined, r("DatasheetInfo")) },
         { json: "datasheetUrl", js: "datasheetUrl", typ: u(undefined, "") },
@@ -5220,6 +6581,7 @@ const typeMap: any = {
         { json: "family", js: "family", typ: u(undefined, "") },
         { json: "name", js: "name", typ: "" },
         { json: "orderCode", js: "orderCode", typ: u(undefined, "") },
+        { json: "provenance", js: "provenance", typ: u(undefined, a(r("Provenance"))) },
         { json: "reference", js: "reference", typ: u(undefined, "") },
         { json: "series", js: "series", typ: u(undefined, "") },
         { json: "spiceModel", js: "spiceModel", typ: u(undefined, m("any")) },
@@ -5249,7 +6611,10 @@ const typeMap: any = {
         { json: "maximumImpedance", js: "maximumImpedance", typ: u(undefined, 3.14) },
         { json: "name", js: "name", typ: u(undefined, "") },
         { json: "numberTurns", js: "numberTurns", typ: u(undefined, 3.14) },
+        { json: "ratedCurrentPoints", js: "ratedCurrentPoints", typ: u(undefined, a(r("DatasheetRatedCurrent"))) },
         { json: "ratedCurrents", js: "ratedCurrents", typ: u(undefined, a(3.14)) },
+        { json: "reactancePoints", js: "reactancePoints", typ: u(undefined, a(r("DatasheetReactancePoint"))) },
+        { json: "resistancePoints", js: "resistancePoints", typ: u(undefined, a(r("DatasheetResistancePoint"))) },
         { json: "saturationCurrentPeak", js: "saturationCurrentPeak", typ: u(undefined, 3.14) },
         { json: "saturationCurrents", js: "saturationCurrents", typ: u(undefined, a(r("DatasheetSaturationCurrent"))) },
         { json: "selfResonantFrequency", js: "selfResonantFrequency", typ: u(undefined, 3.14) },
@@ -5263,16 +6628,23 @@ const typeMap: any = {
         { json: "ratedVoltageAC", js: "ratedVoltageAC", typ: u(undefined, 3.14) },
         { json: "ratedVoltageDC", js: "ratedVoltageDC", typ: u(undefined, 3.14) },
         { json: "commonModeFilter", js: "commonModeFilter", typ: u(undefined, r("CommonModeFilter")) },
+        { json: "commonModeInsertionLossPoints", js: "commonModeInsertionLossPoints", typ: u(undefined, a(r("InsertionLossAtFrequency"))) },
+        { json: "differentialModeImpedancePoints", js: "differentialModeImpedancePoints", typ: u(undefined, a(r("DatasheetImpedancePoint"))) },
+        { json: "differentialModeInsertionLossPoints", js: "differentialModeInsertionLossPoints", typ: u(undefined, a(r("InsertionLossAtFrequency"))) },
         { json: "impedanceTolerance", js: "impedanceTolerance", typ: u(undefined, 3.14) },
         { json: "numberPulsesPoints", js: "numberPulsesPoints", typ: u(undefined, a(r("DatasheetNumberPulsesPoint"))) },
         { json: "pulsePoints", js: "pulsePoints", typ: u(undefined, a(r("DatasheetPulsePoint"))) },
-        { json: "reactancePoints", js: "reactancePoints", typ: u(undefined, a(r("DatasheetReactancePoint"))) },
-        { json: "resistancePoints", js: "resistancePoints", typ: u(undefined, a(r("DatasheetResistancePoint"))) },
+        { json: "maximumCableOuterDiameter", js: "maximumCableOuterDiameter", typ: u(undefined, 3.14) },
+        { json: "mountingForm", js: "mountingForm", typ: u(undefined, r("MountingForm")) },
     ], false),
     "CommonModeFilter": o([
         { json: "attenuation", js: "attenuation", typ: u(undefined, 3.14) },
         { json: "attenuationTestCondition", js: "attenuationTestCondition", typ: u(undefined, "") },
         { json: "cutOffFrequency", js: "cutOffFrequency", typ: u(undefined, 3.14) },
+    ], false),
+    "InsertionLossAtFrequency": o([
+        { json: "frequency", js: "frequency", typ: 3.14 },
+        { json: "insertionLoss", js: "insertionLoss", typ: 3.14 },
     ], false),
     "DatasheetImpedancePoint": o([
         { json: "current", js: "current", typ: u(undefined, 3.14) },
@@ -5294,6 +6666,11 @@ const typeMap: any = {
         { json: "pulseCurrent", js: "pulseCurrent", typ: 3.14 },
         { json: "pulseLength", js: "pulseLength", typ: 3.14 },
         { json: "winding", js: "winding", typ: u(undefined, "") },
+    ], false),
+    "DatasheetRatedCurrent": o([
+        { json: "current", js: "current", typ: 3.14 },
+        { json: "temperature", js: "temperature", typ: u(undefined, 3.14) },
+        { json: "temperatureRise", js: "temperatureRise", typ: 3.14 },
     ], false),
     "DatasheetReactancePoint": o([
         { json: "current", js: "current", typ: u(undefined, 3.14) },
@@ -5342,17 +6719,34 @@ const typeMap: any = {
         { json: "shielded", js: "shielded", typ: u(undefined, true) },
         { json: "windingStyle", js: "windingStyle", typ: u(undefined, "") },
     ], false),
-    "Provenance": o([
-        { json: "fields", js: "fields", typ: u(undefined, a("")) },
-        { json: "retrievedDate", js: "retrievedDate", typ: u(undefined, u(null, "")) },
-        { json: "source", js: "source", typ: r("Source") },
-        { json: "sourceName", js: "sourceName", typ: u(undefined, "") },
-        { json: "sourceUrl", js: "sourceUrl", typ: u(undefined, u(null, "")) },
-    ], false),
     "Thermal": o([
         { json: "operatingTemperature", js: "operatingTemperature", typ: u(undefined, r("DimensionWithTolerance")) },
         { json: "temperatureRise", js: "temperatureRise", typ: u(undefined, 3.14) },
         { json: "thermalResistance", js: "thermalResistance", typ: u(undefined, 3.14) },
+    ], false),
+    "MagneticShunt": o([
+        { json: "coordinates", js: "coordinates", typ: a(3.14) },
+        { json: "dimensions", js: "dimensions", typ: a(3.14) },
+        { json: "gapToColumns", js: "gapToColumns", typ: u(undefined, r("MagneticShuntGapToColumns")) },
+        { json: "material", js: "material", typ: u(r("CoreMaterial"), "") },
+        { json: "name", js: "name", typ: u(undefined, "") },
+        { json: "placement", js: "placement", typ: r("MagneticShuntPlacement") },
+        { json: "segments", js: "segments", typ: u(undefined, a(r("MagneticShuntSegment"))) },
+    ], false),
+    "MagneticShuntGapToColumns": o([
+        { json: "inner", js: "inner", typ: u(undefined, 3.14) },
+        { json: "outer", js: "outer", typ: u(undefined, 3.14) },
+    ], false),
+    "MagneticShuntSegment": o([
+        { json: "gap", js: "gap", typ: u(undefined, 3.14) },
+        { json: "length", js: "length", typ: u(undefined, 3.14) },
+    ], false),
+    "SubstituteInfo": o([
+        { json: "manufacturer", js: "manufacturer", typ: u(undefined, u(null, "")) },
+        { json: "notes", js: "notes", typ: u(undefined, u(null, "")) },
+        { json: "partNumber", js: "partNumber", typ: "" },
+        { json: "source", js: "source", typ: u(undefined, u(r("SubstitutesInfoSource"), null)) },
+        { json: "type", js: "type", typ: u(undefined, r("SubstitutesInfoType")) },
     ], false),
     "Outputs": o([
         { json: "coreLosses", js: "coreLosses", typ: u(undefined, r("CoreLossesOutput")) },
@@ -5674,6 +7068,10 @@ const typeMap: any = {
         "unipolarRectangular",
         "unipolarTriangular",
     ],
+    "OrientationEnum": [
+        "horizontal",
+        "vertical",
+    ],
     "BobbinFamily": [
         "e",
         "ec",
@@ -5688,6 +7086,34 @@ const typeMap: any = {
         "rm",
         "t",
         "u",
+    ],
+    "Form": [
+        "film",
+        "sleeve",
+        "tape",
+        "varnish",
+    ],
+    "ProvenanceSource": [
+        "derived",
+        "distributor",
+        "librarianEnrichment",
+        "manual",
+        "manufacturerDatabase",
+        "manufacturerDatasheet",
+        "manufacturerParametric",
+        "scrape",
+    ],
+    "Verification": [
+        "citationOnly",
+        "disproven",
+        "documentUnreadable",
+        "existenceConfirmed",
+        "inferredNotVerified",
+        "notAttempted",
+        "partNamed",
+        "seriesConfirmed",
+        "sourceUnreachable",
+        "valuesReadFromSource",
     ],
     "Status": [
         "nrnd",
@@ -5708,10 +7134,6 @@ const typeMap: any = {
         "220",
         "250",
         "Y",
-    ],
-    "Orientation": [
-        "horizontal",
-        "vertical",
     ],
     "PinShape": [
         "irregular",
@@ -5754,6 +7176,39 @@ const typeMap: any = {
         "input",
         "output",
     ],
+    "End": [
+        "finish",
+        "start",
+        "tap",
+    ],
+    "Gender": [
+        "female",
+        "male",
+    ],
+    "OriginDatum": [
+        "bodyCenter",
+        "other",
+        "padCentroid",
+        "pin1",
+    ],
+    "Shape": [
+        "oval",
+        "rectangle",
+        "round",
+        "roundedRectangle",
+    ],
+    "Pattern": [
+        "custom",
+        "dualRow",
+        "grid",
+        "singleRow",
+    ],
+    "ConnectionMounting": [
+        "blind",
+        "castellated",
+        "surface",
+        "throughHole",
+    ],
     "InsulationWireCoatingType": [
         "bare",
         "enamelled",
@@ -5779,6 +7234,11 @@ const typeMap: any = {
         "cylindrical",
         "polar",
     ],
+    "ViasType": [
+        "blind",
+        "buried",
+        "through",
+    ],
     "ElectricalType": [
         "conduction",
         "insulation",
@@ -5800,6 +7260,7 @@ const typeMap: any = {
     "CoatingType": [
         "epoxy",
         "glass",
+        "magneticEpoxy",
         "nylon",
         "parylene",
     ],
@@ -5830,6 +7291,7 @@ const typeMap: any = {
         "FeNiMo",
         "FeSi",
         "FeSiAl",
+        "FeSiCr",
         "iron",
         "MgZn",
         "MnZn",
@@ -5857,21 +7319,35 @@ const typeMap: any = {
         "tdg",
     ],
     "CoreShapeFamily": [
+        "block",
         "c",
         "drum",
+        "drumPlate",
+        "drumRing",
+        "drumSemishielded",
+        "ds",
         "e",
         "ec",
+        "eer",
+        "ef",
         "efd",
         "ei",
         "el",
         "elp",
         "ep",
+        "epc",
+        "epq",
+        "ept",
+        "epw",
         "epx",
         "eq",
         "er",
         "etd",
         "h",
+        "hs",
+        "lep",
         "lp",
+        "molded",
         "p",
         "planarE",
         "planarEL",
@@ -5881,6 +7357,7 @@ const typeMap: any = {
         "pqi",
         "rm",
         "rod",
+        "rs",
         "t",
         "u",
         "ui",
@@ -5893,6 +7370,7 @@ const typeMap: any = {
     ],
     "CoreType": [
         "closedShape",
+        "openShape",
         "pieceAndPlate",
         "toroidal",
         "twoPieceSet",
@@ -5909,7 +7387,23 @@ const typeMap: any = {
         "central",
         "lateral",
     ],
+    "WindingTerminal": [
+        "end",
+        "start",
+    ],
+    "CoreElectricalReferenceType": [
+        "floating",
+        "grounded",
+        "tiedToWinding",
+    ],
+    "MountingForm": [
+        "screwable",
+        "snapOn",
+        "solidRing",
+        "split",
+    ],
     "ElectricalSubtype": [
+        "cableCore",
         "chipBead",
         "commonModeChoke",
         "coupledInductor",
@@ -5919,14 +7413,25 @@ const typeMap: any = {
     "ModelSubtype": [
         "chipBead",
     ],
-    "Source": [
+    "MagneticShuntPlacement": [
+        "betweenSections",
+        "inWindow",
+        "onColumn",
+        "outsideWindow",
+    ],
+    "SubstitutesInfoSource": [
+        "cross-reference",
         "distributor",
-        "librarianEnrichment",
-        "manual",
-        "manufacturerDatabase",
-        "manufacturerDatasheet",
-        "manufacturerParametric",
-        "scrape",
+        "engineering",
+        "manufacturer",
+    ],
+    "SubstitutesInfoType": [
+        "downgrade",
+        "drop-in",
+        "functional",
+        "near-equivalent",
+        "successor",
+        "upgrade",
     ],
     "ResultOrigin": [
         "manufacturer",

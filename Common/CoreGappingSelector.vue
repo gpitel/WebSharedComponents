@@ -121,8 +121,14 @@ export default {
             }
             else if (this.localData.gapType == 'Ground') {
                 if (this.previousGapType == "Distributed") {
+                    // ABT #862: merging N distributed gaps back into one ground gap must
+                    // preserve the total, so multiply by the number of gaps the user
+                    // actually had. This was hardcoded to 3 — right only for someone who
+                    // had left it at the default. Set it to 5 and switching to Ground
+                    // silently turned 5L of gap into 3L, changing the inductance without
+                    // touching a field the user was looking at.
+                    this.localData.gapLength *= Math.max(1, this.localData.numberGaps);
                     this.localData.numberGaps = 1;
-                    this.localData.gapLength *= 3;
                 };
                 gapping.push({
                     "length": this.localData.gapLength,

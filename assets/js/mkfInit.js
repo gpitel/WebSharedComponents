@@ -1,5 +1,5 @@
 // mkfInit.js - Helper to initialize MKF in either main-thread or worker mode
-import { initWorker, setMkf, waitForMkf, isWorkerMode } from '/WebSharedComponents/assets/js/mkfRuntime';
+import { initWorker, setMkf, waitForMkf, isWorkerMode, setEngineRestoreHandler } from '/WebSharedComponents/assets/js/mkfRuntime';
 import { getVersionedWasmUrl } from '/src/stores/storeVersioning';
 
 /**
@@ -164,6 +164,9 @@ export async function loadMkfData(mkf, options = {}) {
         // This file may not exist in all builds
         console.debug('No cores data found:', error);
     }
+
+    // A worker the watchdog replaces comes back empty; load the same data into it.
+    setEngineRestoreHandler((restartedMkf) => loadMkfData(restartedMkf, options));
 
     onProgress('Ready!');
 }

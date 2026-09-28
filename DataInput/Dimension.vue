@@ -1,5 +1,6 @@
 <script setup>
 import { toTitleCase, getMultiplier, removeTrailingZeroes } from '../assets/js/utils.js'
+import { displayEntries, bestEntry, entryByValue, toDisplay, fromDisplay, unitSystem } from '../assets/js/units.js'
 import DimensionUnit from './DimensionUnit.vue'
 import InputNumber from 'primevue/inputnumber'
 </script>
@@ -9,14 +10,11 @@ export default {
     emits: ['update'],
     props: {
         // --- Binding ---
-        // The form object holding the value, plus the key within it. The value in
-        // base SI units lives at modelValue[name]. (A future change may switch this
-        // to a plain v-model on the value.)
         modelValue: { type: Object, required: true },
         name: { type: String, required: true },
         defaultValue: { type: Number },
-        // Bump to force the component to re-read modelValue[name] after an external
-        // change (the cached scaled value does not react to it on its own).
+        // Bump to force the component to re-read modelValue[name] after an
+        // external change (the cached scaled value does not react on its own).
         forceUpdate: { type: Number, default: 0 },
 
         // --- Label ---
@@ -26,8 +24,8 @@ export default {
         dataTestLabel: { type: String, default: '' },
 
         // --- Unit ---
-        unit: { type: String, default: null },          // SI unit with a metric-prefix selector
-        altUnit: { type: String, default: null },         // fixed unit shown as a static box (no selector)
+        unit: { type: String, default: null },
+        altUnit: { type: String, default: null },
         unitMin: { type: Number, default: null },
         unitMax: { type: Number, default: null },
         useMetricPrefixes: { type: Boolean, default: true },
@@ -43,18 +41,12 @@ export default {
 
         // --- State ---
         disabled: { type: Boolean, default: false },
-        // Set false to hide the increment/decrement spinner buttons.
         showButtons: { type: Boolean, default: true },
-        // When true the field is allowed to hold no value: it renders an empty
-        // but editable input (instead of rendering nothing), keeps the unit
-        // selector visible, and clearing it writes null to modelValue[name] so
-        // the consumer gets None. Default false preserves the original
-        // required-value behaviour for every existing call site.
         optional: { type: Boolean, default: false },
 
         // --- Deprecated: accepted but ignored ---
         // Styling now comes entirely from the PrimeVue theme, and the value:unit
-        // split is a fixed 2fr:1fr grid. These props remain declared only so the
+        // split is a fixed flex ratio. These props remain declared only so the
         // ~40 existing call sites don't emit attribute-fallthrough warnings or
         // leak `textcolor="[object Object]"` onto the root element. Do not use
         // them in new code — remove them from a call site when you next touch it.
@@ -72,6 +64,21 @@ export default {
         const localData = { multiplier: null, scaledValue: null }
         const errorMessages = ''
         const initial = this.modelValue[this.name]
+        // Imperial mode (ABT #1099): the unit dropdown lists display units
+        // (in / mil / °F …) instead of SI prefixes; the stored value stays SI.
+        const entries = displayEntries(this.unit)
+        if (entries != null) {
+            const seed = initial != null ? initial : this.defaultValue
+            if (seed != null) {
+                const entry = bestEntry(seed, entries)
+                localData.multiplier = entry.value
+                localData.scaledValue = removeTrailingZeroes(toDisplay(seed, entry), this.numberDecimals)
+            }
+            else if (this.optional) {
+                localData.multiplier = entries[0].value
+            }
+            return { localData, errorMessages, shortenedName: this.name, inputKey: 0 }
+        }
         if (initial == null && this.defaultValue != null) {
             const aux = getMultiplier(this.defaultValue, 0.001)
             localData.scaledValue = removeTrailingZeroes(aux.scaledValue, this.numberDecimals)
@@ -105,9 +112,6 @@ export default {
                 }
             }
         }
-        // An optional field can start empty (scaledValue null). It still shows
-        // the unit selector, so give it a sensible in-range multiplier even with
-        // no value, mirroring the unitMin/unitMax clamping above.
         if (this.optional && localData.multiplier == null) {
             let mult = this.defaultZeroUnit != null ? this.defaultZeroUnit : 1
             if (this.unitMin != null && mult < this.unitMin) mult = this.unitMin
@@ -118,14 +122,29 @@ export default {
             localData,
             errorMessages,
             shortenedName: this.name,
+            inputKey: 0,
         }
     },
     watch: {
         forceUpdate() {
             if (!isNaN(this.modelValue[this.name])) this.update(this.modelValue[this.name])
         },
+        // Switching the unit system re-reads the SI value in the new units.
+        activeUnitSystem() {
+            this.localData.multiplier = null
+            if (this.modelValue[this.name] != null && !isNaN(this.modelValue[this.name])) {
+                this.update(this.modelValue[this.name])
+            }
+            this.inputKey += 1
+        },
     },
     computed: {
+        activeUnitSystem() {
+            return unitSystem()
+        },
+        displayUnitEntries() {
+            return displayEntries(this.unit)
+        },
         displayValue() {
             if (this.localData.scaledValue == null) return null
             return Number(removeTrailingZeroes(this.localData.scaledValue * this.visualScale, this.numberDecimals))
@@ -171,17 +190,9 @@ export default {
             }
             return hasError
         },
-        update(actualValue) {
-            // Optional fields may be cleared back to "no value": write null to
-            // the bound model, leave the input empty, and skip clamping.
-            if (this.optional && (actualValue === null || actualValue === undefined
-                || actualValue === '' || Number.isNaN(Number(actualValue)))) {
-                this.localData.scaledValue = null
-                this.errorMessages = ''
-                this.modelValue[this.name] = null
-                this.$emit('update', null, this.name)
-                return
-            }
+        // Shared min/max clamp honouring allowNegative/allowZero — used by both
+        // typed-value updates and unit changes so the two paths cannot drift.
+        clampValue(actualValue) {
             if (this.max != null) {
                 if (this.allowNegative) {
                     if (Math.abs(actualValue) > this.max) actualValue = this.max * Math.sign(actualValue)
@@ -195,7 +206,29 @@ export default {
                     else if (actualValue < this.min) actualValue = this.min
                 } else if (actualValue < this.min) actualValue = this.min
             }
-            actualValue = Number(actualValue)
+            return actualValue
+        },
+        update(actualValue) {
+            if (this.optional && (actualValue === null || actualValue === undefined
+                || actualValue === '' || Number.isNaN(Number(actualValue)))) {
+                this.localData.scaledValue = null
+                this.errorMessages = ''
+                this.modelValue[this.name] = null
+                this.$emit('update', null, this.name)
+                return
+            }
+            actualValue = this.clampValue(Number(actualValue))
+            if (this.displayUnitEntries != null) {
+                const entry = bestEntry(actualValue, this.displayUnitEntries)
+                this.localData.multiplier = entry.value
+                this.localData.scaledValue = removeTrailingZeroes(toDisplay(actualValue, entry), this.numberDecimals)
+                const hasError = this.checkErrors()
+                if (!hasError) {
+                    this.modelValue[this.name] = actualValue
+                    this.$emit('update', actualValue, this.name)
+                }
+                return
+            }
             if (this.unit != null) {
                 const aux = getMultiplier(actualValue, 0.001)
                 let mult = aux.multiplier
@@ -215,17 +248,80 @@ export default {
                 this.$emit('update', actualValue, this.name)
             }
         },
-        changeMultiplier() {
+        changeMultiplier(newMultiplier) {
             // Changing the unit on an empty optional field must not materialise a value.
-            if (this.optional && this.localData.scaledValue == null) return
-            this.update(this.localData.scaledValue * this.localData.multiplier)
+            if (this.optional && this.localData.scaledValue == null) {
+                this.localData.multiplier = newMultiplier
+                return
+            }
+            if (this.displayUnitEntries != null) {
+                // Same rule as below: the displayed number stays, the SI value follows.
+                const entry = entryByValue(this.displayUnitEntries, newMultiplier)
+                const newActualValue = this.clampValue(fromDisplay(this.localData.scaledValue ?? 0, entry))
+                this.localData.multiplier = newMultiplier
+                this.localData.scaledValue = removeTrailingZeroes(toDisplay(newActualValue, entry), this.numberDecimals)
+                const hasError = this.checkErrors()
+                if (!hasError) {
+                    this.modelValue[this.name] = newActualValue
+                    this.$emit('update', newActualValue, this.name)
+                }
+                return
+            }
+            // Keep the displayed number unchanged; only the unit changes so the
+            // stored SI value changes (e.g. 5 displayed with M selected → switch
+            // to k → still displays 5 but stores 5 kΩ = 5000 Ω, not 5000 kΩ).
+            // Auto-scaling (1000 → 1k) only happens when the user types a value,
+            // not when they manually pick a different prefix.
+            const rawValue = (this.localData.scaledValue ?? 0) * newMultiplier
+            const newActualValue = this.clampValue(rawValue)
+            this.localData.multiplier = newMultiplier
+            if (newActualValue !== rawValue) {
+                // The clamp fired: the displayed number must reflect what is
+                // actually stored, not the out-of-range wish.
+                this.localData.scaledValue = removeTrailingZeroes(newActualValue / newMultiplier, this.numberDecimals)
+            }
+            const hasError = this.checkErrors()
+            if (!hasError) {
+                this.modelValue[this.name] = newActualValue
+                this.$emit('update', newActualValue, this.name)
+            }
         },
         changeScaledValue(value) {
+            // Collapse back-to-back emissions from PrimeVue InputNumber (keydown
+            // + blur can both fire for a single commit). The setTimeout(0) lock
+            // outlives both emission timings while clearing before the next keystroke.
+            if (this._changeScaledValueLock) return
+            this._changeScaledValueLock = true
+            setTimeout(() => { this._changeScaledValueLock = false }, 0)
             if (this.optional && (value === null || value === undefined || value === '')) {
                 this.update(null)
                 return
             }
+            const prevScaled = this.localData.scaledValue
+            const prevMult = this.localData.multiplier
+            if (this.displayUnitEntries != null) {
+                const entry = entryByValue(this.displayUnitEntries, this.localData.multiplier)
+                const si = fromDisplay((Number(value) || 0) / this.visualScale, entry)
+                // Keep the unit the user is typing in (no auto-rescale to a
+                // "better" unit mid-typing); update() picks the best unit for
+                // programmatic values, typing keeps the dropdown as chosen.
+                const clamped = this.clampValue(si)
+                this.localData.scaledValue = removeTrailingZeroes(toDisplay(clamped, entry), this.numberDecimals)
+                const hasError = this.checkErrors()
+                if (!hasError) {
+                    this.modelValue[this.name] = clamped
+                    this.$emit('update', clamped, this.name)
+                }
+                return
+            }
             this.update((Number(value) || 0) * this.localData.multiplier / this.visualScale)
+            // If update() left both scaledValue and multiplier unchanged (e.g. the
+            // typed value was clamped to the same min/max already stored), Vue sees
+            // no reactive diff on displayValue and the InputNumber keeps showing the
+            // invalid typed text. Bump inputKey to force a remount with the correct value.
+            if (this.localData.scaledValue === prevScaled && this.localData.multiplier === prevMult) {
+                this.inputKey++
+            }
         },
     },
 }
@@ -254,6 +350,7 @@ export default {
                 class="dim-value-row"
                 :class="(unit != null || (altUnit != null && altUnit !== '')) ? 'dim-value-row-has-unit' : 'dim-value-row-no-unit'">
                 <InputNumber
+                    :key="`${localData.multiplier}-${inputKey}`"
                     :model-value="displayValue"
                     @update:model-value="changeScaledValue"
                     ref="inputRef"
@@ -268,13 +365,14 @@ export default {
                 />
                 <DimensionUnit
                     v-if="unit != null"
-                    v-model="localData.multiplier"
+                    :model-value="localData.multiplier"
                     :disabled="disabled"
                     :data-cy="dataTestLabel + '-DimensionUnit-input'"
                     :min="unitMin != null ? unitMin : min"
                     :max="unitMax != null ? unitMax : max"
                     :unit="unit"
                     :use-metric-prefixes="useMetricPrefixes"
+                    :entries="displayUnitEntries"
                     class="dim-unit"
                     @update:model-value="changeMultiplier"
                 />
@@ -295,6 +393,15 @@ export default {
 
 <style scoped>
 .dim-container:not([class*="col-"]) { width: 100%; }
+
+/* ── outer row: label + value area ──────────────────────────────── */
+.dim-container {
+    /* Lets the rules below react to how much room this field actually has,
+       rather than to the viewport. The operating-point panel is ~204px wide on
+       a 1680px screen, so a viewport media query would have called it "wide". */
+    container-type: inline-size;
+}
+
 .dim-row {
     display: flex;
     align-items: center;
@@ -308,106 +415,107 @@ export default {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* Give the label a consistent basis so rows align (inputs start at the same
-       x) and the filling value row can't squeeze the text to an ellipsis. It
-       still shrinks if the container is genuinely too narrow. Panels that need a
-       different width override .dim-label. */
     flex: 0 1 9rem;
+    /* The label used to take its full 9rem basis before the value got anything,
+       because .dim-value-row's basis was 0: with 144px + 0px under a 204px row
+       there is nothing to shrink, so the label kept 144px and the value was left
+       with 56px -- of which the unit select took 43, leaving a 13px number box.
+       That is the squeezed Temp field users reported in the operating-point panel.
+       Cap the label so the value always keeps its half of a narrow row; on a wide
+       row the 9rem basis still wins and nothing changes. */
+    max-width: 55%;
     min-width: 0;
     padding: 0;
 }
+
+/* ── value + unit flex container ─────────────────────────────────── */
+/* overflow:hidden here is the safety net: if any child still tries  */
+/* to exceed its share, it is clipped at this boundary instead of    */
+/* visually pushing the unit column out of view.                     */
 .dim-value-row {
-    /* Grid gives a deterministic value:unit split regardless of the value length
-       or the unit-string width, instead of each field sizing to its content.
-       min-width: 0 on the cells lets the columns honour the ratio. */
-    display: grid;
-    align-items: center;
-    gap: 0;
-    min-width: 7rem;
-    /* Fill the width left after the label so every value control — input+unit
-       OR a unit-less input — right-aligns with the others (and with the
-       dropdowns), instead of sizing to its content. flex-basis 0 (not auto) so
-       the value row grows into the free space WITHOUT first claiming its content
-       width, which would otherwise overflow the row and squeeze the label. */
-    flex: 1 1 0;
-    /* PrimeFlex .col-N applies padding: 0.5rem; cancel it so the inputs sit
-       flush with the row baseline (label) instead of being pushed down. */
-    padding: 0 !important;
-}
-/* Value 2/3, unit 1/3 when a unit (dropdown or fixed) is shown; full-width value otherwise. */
-.dim-value-row-has-unit {
-    grid-template-columns: 2fr 1fr;
-}
-.dim-value-row-no-unit {
-    /* No unit column — the input fills the full value-row width. */
-    grid-template-columns: 1fr;
-}
-.dim-input {
-    min-width: 0;
-    width: 100%;
     display: flex;
     align-items: stretch;
+    gap: 0;
+    /* Basis 8rem rather than 0 so that when the row is too narrow for both, the
+       shrink is shared with the label instead of falling entirely on the value.
+       Flex distributes shrink in proportion to basis, so a 0-basis value row can
+       never take any of it back from the label. */
+    flex: 1 1 8rem;
+    min-width: 0;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+/* No-unit: input fills everything */
+.dim-value-row-no-unit  .dim-input { flex: 1 1 0; }
+
+/* Has-unit: input gets 3 parts, unit gets 1 part (min 2.5 rem, no shrink) */
+.dim-value-row-has-unit .dim-input          { flex: 4 1 0; }
+.dim-value-row-has-unit .dim-unit,
+.dim-value-row-has-unit .dim-alt-unit       { flex: 1 0 2.5rem; min-width: 2.5rem; }
+
+/* In a narrow field (side panels: operating-point conditions, the builder's
+   config cards) the 9rem label basis is most of the row, so let the label size
+   to its text instead and give the number the space. Wide fields keep the 9rem
+   basis, which is what aligns the value column across stacked rows. */
+@container (max-width: 280px) {
+    .dim-label {
+        flex: 0 1 auto;
+        max-width: 45%;
+    }
+}
+
+/* ── input wrapper ───────────────────────────────────────────────── */
+/* overflow:hidden forces the PrimeVue span to stay within its flex  */
+/* share even when the browser's default <input> min-width fights it. */
+.dim-input {
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+}
+.dim-input :deep(.p-inputnumber) {
+    min-width: 0 !important;
+    width: 100%;
+    overflow: hidden;
 }
 .dim-input :deep(.p-inputnumber-input) {
     text-align: end;
     height: 1.75rem;
-    /* Right padding leaves room for the absolutely-positioned spinner
-       button column (1.5rem wide), so digits don't sit under the arrows. */
     padding: 0.25rem 1.75rem 0.25rem 0.5rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
     width: 100%;
+    min-width: 0 !important;
 }
-/* showButtons=false: no spinner column to clear, so drop the reserved right
-   padding — otherwise the right-aligned value sits with a dead gap before
-   the border/unit seam. */
-.dim-input-no-buttons :deep(.p-inputnumber-input) {
-    padding-right: 0.5rem;
-}
+.dim-input-no-buttons :deep(.p-inputnumber-input) { padding-right: 0.5rem; }
 .dim-input :deep(.p-inputnumber-button) {
     height: 0.875rem;
     width: 1.25rem;
     padding: 0;
     font-size: 0.5rem;
 }
-/* Spinner arrows are hidden by default and only revealed while hovering or
-   editing the field, so the value reads cleanly until you interact with it.
-   They are absolutely positioned, so fading them in causes no layout shift. */
 .dim-input :deep(.p-inputnumber-button-group) {
     opacity: 0;
     transition: opacity 0.12s ease;
 }
 .dim-input:hover :deep(.p-inputnumber-button-group),
-.dim-input:focus-within :deep(.p-inputnumber-button-group) {
-    opacity: 1;
-}
+.dim-input:focus-within :deep(.p-inputnumber-button-group) { opacity: 1; }
 .dim-input-full :deep(.p-inputnumber-input) {
     border-radius: var(--p-form-field-border-radius, 6px);
 }
-/* Fixed value:unit proportion — 2/3 value, 1/3 unit — instead of letting each
-   field size to its content. flex-basis 0 makes the split depend only on the
-   grow factors (2:1); the value keeps its min-width floor for the spinner
-   buttons, so on a wide-enough row the split is a clean 2:1. */
 .dim-input-with-unit :deep(.p-inputnumber-input) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     border-right: 0;
 }
-/* The unit cell (dropdown or fixed-unit box) fills its 1/3 grid column. The
-   DimensionUnit's PrimeVue Select root carries the .dim-unit class itself, so the
-   square left corners (flush seam with the value input, like the fixed-unit box)
-   must be set on .dim-unit directly — a :deep(.p-select) descendant never matches. */
+
+/* ── unit dropdown (DimensionUnit / Select) ──────────────────────── */
 .dim-unit {
-    width: 100%;
     min-width: 0;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
-/* PrimeFlex utility classes like .py-1/.pl-1 passed in via
-   `unitExtraStyleClass` come with !important and beat single-class
-   selectors. Use a 2-class compound selector to outrank them so the
-   Select wrapper has no padding (its inner .p-select-label carries
-   the visible padding instead). */
 .dim-row .dim-unit {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
@@ -419,17 +527,12 @@ export default {
     padding-bottom: 0 !important;
     padding-left: 0.5rem !important;
 }
-/* Fixed unit label (altUnit, e.g. ºC / % / years): render the same bordered box
-   as the metric-prefix dropdown, just without the chevron, so single-unit fields
-   match the multi-option ones. The adjacent input carries border-right:0, so this
-   box's left border is the seam between them. */
+
+/* ── static alt-unit label (e.g. "%" "°C") ──────────────────────── */
 .dim-alt-unit {
     display: flex;
     align-items: center;
-    justify-content: flex-start;  /* left-align the unit text */
-    /* Fills the same 1/3 grid column as the unit dropdown, so a static fixed unit
-       (e.g. "years") lines up with units that have a selector. */
-    width: 100%;
+    justify-content: flex-start;
     min-width: 0;
     height: 1.75rem;
     padding: 0 0.5rem;
@@ -441,15 +544,17 @@ export default {
     border-bottom-left-radius: 0;
     border-top-right-radius: var(--p-form-field-border-radius, 6px);
     border-bottom-right-radius: var(--p-form-field-border-radius, 6px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .dim-alt-unit--disabled {
     background: var(--p-select-disabled-background);
     color: var(--p-select-disabled-color);
 }
-.dim-error-row {
-    display: flex;
-    width: 100%;
-}
+
+/* ── error row ───────────────────────────────────────────────────── */
+.dim-error-row { display: flex; width: 100%; }
 .dim-error {
     text-align: center;
     color: var(--p-red-400);

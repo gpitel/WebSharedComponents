@@ -167,12 +167,40 @@ function khNominal(v) {
 // demag / second-primary winding) — SPEC §3.
 const KH_TURNS_RATIO_AT_INDEX_1 = new Set(['forward', 'single_switch_forward', 'push_pull', 'weinberg']);
 
+// Topologies whose engine understands a PER-RAIL sign on designRequirements.outputs[i].voltage
+// (Kirchhoff ABT #904). For these the rail's sign is forwarded verbatim: KH designs from |Vout| and
+// mirrors only the output side, so a -12 V rail simulates at -12 V and a mixed +5 / +12 / -12 design
+// is one converter. (KH picks the mirror per output stage: relabel the terminals where there is an
+// output inductor, reverse the rectifier diodes for a capacitor-output rectifier.)
+//
+// Everything else keeps the historical magnitude-only contract: dab / cllc / clllc drive ACTIVE
+// BRIDGES, where polarity is the gate pattern rather than device orientation, and they THROW on a
+// negative rail; cuk / isolated_buck_boost are inherently inverting and flip the sign engine-side
+// themselves (SPEC: "send positive magnitude"), so forwarding a negative there would double-negate.
+const KH_SIGNED_OUTPUT_TOPOLOGIES = new Set([
+    'flyback', 'forward', 'two_switch_forward', 'push_pull', 'acf', 'llc', 'src',
+]);
+
+// Every rectifier name a wizard can send. An unknown one THROWS — it used to be dropped
+// silently, so the engine designed its own default rectifier: the SRC wizard's
+// 'fullBridgeDiode' / 'centerTappedDiode' and the AHB wizard's 'ahbFlyback' never reached
+// Kirchhoff (the SRC defaulted to centre-tapped, the AHB flyback variant ran as full bridge).
 const KH_RECTIFIER_TYPES = {
-    'fullBridge': 'fullBridge', 'Full Bridge': 'fullBridge',
-    'centerTapped': 'centerTapped', 'Center Tapped': 'centerTapped',
+    'fullBridge': 'fullBridge', 'Full Bridge': 'fullBridge', 'fullBridgeDiode': 'fullBridge',
+    'centerTapped': 'centerTapped', 'Center Tapped': 'centerTapped', 'centerTappedDiode': 'centerTapped',
     'currentDoubler': 'currentDoubler', 'Current Doubler': 'currentDoubler',
     'voltageDoubler': 'voltageDoubler', 'Voltage Doubler': 'voltageDoubler',
+    'ahbFlyback': 'ahbFlyback',
 };
+
+// Primary bridge (config.bridgeType, Kirchhoff ABT #91). Only the engines that read it: SRC and LLC
+// (cfg::full_bridge_selected). It was never forwarded, so both always designed a HALF bridge — the SRC
+// wizard's full-bridge default got n ≈ 3.8 instead of ≈ 8.3 for 400 V → 48 V.
+const KH_BRIDGE_TYPES = {
+    'fullBridge': 'fullBridge', 'Full Bridge': 'fullBridge',
+    'halfBridge': 'halfBridge', 'Half Bridge': 'halfBridge',
+};
+const KH_BRIDGE_TYPE_TOPOLOGIES = new Set(['src', 'llc']);
 
 function buildKhConverterSpec(topology, params) {
     if (params.designRequirements) return params;   // already the KH envelope
@@ -210,13 +238,14 @@ function buildKhConverterSpec(topology, params) {
     }
 
     const isAc = topology === 'pfc' || topology === 'vienna';
+    const signedOutputs = KH_SIGNED_OUTPUT_TOPOLOGIES.has(topology);
     const dr = {
         inputType: topology === 'pfc' ? 'acSinglePhase' : topology === 'vienna' ? 'acThreePhase' : 'dc',
         inputVoltage: khDim(inputVoltage),
         switchingFrequency: khDim(params.switchingFrequency != null ? params.switchingFrequency : op0.switchingFrequency),
         outputs: volts.map((v, i) => ({
             name: i === 0 ? 'out' : `out${i + 1}`,
-            voltage: { nominal: Math.abs(v) },
+            voltage: { nominal: signedOutputs ? v : Math.abs(v) },
             regulation: 'voltage',
         })),
     };
@@ -260,13 +289,38 @@ function buildKhConverterSpec(topology, params) {
     if (params.inductanceRatio != null) config.inductanceRatio = params.inductanceRatio;
     if (params.minSwitchingFrequency != null) config.resonantBandMin = params.minSwitchingFrequency;
     if (params.maxSwitchingFrequency != null) config.resonantBandMax = params.maxSwitchingFrequency;
-    if (params.rectifierType != null && KH_RECTIFIER_TYPES[params.rectifierType]) {
-        config.rectifierType = KH_RECTIFIER_TYPES[params.rectifierType];
+    if (params.rectifierType != null) {
+        const rectifierType = KH_RECTIFIER_TYPES[params.rectifierType];
+        if (rectifierType == null) {
+            throw new Error(`webKirchhoff: unknown rectifierType '${params.rectifierType}' for ${topology}`);
+        }
+        config.rectifierType = rectifierType;
+    }
+    if (params.bridgeType != null && KH_BRIDGE_TYPE_TOPOLOGIES.has(topology)) {
+        const bridgeType = KH_BRIDGE_TYPES[params.bridgeType];
+        if (bridgeType == null) {
+            throw new Error(`webKirchhoff: unknown bridgeType '${params.bridgeType}' for ${topology}`);
+        }
+        config.bridgeType = bridgeType;
     }
     // PFC/Vienna topology variant + interleave count. Forwarded so the variant sizes distinctly the
     // moment KH's design_pfc reads them (KH ABT #11); harmless keys until then.
     if (params.topologyVariant != null) config.topologyVariant = params.topologyVariant;
     if (params.numberOfPhases != null) config.numberOfPhases = params.numberOfPhases;
+    // Vienna: KH reads these from `config` (Vienna.cpp cfg::get*(d.config, ...)). They were never
+    // forwarded, so the wizard's samplingStrategy was silently dropped and KH fell back to its own
+    // default of "fullLineCycle" -- which returns the boost-inductor excitation stamped at the LINE
+    // frequency (50 Hz) instead of peak-of-line at the switching frequency. The core adviser then
+    // sizes for 50 Hz and finds NOTHING: two users reported "no solution for simple PFC stage" on
+    // the same day (web bug reports #173 and #174). Measured on #174's own inputs: 0 cores at the
+    // 50 Hz it was handed, 5 cores at 20 kHz. The wizard's default was already 'peakOfLineOnly';
+    // it just never reached the engine.
+    if (topology === 'vienna') {
+        if (params.samplingStrategy != null) config.samplingStrategy = params.samplingStrategy;
+        if (params.phaseCount != null) config.phaseCount = params.phaseCount;
+        if (params.senseResistance != null) config.senseResistance = params.senseResistance;
+        if (params.busCapacitance != null) config.busCapacitance = params.busCapacitance;
+    }
     // DAB: KH is SPS-only; `config.dabPhaseShiftDeg` is the outer inter-bridge shift D3 IN DEGREES,
     // valid (0, 180) (SPEC §5 "DAB modulation") — the wizard's innerPhaseShift3 field is already in
     // degrees, so it passes through directly. D1/D2 (EPS/DPS/TPS) stay unexposed engine-side; an
@@ -325,12 +379,17 @@ async function legacyConverterCall(workerProxy, name, args) {
     // Component designers (not converters — no TAS): reshape their {inputs, <x>Diagnostics}
     // envelope back onto the legacy contract (MAS::Inputs at the root, diagnostics as sibling).
     if (parsed.mid === 'cmc' || parsed.mid === 'common_mode_choke') {
+        // SPICE button: the ideal CM deck the Simulated button runs, as netlist text. (Every verb used
+        // to fall through to design_cmc, so the SPICE modal showed the design JSON.)
+        if (parsed.verb === 'spice') return await workerProxy.callMethod('generate_cmc_ngspice_circuit', args[0]);
         const raw = await workerProxy.callMethod('design_cmc', args[0]);
         if (typeof raw === 'string' && raw.startsWith('Exception')) return raw;
         const out = JSON.parse(raw);
         return JSON.stringify({ ...(out.inputs || {}), cmcDiagnostics: out.cmcDiagnostics ?? null });
     }
     if (parsed.mid === 'dmc' || parsed.mid === 'differential_mode_choke') {
+        // SPICE button: the LC deck the Simulated button runs (first test frequency), as netlist text.
+        if (parsed.verb === 'spice') return await workerProxy.callMethod('generate_dmc_ngspice_circuit', args[0]);
         const raw = await workerProxy.callMethod('design_dmc', args[0]);
         if (typeof raw === 'string' && raw.startsWith('Exception')) return raw;
         const out = JSON.parse(raw);

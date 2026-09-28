@@ -81,7 +81,20 @@ function decodeWasmException(mod, e) {
 
 const DEFAULTS = {
     scale:   1.0,
-    wireSeg: 16,
+    // ABT #211 / #860: 0 means "analytic profile" -- MVB++ sweeps the conductor as a
+    // cylinder/torus and lets OCC tessellate from deflection, instead of building a
+    // wireSeg-gon profile with one BSpline face per side and a pole per spine sample.
+    // That polygon profile costs 120-280 MB PER TURN natively; on a 193-turn design it
+    // takes the browser past its memory cap and drawTurns dies with "memory access out
+    // of bounds" while drawMagnetic dies with bad_alloc -- core and bobbin render, turns
+    // vanish, no console error. That is bug_reports row 145, "3d visualization of
+    // transformer is not working".
+    //
+    // MVB++ made analytic its own default in e595e8d; this worker was still passing 16
+    // explicitly, so no browser ever got it. Measured on row 145's design with the
+    // current engine: at 16 both calls die; at 0 drawTurns returns a 36.6 MB STL in
+    // 5.4 s and full real-winding drawMagnetic returns 38.3 MB in 11.6 s.
+    wireSeg: 0,
     coreSeg: 32,
     binary:  true,            // STL only — kept for API compatibility
 };
@@ -164,16 +177,37 @@ function timed(name, fn) {
 Comlink.expose({
     waitReady: () => init(),
 
-    // Whole magnetic in one call
+    // Whole magnetic in one call.
+    //
+    // drawMagnetic takes TWELVE arguments — the two trailing ones are the real-winding
+    // pair, and embind enforces exact arity, so they must be PASSED even to select the
+    // default (`undefined` does that). Sending ten throws
+    //   "function drawMagnetic called with 10 arguments, expected 12"
+    // which is what happened the moment the engine was brought current: this is the
+    // only worker call whose arity the newer mvbpp changed.
+    //
+    //   useRealWindingGeometry  false/undefined -> idealised per-turn closed loops (fast, the
+    //                           default the frontend has always drawn)
+    //                           true -> ONE continuous copper body per (winding, parallel):
+    //                           real leads, pitch and dragbacks
+    //   femReady                only meaningful with useRealWindingGeometry=true. false ->
+    //                           fast drawing compound; true -> slow one-piece conformal body
+    //                           for meshing.
+    // Both are drawMagnetic-only: drawTurns has no real-winding form, so the interactive
+    // 3D viewer (which builds core + turns separately) cannot show it yet.
     buildMagneticSTL: timed('buildMagneticSTL', async (magnetic, opts = {}) => {
         await init();
         const d = o(opts);
         const sym = symmetryToken(opts.symmetryPlanes);
         const side = opts.side ?? '';
+        // wireSeg, not coreSeg: drawMagnetic includes the TURNS, and its single
+        // polygonSegments argument governs the conductor profile (ABT #211).
         return callDraw('drawMagnetic[stl]', _mvbpp.drawMagnetic, [
             JSON.stringify(magnetic), '3D', 'XY', 0.0, 'stl',
-            d.scale, d.coreSeg, sym, side,
+            d.scale, d.wireSeg, sym, side,
             true,  // paintCoating: draw turns at OUTER (insulation) diameter (ABT #7)
+            opts.useRealWindingGeometry ?? undefined,
+            opts.femReady ?? undefined,
         ]);
     }),
 
@@ -182,14 +216,63 @@ Comlink.expose({
         const d = o(opts);
         const sym = symmetryToken(opts.symmetryPlanes);
         const side = opts.side ?? '';
+        // drawMagnetic/drawTurns take three TRAILING options the other draw entry points do
+        // not: paintCoating, useRealWindingGeometry, femReady. embind checks arity exactly, so
+        // omitting them is not "using the defaults" — it throws
+        //   BindingError: function drawTurns called with 9 arguments, expected 12
+        // and the 3D render silently loses its turns. They are passed explicitly here;
+        // undefined selects the documented legacy behaviour (coating painted, per-turn-loop
+        // geometry, fast non-meshable compound), so this changes nothing about what is drawn.
         return callDraw('drawMagnetic[step]', _mvbpp.drawMagnetic, [
             JSON.stringify(magnetic), '3D', 'XY', 0.0, 'step',
-            d.scale, d.coreSeg, sym, side,
+            d.scale, d.wireSeg, sym, side,
             true,  // paintCoating: draw turns at OUTER (insulation) diameter (ABT #7)
+            opts.useRealWindingGeometry ?? undefined,
+            opts.femReady ?? undefined,
         ]);
     },
 
+    // FEM-ready STEP: the geometry a mesher (gmsh / OMFEM) takes, not the one the viewer draws.
+    // Same product as `mvbpp_step_generator --real --fem --segments 12`: real winding (one
+    // continuous copper body per winding and parallel, with its leads), femReady (one-piece,
+    // fused, conformal bodies), the CONDUCTING footprint (no enamel coating: the enamel is air
+    // in the mesh), wire and core faceted together at 12 segments, and the geometry checks
+    // skipped (the collision proofs are for the drawing; this is a long build already). The
+    // solids keep MVB++'s names. Slow on purpose.
+    buildMagneticFemSTEP: timed('buildMagneticFemSTEP', async (magnetic) => {
+        await init();
+        const femSegments = 12;
+        _mvbpp.mvbppSetSkipChecks(true);
+        try {
+            return callDraw('drawMagnetic[fem step]', _mvbpp.drawMagnetic, [
+                JSON.stringify(magnetic), '3D', 'XY', 0.0, 'step',
+                1.0, femSegments, 'none', '',
+                false,  // paintCoating: conducting (copper) footprint, no coating
+                true,   // useRealWindingGeometry
+                true,   // femReady
+            ]);
+        }
+        finally {
+            _mvbpp.mvbppSetSkipChecks(false);
+        }
+    }),
+
     // Core only (drawCore now accepts a Magnetic JSON and enriches itself)
+    // The magnetic-epoxy shell of a semi-shielded drum, as its own product so it can be
+    // drawn translucent over the opaque drum. drawCoreShell returns null for every other
+    // family, so this may be called unconditionally.
+    buildCoreShellSTL: timed('buildCoreShellSTL', async (magnetic, opts = {}) => {
+        await init();
+        if (typeof _mvbpp.drawCoreShell !== 'function') return null;   // older engine
+        const d = o(opts);
+        const sym = symmetryToken(opts.symmetryPlanes);
+        const side = opts.side ?? '';
+        return callDraw('drawCoreShell[stl]', _mvbpp.drawCoreShell, [
+            JSON.stringify(magnetic), '3D', 'XY', 0.0, 'stl',
+            d.scale, d.coreSeg, sym, side,
+        ], { quiet: true });
+    }),
+
     buildCoreSTL: timed('buildCoreSTL', async (magnetic, opts = {}) => {
         await init();
         const d = o(opts);
@@ -266,10 +349,24 @@ Comlink.expose({
         const turns = magnetic?.coil?.turnsDescription
                    ?? magnetic?.coil?.turns_description;
         if (!turns || !turns.length) return null;
+        // drawMagnetic/drawTurns take three TRAILING options the other draw entry points do
+        // not: paintCoating, useRealWindingGeometry, femReady. embind checks arity exactly, so
+        // omitting them is not "using the defaults" — it throws
+        //   BindingError: function drawTurns called with 9 arguments, expected 12
+        // and the 3D render silently loses its turns. They are passed explicitly here;
+        // undefined selects the documented legacy behaviour (coating painted, per-turn-loop
+        // geometry, fast non-meshable compound), so this changes nothing about what is drawn.
         return callDraw('drawTurns[stl]', _mvbpp.drawTurns, [
             JSON.stringify(magnetic), '3D', 'XY', 0.0, 'stl',
             d.scale, d.wireSeg, sym, side,
             true,  // paintCoating: draw turns at OUTER (insulation) diameter (ABT #7)
+            // Real winding: ONE continuous copper body per (winding, parallel) with the
+            // real leads, pitch and dragbacks, instead of one closed loop per turn. Same
+            // conductors the whole-magnetic export builds — drawTurns and drawMagnetic go
+            // through one implementation in MagneticBuilder, so the viewer and the STEP
+            // cannot show different copper. Much slower; opt-in.
+            opts.useRealWindingGeometry ?? undefined,
+            opts.femReady ?? undefined,
         ]);
     }),
 

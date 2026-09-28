@@ -1,8 +1,19 @@
 <script setup>
 import { toTitleCase, getMultiplier, removeTrailingZeroes } from '../assets/js/utils.js'
+import { displayEntries, bestEntry, toDisplay, unitSystem } from '../assets/js/units.js'
 import DimensionUnit from './DimensionUnit.vue'
+
 </script>
 <script>
+// Imperial readings of SI-sized quantities are small numbers (18.9 mm² is
+// 0.0293 in²): keep at least three significant digits whatever the caller's
+// SI-tuned decimals, or the panel shows "0 in²".
+function imperialDecimals(display, numberDecimals) {
+    if (display === 0 || !Number.isFinite(display)) return numberDecimals
+    const significant = Math.ceil(-Math.log10(Math.abs(display))) + 2
+    return Math.max(numberDecimals, significant, 0)
+}
+
 export default {
     props: {
         name: { type: String, required: true },
@@ -32,6 +43,14 @@ export default {
     },
     data() {
         const localData = { multiplier: null, scaledValue: null }
+        const entries = displayEntries(this.unit)
+        if (entries != null && this.value != null) {
+            const entry = bestEntry(Number(this.value), entries)
+            const display = toDisplay(Number(this.value), entry)
+            localData.multiplier = entry.value
+            localData.scaledValue = removeTrailingZeroes(display, imperialDecimals(display, this.numberDecimals))
+            return { localData, shortenedName: this.name }
+        }
         if (this.value != null) {
             let aux
             if (this.unit != null) {
@@ -60,12 +79,21 @@ export default {
         return { localData, shortenedName: this.name }
     },
     computed: {
+        activeUnitSystem() {
+            return unitSystem()
+        },
+        displayUnitEntries() {
+            return displayEntries(this.unit)
+        },
         visuallyScaledValue() {
-            return removeTrailingZeroes(Number(this.localData.scaledValue * this.visualScale), this.numberDecimals)
+            const display = Number(this.localData.scaledValue * this.visualScale)
+            const decimals = this.displayUnitEntries != null ? imperialDecimals(display, this.numberDecimals) : this.numberDecimals
+            return removeTrailingZeroes(display, decimals)
         },
     },
     watch: {
         value(newValue) { if (newValue != null) this.update(newValue) },
+        activeUnitSystem() { if (this.value != null) this.update(this.value) },
     },
     mounted() { this.shortenedName = this.shortenName() },
     methods: {
@@ -82,6 +110,13 @@ export default {
             return base
         },
         update(actualValue) {
+            if (this.displayUnitEntries != null) {
+                const entry = bestEntry(Number(actualValue), this.displayUnitEntries)
+                const display = toDisplay(Number(actualValue), entry)
+                this.localData.multiplier = entry.value
+                this.localData.scaledValue = removeTrailingZeroes(display, imperialDecimals(display, this.numberDecimals))
+                return
+            }
             if (this.unit != null) {
                 const aux = getMultiplier(actualValue, 0.001, false, this.power)
                 let mult = aux.multiplier
@@ -129,6 +164,7 @@ export default {
                         :value-font-size="valueFontSize"
                         :text-color="textColor"
                         :unit="unit"
+                        :entries="displayUnitEntries"
                         class="dim-ro-unit"
                     />
                     <label
@@ -149,7 +185,7 @@ export default {
 .dim-ro-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     flex-wrap: nowrap;
     width: 100%;
     min-width: 0;
@@ -169,18 +205,24 @@ export default {
 .dim-ro-label {
     font-size: 0.875rem;
     overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 0 0 auto;
+    /* Same basis as the refactored Dimension's label so read-only rows and
+       editable rows align their value columns in mixed panels. */
+    flex: 0 1 9rem;
+    min-width: 0;
     padding: 0;
 }
 .dim-ro-value {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
 }
 .dim-ro-unit { flex: 0 0 auto; }
 .dim-ro-unit :deep(.p-select) {
     border: 0 !important;
     background: transparent !important;
 }
-.dim-ro-alt-unit { margin-left: 0.25rem; }
+.dim-ro-alt-unit { margin-left: 0.25rem; font-size: 0.875rem; }
 </style>

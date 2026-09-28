@@ -60,6 +60,21 @@ export default {
         labelFormatter:{
             type: Function,
         },
+        /**
+         * Compact mode (ABT #1121): drops the chart's own title, its subtext and
+         * the zoom sliders, and tightens the margins, for a chart that sits in a
+         * panel whose header already names it. Defaults to false, so the
+         * cross-referencer's full-size map is unchanged.
+         */
+        compact: {
+            type: Boolean,
+            default: false,
+        },
+        /** CSS height of the chart box. */
+        height: {
+            type: String,
+            default: '50vh',
+        },
     },
     emits: [
         'click',
@@ -80,7 +95,7 @@ export default {
           white: style.getPropertyValue('--p-white'),
         };
         const options = {
-            title: {
+            title: this.compact ? { show: false } : {
                 left: 'center',
                 text: "Core Visual Map",
                 textStyle: {
@@ -93,6 +108,11 @@ export default {
                 },
                 subtext: this.processSubtext(),
             },
+            // Compact: no title above and no sliders around, so the plot can use
+            // the whole box; the axis labels still say what the axes are.
+            grid: this.compact
+                ? { top: 12, right: 14, bottom: 34, left: 62, containLabel: false }
+                : undefined,
             tooltip: {
                 trigger: 'item',
                 axisPointer: {
@@ -107,7 +127,7 @@ export default {
                     }
                 }
             },
-            toolbox: {
+            toolbox: this.compact ? { show: false } : {
                 right: 20,
                 feature: {
                     dataZoom: {}
@@ -134,7 +154,11 @@ export default {
                 }
             },
 
-            dataZoom: [
+            dataZoom: this.compact ? [
+                // Wheel and drag still zoom in compact mode; only the sliders go.
+                { type: 'inside' },
+                { type: 'inside', orient: 'vertical' },
+            ] : [
                 {
                     type: 'inside'
                 },
@@ -307,7 +331,7 @@ export default {
 </script>
 
 <template>
-    <div ref="chartWrapper" class="chart" style="height: 50vh">
+    <div ref="chartWrapper" class="chart" :style="{ height }">
         <v-chart v-if="chartVisible" class="chart" :option="options" autoresize :update-options="updateOpts" @click="onClick" style="width: 100%; height: 100%;"/>
     </div>
 </template>

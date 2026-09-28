@@ -13,6 +13,9 @@ export default {
         readOnly: { type: Boolean, default: false },
         extraStyleClass: { type: String, default: '' },
         useMetricPrefixes: { type: Boolean, default: true },
+        // Explicit display units ([{label, value, offset?}], see assets/js/units.js);
+        // when given they replace the SI-prefix list entirely (imperial mode).
+        entries: { type: Array, default: null },
         disabled: { type: Boolean, default: false },
         valueFontSize: { type: [String, Object], default: () => ({ fontSize: '0.875rem' }) },
         valueBgColor: { type: [String, Object], default: () => ({}) },
@@ -21,6 +24,9 @@ export default {
     emits: ['update:modelValue'],
     computed: {
         multiplierEntries() {
+            if (this.entries != null) {
+                return this.entries.map((e) => ({ label: e.label, value: e.value }))
+            }
             const ranges = [
                 { exp: -30, sym: 'q' }, { exp: -27, sym: 'r' }, { exp: -24, sym: 'y' },
                 { exp: -21, sym: 'z' }, { exp: -18, sym: 'a' }, { exp: -15, sym: 'f' },

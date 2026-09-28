@@ -71,8 +71,21 @@ export async function buildMagneticSTEP(magnetic, opts = {}) {
     return callMvb('buildMagneticSTEP', [magnetic, opts]);
 }
 
+// FEM-ready STEP for gmsh / OMFEM: real winding, fused conformal bodies, copper footprint,
+// 12 segments, geometry checks skipped (see mvbWorker.js buildMagneticFemSTEP). Slow.
+export async function buildMagneticFemSTEP(magnetic) {
+    return callMvb('buildMagneticFemSTEP', [magnetic]);
+}
+
 export async function buildCoreSTL(magnetic, opts = {}) {
     return callMvb('buildCoreSTL', [magnetic, opts]);
+}
+
+// The semi-shielded drum's magnetic-epoxy shell, as a separate product from the drum so a
+// viewer can render it translucent. Resolves to null for every other family.
+export async function buildCoreShellSTL(magnetic, opts = {}) {
+    const api = await waitForMvb();
+    return api.buildCoreShellSTL(magnetic, opts);
 }
 
 // Build one physical piece of the core from a CoreShape (with dimensions):

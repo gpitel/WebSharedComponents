@@ -1,5 +1,6 @@
 <script>
 import { waitForMkf } from '../assets/js/mkfRuntime.js';
+import { sanitizeSvg } from '../assets/js/sanitize.js';
 
 // Constants
 const ASPECT_RATIO_THRESHOLD = 0.85;
@@ -18,6 +19,10 @@ export const PLOT_MODES = {
     COLORED_BY_WINDING: 'colored_by_winding', // Turns colored by same winding (TBD)
     COLORED_BY_PARALLEL: 'colored_by_parallel', // Turns colored by same parallel (TBD)
     COLORED_BY_TURN: 'colored_by_turn',     // Turns colored by same turn (TBD)
+    // Connection-face (YZ) projection: the view where the terminal leads are seen end-on,
+    // alongside the inter-layer links and dragbacks. Only meaningful with real winding on,
+    // so it is offered only then (see effectiveAvailablePlotModes).
+    CONNECTIONS_YZ: 'connections_yz',
 };
 
 // Human-readable labels for plot modes
@@ -30,6 +35,7 @@ const PLOT_MODE_LABELS = {
     [PLOT_MODES.COLORED_BY_WINDING]: 'By Winding',
     [PLOT_MODES.COLORED_BY_PARALLEL]: 'By Parallel',
     [PLOT_MODES.COLORED_BY_TURN]: 'By Turn',
+    [PLOT_MODES.CONNECTIONS_YZ]: 'Connections',
 };
 
 // Utility function to extract dimension from SVG string
@@ -179,6 +185,13 @@ export default {
         };
     },
     computed: {
+        // Real winding: the coil drawn as it is actually wound (leads, pitch, dragbacks)
+        // instead of idealised per-turn rings. Owned by the "Real winding" switch in
+        // Tool menu > Settings > Display, and read straight from the global settings store
+        // so this view and the 3D one always draw the same thing.
+        realWinding() {
+            return this.$settingsStore?.magneticBuilderSettings?.useRealWindingGeometry ?? false;
+        },
         showFringingOption() {
             return this.currentPlotMode === PLOT_MODES.MAGNETIC_FIELD && (this.enableOptions || this.enableFringingOption);
         },
@@ -186,13 +199,33 @@ export default {
             return PLOT_MODE_LABELS[this.currentPlotMode] || 'Basic';
         },
         effectiveAvailablePlotModes() {
-            if (this.enableTemperaturePlot) {
-                return this.availablePlotModes;
+            let modes = this.availablePlotModes;
+            if (!this.enableTemperaturePlot) {
+                modes = modes.filter(m => m !== PLOT_MODES.TEMPERATURE_FIELD);
             }
-            return this.availablePlotModes.filter(m => m !== PLOT_MODES.TEMPERATURE_FIELD);
+            // The connection face only exists as a view once the winding is drawn with its
+            // real connections; with real winding off there is nothing in it to see.
+            if (this.realWinding) {
+                if (!modes.includes(PLOT_MODES.CONNECTIONS_YZ)) {
+                    modes = [...modes, PLOT_MODES.CONNECTIONS_YZ];
+                }
+            }
+            else {
+                modes = modes.filter(m => m !== PLOT_MODES.CONNECTIONS_YZ);
+            }
+            return modes;
         },
     },
     watch: {
+        // Changing it changes the GEOMETRY MKF paints, so the plot has to be redrawn.
+        realWinding(newValue) {
+            // The connection view disappears with the setting; don't leave the component
+            // showing a mode it no longer offers.
+            if (!newValue && this.currentPlotMode === PLOT_MODES.CONNECTIONS_YZ) {
+                this.currentPlotMode = PLOT_MODES.BASIC;
+            }
+            this.handleModelChange(true);
+        },
         forceUpdate: {
             handler() {
                 this.handleModelChange(true);
@@ -294,7 +327,10 @@ export default {
 
             const isValidSvg = result.startsWith("<svg");
             if (!isValidSvg) {
-                this.handlePlotError();
+                // The engine answers "Exception: ..." when it cannot draw. Show why, and hand the
+                // reason up: a failure with a reason is not retried (BasicCoilBuilder.errorInImage).
+                console.error('[Magnetic2DVisualizer] plot failed:', result);
+                this.handlePlotError(String(result));
                 return;
             }
 
@@ -304,7 +340,7 @@ export default {
                 return;
             }
 
-            this.$refs.plotView.innerHTML = result;
+            this.$refs.plotView.innerHTML = sanitizeSvg(result);
 
             if (this.$refs.Magnetic2DVisualizerContainer == null) {
                 this.posting = false;
@@ -357,6 +393,11 @@ export default {
                             vbH = (maxY - minY) + padY * 2;
                         }
                         svgEl.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+                        // Aspect-preserving fit is the viewBox's job, so say so explicitly
+                        // rather than relying on the default: the drawing then scales UP to
+                        // fill the panel instead of sitting at its intrinsic pixel size (a
+                        // drum core rendered 50 x 83 in a 524 x 260 box).
+                        svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                         // Update the intrinsic width/height attributes so the
                         // downstream `extractSvgDimension` + scaling math sees
                         // the corrected aspect ratio. Keep them as numeric
@@ -381,6 +422,25 @@ export default {
             this.width = this.calculateSvgWidth(originalWidth, originalHeight, clientWidth, clientHeight);
             this.$refs.plotView.innerHTML = this.$refs.plotView.innerHTML.replace('width=', 'class="scaling-svg" width=');
 
+            // Apply the fitted size to the svg ELEMENT, in pixels.
+            //
+            // Percentages were the problem, not the solution: `width:100%;height:100%` has to
+            // resolve through .scaling-svg-container and .Magnetic2DVisualizer, and any
+            // auto-height link in that chain makes the height fall back to intrinsic — which
+            // let the drawing grow to 524 x 870 inside a 260-tall panel. The container is
+            // already measured here, so scale against those numbers directly and there is
+            // nothing left to resolve.
+            const fittedSvg = this.$refs.plotView.querySelector('svg');
+            if (fittedSvg && originalWidth > 0 && originalHeight > 0 && clientWidth > 0 && clientHeight > 0) {
+                const proportion = Math.min(clientWidth / originalWidth, clientHeight / originalHeight);
+                if (isFinite(proportion) && proportion > 0) {
+                    fittedSvg.setAttribute('width', `${(originalWidth * proportion).toFixed(1)}`);
+                    fittedSvg.setAttribute('height', `${(originalHeight * proportion).toFixed(1)}`);
+                    fittedSvg.style.width = `${(originalWidth * proportion).toFixed(1)}px`;
+                    fittedSvg.style.height = `${(originalHeight * proportion).toFixed(1)}px`;
+                }
+            }
+
             this.errorMessage = "";
             this.posting = false;
         },
@@ -388,12 +448,33 @@ export default {
             if (originalWidth > originalHeight * ASPECT_RATIO_THRESHOLD) {
                 return "100%";
             }
-            const heightProportion = clientHeight / originalHeight;
-            return `${originalWidth * heightProportion}px`;
+            // Fit to whichever dimension binds FIRST, not to height alone.
+            //
+            // Height-only scaling assumes the container has a height worth filling. It does
+            // not always: the container is height:100% inside a content-sized parent, so for a
+            // portrait drawing it collapses to roughly the image's own height and the image is
+            // then "scaled" to the size it already was. Measured on a drum core: a 50 x 83 SVG
+            // in a 524 x 91 box, rendered at 50 x 83 — unscaled, and tiny beside the panel it
+            // sits in. Landscape cores never showed it because they take the 100% branch above.
+            //
+            // Taking the smaller of the two ratios keeps the aspect and guarantees the drawing
+            // fits both ways, so a portrait core fills the space a landscape one already does.
+            // A non-positive or unknown client dimension falls back to the other one rather
+            // than producing a zero or NaN width.
+            const heightProportion = clientHeight > 0 ? clientHeight / originalHeight : Infinity;
+            const widthProportion = clientWidth > 0 ? clientWidth / originalWidth : Infinity;
+            const proportion = Math.min(heightProportion, widthProportion);
+            if (!isFinite(proportion) || proportion <= 0) {
+                return "100%";
+            }
+            return `${originalWidth * proportion}px`;
         },
-        handlePlotError() {
+        handlePlotError(message) {
             this.posting = false;
-            this.$emit("errorInImage");
+            if (message) {
+                this.errorMessage = message;
+            }
+            this.$emit("errorInImage", message);
             this.lastSimulatedInputs = "";
             this.lastSimulatedMagnetics = "";
             this.lastForceUpdate = 0;
@@ -436,11 +517,49 @@ export default {
                 settings.painterColorFerrite = this.ferriteColor;
                 settings.painterColorCopper = this.copperColor;
                 settings.painterDrawSpacer = this.drawSpacer;
+                // Real winding: MKF lays the turns out as they are actually wound
+                // (leads, pitch, dragbacks) rather than as idealised rings. One flag
+                // for the whole app, so the 2D and 3D views never disagree about what
+                // they are drawing. Tool menu > Settings > Display > Real winding.
+                settings.coilUseRealWindingGeometry = this.realWinding;
                 await mkf.set_settings(JSON.stringify(settings));
-                const result = await mkf.plot_turns(JSON.stringify(this.modelValue.magnetic));
+                // plot_turns draws core + bobbin + turns and stops there — it never draws how
+                // the turns are CONNECTED. With real winding on that is exactly what is being
+                // asked for, so paint the magnetic instead: the XY projection adds the
+                // inter-layer links, dragbacks and terminal leads on top of the same view.
+                const magneticJson = JSON.stringify(this.modelValue.magnetic);
+                const result = this.realWinding
+                    ? await mkf.plot_magnetic(magneticJson, 'XY')
+                    : await mkf.plot_turns(magneticJson);
                 this.processSvgResult(result);
             } catch (error) {
                 console.error('Error in calculateBasicPlot:', error);
+                this.posting = false;
+                this.tryingToPlot = false;
+            }
+        },
+        // Connection face (YZ): the projection where the terminal leads are seen end-on,
+        // together with the inter-layer links and dragbacks. Real winding only — see
+        // effectiveAvailablePlotModes, which is what puts this mode in the picker.
+        async calculateConnectionsPlot() {
+            if (this.modelValue.magnetic == null) {
+                return;
+            }
+            try {
+                const mkf = await waitForMkf();
+                const settings = JSON.parse(await mkf.get_settings());
+                settings.painterColorInsulation = this.insulationColor;
+                settings.painterColorMargin = this.marginColor;
+                settings.painterColorSpacer = this.spacerColor;
+                settings.painterColorFerrite = this.ferriteColor;
+                settings.painterColorCopper = this.copperColor;
+                settings.painterDrawSpacer = this.drawSpacer;
+                settings.coilUseRealWindingGeometry = this.realWinding;
+                await mkf.set_settings(JSON.stringify(settings));
+                const result = await mkf.plot_magnetic(JSON.stringify(this.modelValue.magnetic), 'YZ');
+                this.processSvgResult(result);
+            } catch (error) {
+                console.error('Error in calculateConnectionsPlot:', error);
                 this.posting = false;
                 this.tryingToPlot = false;
             }
@@ -469,6 +588,11 @@ export default {
                 settings.painterAdvancedLitz = false;
                 settings.painterColorFerrite = this.ferriteColor;
                 settings.painterIncludeFringing = this.includeFringing;
+                // Real winding: MKF lays the turns out as they are actually wound
+                // (leads, pitch, dragbacks) rather than as idealised rings. One flag
+                // for the whole app, so the 2D and 3D views never disagree about what
+                // they are drawing. Tool menu > Settings > Display > Real winding.
+                settings.coilUseRealWindingGeometry = this.realWinding;
                 await mkf.set_settings(JSON.stringify(settings));
 
                 const result = await mkf.plot_magnetic_field(
@@ -505,6 +629,11 @@ export default {
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
                 settings.painterColorFerrite = this.ferriteColor;
+                // Real winding: MKF lays the turns out as they are actually wound
+                // (leads, pitch, dragbacks) rather than as idealised rings. One flag
+                // for the whole app, so the 2D and 3D views never disagree about what
+                // they are drawing. Tool menu > Settings > Display > Real winding.
+                settings.coilUseRealWindingGeometry = this.realWinding;
                 await mkf.set_settings(JSON.stringify(settings));
 
                 const result = await mkf.plot_electric_field(
@@ -582,7 +711,14 @@ export default {
             // Validate wire data before calling temperature plot
             const validation = this.validateWiresForTemperaturePlot();
             if (!validation.valid) {
+                // Web bug reports #165 and #167: two users independently reported that
+                // temperature estimation "does not work" / "is lagy". It was neither. The
+                // reason was computed correctly right here and then thrown away -- the
+                // parents re-emit errorInImage with no payload and the builder answers a
+                // deterministic failure with a 1 s retry timer, which is what reads as lag.
+                // The component already renders this.errorMessage; it was simply never set.
                 console.error('[Temperature Plot] Validation failed:', validation.error);
+                this.errorMessage = validation.error;
                 this.$emit('errorInImage', `Temperature plot error: ${validation.error}`);
                 this.posting = false;
                 this.tryingToPlot = false;
@@ -595,6 +731,11 @@ export default {
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
                 settings.painterColorFerrite = this.ferriteColor;
+                // Real winding: MKF lays the turns out as they are actually wound
+                // (leads, pitch, dragbacks) rather than as idealised rings. One flag
+                // for the whole app, so the 2D and 3D views never disagree about what
+                // they are drawing. Tool menu > Settings > Display > Real winding.
+                settings.coilUseRealWindingGeometry = this.realWinding;
                 await mkf.set_settings(JSON.stringify(settings));
                 // Ensure color values are plain strings (not reactive objects)
                 const textColorStr = String(this.textColor || 'var(--p-white)');
@@ -607,7 +748,11 @@ export default {
                 );
                 // Check if result is an error message (doesn't start with <svg)
                 if (!result?.startsWith('<svg')) {
+                    // Same swallow as the validation path above: the engine says exactly
+                    // what is wrong (e.g. "[INVALID_WIRE_DATA] Coating is missing material
+                    // information" for a served litz bundle) and the user was shown nothing.
                     console.error('[Temperature Plot] ERROR - Result is not an SVG:', result);
+                    this.errorMessage = String(result);
                     this.$emit('errorInImage', 'Temperature plot error: ' + result);
                     this.posting = false;
                     this.tryingToPlot = false;
@@ -616,6 +761,8 @@ export default {
                 this.processSvgResult(result);
             } catch (error) {
                 console.error('[Temperature Plot] Error:', error);
+                this.errorMessage = String(error?.message ?? error);
+                this.$emit('errorInImage', 'Temperature plot error: ' + this.errorMessage);
                 this.posting = false;
                 this.tryingToPlot = false;
             }
@@ -644,6 +791,11 @@ export default {
                 settings.painterSimpleLitz = true;
                 settings.painterAdvancedLitz = false;
                 settings.painterColorFerrite = this.ferriteColor;
+                // Real winding: MKF lays the turns out as they are actually wound
+                // (leads, pitch, dragbacks) rather than as idealised rings. One flag
+                // for the whole app, so the 2D and 3D views never disagree about what
+                // they are drawing. Tool menu > Settings > Display > Real winding.
+                settings.coilUseRealWindingGeometry = this.realWinding;
                 await mkf.set_settings(JSON.stringify(settings));
 
                 const result = await mkf.plot_wire_losses(
@@ -795,6 +947,9 @@ export default {
                 case PLOT_MODES.COLORED_BY_TURN:
                     this.calculateColoredByTurnPlot();
                     break;
+                case PLOT_MODES.CONNECTIONS_YZ:
+                    this.calculateConnectionsPlot();
+                    break;
                 case PLOT_MODES.BASIC:
                 default:
                     this.calculateBasicPlot();
@@ -912,13 +1067,19 @@ export default {
         height: auto;
     }
 
+/* Fill the box, preserving aspect — do not merely CAP the drawing at its intrinsic size.
+   width/height:auto plus max-width/max-height can only ever shrink an SVG, so a small
+   drawing rendered at its intrinsic pixel size no matter how much room it had: a drum core
+   came out 50 x 83 in a 524 x 260 panel. Every plot MKF emits carries a viewBox, so
+   width/height 100% with the default preserveAspectRatio (xMidYMid meet) scales it to fit
+   and centres it, which is what the old rule was reaching for with object-fit — a property
+   that does nothing for an INLINE svg, only for replaced elements like <img>. */
+/* The pixel size is set on the element in processSvgResult, from the measured container;
+   these are only guard rails so a drawing can never overflow its panel. */
 .scaling-svg {
-    object-fit: contain;
-    height: auto;
-    max-height: 50vh;
-    width: auto;
     max-width: 100%;
-    left: 0; 
+    max-height: 100%;
+    left: 0;
     top: 0;
 }
 
@@ -926,6 +1087,9 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
+    /* A definite height for .scaling-svg's percentage to resolve against; without it the
+       container is content-sized and 100% falls back to auto. */
+    height: 100%;
     max-height: 50vh;
 }
 

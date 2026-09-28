@@ -58,7 +58,8 @@ export default {
                 localData[f].multiplier = aux.multiplier
             }
         }
-        return { localData, errorMessages: '', FIELDS, SHORT, LONG }
+        return { localData, errorMessages: '', FIELDS, SHORT, LONG,
+            inputKeys: { minimum: 0, nominal: 0, maximum: 0 } }
     },
     mounted() { this.checkErrors() },
     methods: {
@@ -100,12 +101,21 @@ export default {
                 this.$emit('update', field, actualValue)
             }
         },
-        changeMultiplier(field) {
-            if (isNaN(this.localData[field].scaledValue)) {
+        changeMultiplier(field, newMultiplier) {
+            // Same semantics as the refactored Dimension (WSC PR #16): the
+            // displayed number and the user's chosen prefix both stay; only
+            // the stored SI value changes. Auto-scaling (1000 -> 1k) only
+            // happens when the user TYPES a value, not when they pick a prefix.
+            if (isNaN(this.localData[field].scaledValue) || this.localData[field].scaledValue == null) {
                 const aux = getMultiplier(this.defaultValue[this.defaultField], 0.001, this.disabledScaling)
                 this.localData[field].scaledValue = aux.scaledValue
             }
-            this.update(field, this.localData[field].scaledValue * this.localData[field].multiplier)
+            const newActualValue = this.localData[field].scaledValue * newMultiplier
+            this.localData[field].multiplier = newMultiplier
+            if (!this.checkErrors()) {
+                this.modelValue[field] = newActualValue
+                this.$emit('update', field, newActualValue)
+            }
         },
         add(field) {
             let newValue = this.defaultValue[field]
@@ -131,6 +141,12 @@ export default {
             else this.$emit('hasError')
         },
         changeScaledValue(value, field) {
+            // Collapse back-to-back emissions from PrimeVue InputNumber
+            // (keydown + blur can both fire for one commit) — same lock as
+            // the refactored Dimension.
+            if (this._changeScaledValueLock) return
+            this._changeScaledValueLock = true
+            setTimeout(() => { this._changeScaledValueLock = false }, 0)
             if (isNaN(this.localData[field].multiplier)) {
                 const aux = getMultiplier(this.defaultValue[this.defaultField], 0.001, this.disabledScaling)
                 this.localData[field].multiplier = aux.multiplier
@@ -138,8 +154,15 @@ export default {
             const v = Number(value)
             if (value == null || value === '' || (v < 0 && !this.allowNegative)) {
                 this.removeField(field)
-            } else {
-                this.update(field, v * this.localData[field].multiplier)
+                return
+            }
+            const prevScaled = this.localData[field].scaledValue
+            const prevMult = this.localData[field].multiplier
+            this.update(field, v * this.localData[field].multiplier)
+            // No reactive diff (e.g. rejected/clamped input): remount the
+            // InputNumber so it cannot keep showing the stale typed text.
+            if (this.localData[field].scaledValue === prevScaled && this.localData[field].multiplier === prevMult) {
+                this.inputKeys[field]++
             }
         },
     },
@@ -179,6 +202,7 @@ export default {
                         <i class="pi pi-times dwt-remove-icon"></i>
                     </InputGroupAddon>
                     <InputNumber
+                        :key="`${field}-${localData[field].multiplier}-${inputKeys[field]}`"
                         :data-cy="dataTestLabel + '-' + field + '-number-input'"
                         class="dwt-input"
                         :model-value="localData[field].scaledValue"
@@ -192,7 +216,7 @@ export default {
                     <InputGroupAddon v-if="unit != null" class="dwt-unit-addon">
                         <DimensionUnit
                             :data-cy="dataTestLabel + '-' + field + '-DimensionUnit-input'"
-                            v-model="localData[field].multiplier"
+                            :model-value="localData[field].multiplier"
                             :min="min"
                             :max="max"
                             :unit="unit"
@@ -201,7 +225,7 @@ export default {
                             :value-font-size="valueFontSize"
                             :text-color="textColor"
                             class="dwt-unit"
-                            @update:model-value="changeMultiplier(field)" />
+                            @update:model-value="changeMultiplier(field, $event)" />
                     </InputGroupAddon>
                 </InputGroup>
                 <Button
@@ -271,15 +295,15 @@ export default {
 }
 .dwt-group {
     width: 100%;
-    height: 2.25rem;
+    height: 1.75rem;
     align-items: stretch;
 }
 .dwt-group :deep(.p-inputgroupaddon) {
-    height: 2.25rem;
+    height: 1.75rem;
     line-height: 1.25rem;
 }
 .dwt-group :deep(.p-inputnumber) {
-    height: 2.25rem;
+    height: 1.75rem;
     align-items: stretch;
 }
 .dwt-remove-addon {
@@ -291,7 +315,7 @@ export default {
     gap: 0.25rem;
     display: flex !important;
     align-items: center !important;
-    height: 2.25rem;
+    height: 1.75rem;
 }
 .dwt-remove-addon:hover {
     background: rgba(var(--p-danger-rgb), 0.15) !important;
@@ -312,7 +336,7 @@ export default {
 }
 .dwt-input :deep(.p-inputnumber-input) {
     text-align: right;
-    height: 2.25rem;
+    height: 1.75rem;
     /* Right padding clears the absolutely-positioned spinner buttons. */
     padding: 0.25rem 1.75rem 0.25rem 0.5rem;
     font-size: 0.875rem;
@@ -321,18 +345,25 @@ export default {
     border-radius: 0;
 }
 .dwt-input :deep(.p-inputnumber-button) {
-    height: 1.125rem;
+    height: 0.875rem;
     width: 1.25rem;
     padding: 0;
     font-size: 0.5rem;
     border-radius: 0;
 }
+/* Same hover-revealed spinners as the refactored Dimension. */
+.dwt-input :deep(.p-inputnumber-button-group) {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.dwt-input:hover :deep(.p-inputnumber-button-group),
+.dwt-input:focus-within :deep(.p-inputnumber-button-group) { opacity: 1; }
 .dwt-unit-addon {
     padding: 0 !important;
     border-left: 0 !important;
     display: flex !important;
     align-items: stretch !important;
-    height: 2.25rem !important;
+    height: 1.75rem !important;
     /* Keep the addon's default surface fill (matches the InputNumber's
        background) — the inner Select is transparent so this addon's bg
        is what the user sees behind the "km ▽" label. */

@@ -1,6 +1,7 @@
 <script setup>
 import { deepCopy } from '../assets/js/utils.js'
 import { initMvbWorker, drawDimensionedFrontView, drawDimensionedTopView, drawCoreGappingTechnicalDrawing } from '../assets/js/mvbRuntime.js'
+import { sanitizeSvg } from '../assets/js/sanitize.js'
 </script>
 
 <script>
@@ -115,15 +116,15 @@ export default {
 
                 if (this.gappingMode) {
                     const gapSvg = await drawCoreGappingTechnicalDrawing(magnetic, width, 12, projColor, dimColor);
-                    if (this.$refs.frontView) this.$refs.frontView.innerHTML = gapSvg;
+                    if (this.$refs.frontView) this.$refs.frontView.innerHTML = sanitizeSvg(gapSvg);
                     if (this.$refs.topView) this.$refs.topView.innerHTML = '';
                 } else {
                     const [frontSvg, topSvg] = await Promise.all([
                         drawDimensionedFrontView(magnetic, width, 12, projColor, dimColor),
                         drawDimensionedTopView(magnetic, width, 12, projColor, dimColor),
                     ]);
-                    if (this.$refs.frontView) this.$refs.frontView.innerHTML = frontSvg;
-                    if (this.$refs.topView) this.$refs.topView.innerHTML = topSvg;
+                    if (this.$refs.frontView) this.$refs.frontView.innerHTML = sanitizeSvg(frontSvg);
+                    if (this.$refs.topView) this.$refs.topView.innerHTML = sanitizeSvg(topSvg);
                 }
                 this.errorMessage = "";
                 this.$emit('renderSuccess');
