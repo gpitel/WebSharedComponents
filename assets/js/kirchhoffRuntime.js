@@ -289,6 +289,16 @@ function buildKhConverterSpec(topology, params) {
     if (params.inductanceRatio != null) config.inductanceRatio = params.inductanceRatio;
     if (params.minSwitchingFrequency != null) config.resonantBandMin = params.minSwitchingFrequency;
     if (params.maxSwitchingFrequency != null) config.resonantBandMax = params.maxSwitchingFrequency;
+    // LLC: the wizard's "Resonant frequency" sets the tank resonance (KH design_llc reads
+    // config.resonantFrequency). Without it KH resonated the tank at sqrt(fmin*fmax) (ABT #1503).
+    // The operating frequency travels as designRequirements.switchingFrequency; KH solves the
+    // drive frequency for a pinned turns ratio, so driveAtSwitchingFrequency is NOT sent.
+    if (topology === 'llc' && params.resonantFrequency != null) config.resonantFrequency = params.resonantFrequency;
+    // CLLC: KH design_cllc resonates the tank at designRequirements.switchingFrequency and solves the
+    // operating frequency inside [resonantBandMin, resonantBandMax] from the tank gain (or throws).
+    // The CLLC wizard's operating frequency travels in operatingPoints[0].switchingFrequency, which
+    // KH would take as the tank resonance; the wizard's "Resonant frequency" is the resonance (ABT #1503).
+    if (topology === 'cllc' && params.resonantFrequency != null) dr.switchingFrequency = khDim(params.resonantFrequency);
     if (params.rectifierType != null) {
         const rectifierType = KH_RECTIFIER_TYPES[params.rectifierType];
         if (rectifierType == null) {
