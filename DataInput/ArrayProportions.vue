@@ -137,6 +137,11 @@ export default {
             for (const [key, value] of Object.entries(this.localData)) {
                 total += value;
             }
+            // The values are percents converted from fractions: 0.07 * 100 is
+            // 7.000000000000001, so 7 % + 93 % read as more than 100 % and the
+            // excess was taken out of the other elements. Compare to the
+            // resolution of the inputs instead.
+            total = Math.round(total * 1e6) / 1e6;
 
             // if (total != this.max || force) {
             if (total > this.max || force || !this.blockingRebounds) {

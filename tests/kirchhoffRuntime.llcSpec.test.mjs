@@ -37,3 +37,21 @@ test('LLC spec without a resonant frequency does not invent one', () => {
     const p = llcParams(); delete p.resonantFrequency;
     assert.equal(buildKhConverterSpec('llc', p).config.resonantFrequency, undefined);
 });
+
+// ABT #1539: "I know the design I want" forces the drive frequency. The wizard sends
+// driveAtSwitchingFrequency: true; KH then drives at exactly designRequirements.switchingFrequency.
+test('LLC I-know spec forces the operating frequency as the drive, the resonance stays config.resonantFrequency', () => {
+    const p = llcParams();
+    p.driveAtSwitchingFrequency = true;
+    p.operatingPoints[0].switchingFrequency = 220e3;
+    const spec = buildKhConverterSpec('llc', p);
+    assert.equal(spec.config.driveAtSwitchingFrequency, true);
+    assert.deepEqual(spec.designRequirements.switchingFrequency, { nominal: 220e3 });
+    assert.equal(spec.config.resonantFrequency, 180e3);
+});
+
+test('LLC help-me spec sends no drive flag even when the params carry driveAtSwitchingFrequency: false', () => {
+    const p = llcParams();
+    p.driveAtSwitchingFrequency = false;
+    assert.equal(buildKhConverterSpec('llc', p).config.driveAtSwitchingFrequency, undefined);
+});

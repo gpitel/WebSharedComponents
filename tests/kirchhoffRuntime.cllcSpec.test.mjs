@@ -55,3 +55,59 @@ test('CLLLC spec carries its nominal frequency as the tank resonance, the band a
     assert.equal(spec.config.driveAtSwitchingFrequency, undefined);
     assert.equal(spec.designRequirements.efficiency, 0.97);
 });
+
+// ABT #1538: the CLLC wizard's "Override Pri./Sec. Res. Ind./Cap." values and the CLLLC I-know
+// Lr/Cr must reach Kirchhoff (they were dropped, so the inputs changed nothing).
+test('CLLC spec carries the tank overrides as the KH tank pins', () => {
+    const spec = buildKhConverterSpec('cllc', {
+        ...cllcParams(),
+        desiredResonantInductancePrimary: 36e-6,
+        desiredResonantInductanceSecondary: 50e-6,
+        desiredResonantCapacitancePrimary: 47e-9,
+        desiredResonantCapacitanceSecondary: 40e-9,
+    });
+    assert.equal(spec.designRequirements.desiredResonantInductance, 36e-6);
+    assert.equal(spec.designRequirements.desiredResonantCapacitance, 47e-9);
+    assert.equal(spec.designRequirements.desiredSecondaryResonantInductance, 50e-6);
+    assert.equal(spec.designRequirements.desiredSecondaryResonantCapacitance, 40e-9);
+});
+
+test('CLLC spec without overrides carries no tank pin', () => {
+    const dr = buildKhConverterSpec('cllc', cllcParams()).designRequirements;
+    for (const k of ['desiredResonantInductance', 'desiredResonantCapacitance',
+                     'desiredSecondaryResonantInductance', 'desiredSecondaryResonantCapacitance']) {
+        assert.equal(dr[k], undefined, k);
+    }
+});
+
+test('CLLLC spec carries the I-know Lr/Cr as config.primarySeriesInductance / primaryResonantCapacitance', () => {
+    const spec = buildKhConverterSpec('clllc', {
+        highVoltageBusVoltage: { nominal: 400 }, lowVoltageBusVoltage: { nominal: 48 }, efficiency: 0.95,
+        minSwitchingFrequency: 90e3, maxSwitchingFrequency: 150e3,
+        desiredTurnsRatios: [8], desiredMagnetizingInductance: 500e-6,
+        desiredPrimarySeriesInductance: 50e-6, desiredPrimaryResonantCapacitance: 33e-9,
+        operatingPoints: [{ outputVoltages: [48], outputCurrents: [5], switchingFrequency: 120e3, ambientTemperature: 25 }],
+    });
+    assert.equal(spec.config.primarySeriesInductance, 50e-6);
+    assert.equal(spec.config.primaryResonantCapacitance, 33e-9);
+    assert.deepEqual(spec.designRequirements.turnsRatios, [{ nominal: 8 }]);
+});
+
+// ABT #1539: CLLC "I know the design I want": the operating frequency is the forced drive
+// (designRequirements.switchingFrequency) and the wizard's resonance travels as config.resonantFrequency.
+test('CLLC I-know spec forces the operating frequency as the drive and sends the resonance apart', () => {
+    const spec = buildKhConverterSpec('cllc', { ...cllcParams(), driveAtSwitchingFrequency: true });
+    assert.equal(spec.config.driveAtSwitchingFrequency, true);
+    assert.deepEqual(spec.designRequirements.switchingFrequency, { nominal: 150e3 });
+    assert.equal(spec.config.resonantFrequency, 120e3);
+    assert.equal(spec.config.resonantBandMin, 80e3);
+    assert.equal(spec.config.resonantBandMax, 200e3);
+});
+
+test('CLLLC ignores the drive flag (its single frequency is the tank resonance)', () => {
+    const spec = buildKhConverterSpec('clllc', {
+        highVoltageBusVoltage: { nominal: 400 }, lowVoltageBusVoltage: { nominal: 48 }, driveAtSwitchingFrequency: true,
+        operatingPoints: [{ outputVoltages: [48], outputCurrents: [1000 / 48], switchingFrequency: 100e3, ambientTemperature: 25 }],
+    });
+    assert.equal(spec.config, undefined);
+});

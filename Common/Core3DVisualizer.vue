@@ -253,7 +253,6 @@ export default {
                 // of a two-piece concentric core, or the whole ring for a toroid.
                 // Falls back to the full core when the shape isn't an object with
                 // dimensions (e.g. a bare named shape, which drawCorePiece can't parse).
-                const stlOpts = { tolMm: 0.5, angTol: 0.5, binary: true };
                 const shape = coreAux.functionalDescription?.shape;
                 const family = (shape?.family ?? shape ?? '').toString().toLowerCase();
                 const isToroid = family === 'toroidal' || family === 't';
@@ -263,9 +262,9 @@ export default {
                 const canDrawPiece = shape && typeof shape === 'object' && !isToroid;
                 let arrayBuffer;
                 if (!this.fullCoreModel && canDrawPiece) {
-                    arrayBuffer = await buildCorePieceSTL(shape, stlOpts);
+                    arrayBuffer = await buildCorePieceSTL(shape);
                 } else {
-                    arrayBuffer = await buildCoreSTL({ core: coreAux }, stlOpts);
+                    arrayBuffer = await buildCoreSTL({ core: coreAux });
                 }
 
                 this.removeObject3D(this.current3dObject);

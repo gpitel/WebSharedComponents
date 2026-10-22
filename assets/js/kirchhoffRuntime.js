@@ -268,6 +268,16 @@ function buildKhConverterSpec(topology, params) {
     // LLC-only explicit tank pins (override Lr/Cr verbatim) — SPEC §3.
     if (params.desiredResonantInductance != null) dr.desiredResonantInductance = params.desiredResonantInductance;
     if (params.desiredResonantCapacitance != null) dr.desiredResonantCapacitance = params.desiredResonantCapacitance;
+    // CLLC tank pins (ABT #1538). KH design_cllc reads the primary Lr1/Cr1 through the LLC keys above and
+    // the physical secondary Lr2/Cr2 through desiredSecondaryResonant*; it solves the operating
+    // frequency from the tank as pinned, or throws. They were dropped here, so the wizard's
+    // "Override ..." inputs changed nothing.
+    if (topology === 'cllc') {
+        if (params.desiredResonantInductancePrimary != null) dr.desiredResonantInductance = params.desiredResonantInductancePrimary;
+        if (params.desiredResonantCapacitancePrimary != null) dr.desiredResonantCapacitance = params.desiredResonantCapacitancePrimary;
+        if (params.desiredResonantInductanceSecondary != null) dr.desiredSecondaryResonantInductance = params.desiredResonantInductanceSecondary;
+        if (params.desiredResonantCapacitanceSecondary != null) dr.desiredSecondaryResonantCapacitance = params.desiredResonantCapacitanceSecondary;
+    }
 
     const powers = volts.map((v, i) => {
         const p = Math.abs(v) * Math.abs(amps[i] != null ? amps[i] : 0);
@@ -291,14 +301,37 @@ function buildKhConverterSpec(topology, params) {
     if (params.maxSwitchingFrequency != null) config.resonantBandMax = params.maxSwitchingFrequency;
     // LLC: the wizard's "Resonant frequency" sets the tank resonance (KH design_llc reads
     // config.resonantFrequency). Without it KH resonated the tank at sqrt(fmin*fmax) (ABT #1503).
-    // The operating frequency travels as designRequirements.switchingFrequency; KH solves the
-    // drive frequency for a pinned turns ratio, so driveAtSwitchingFrequency is NOT sent.
+    // The operating frequency travels as designRequirements.switchingFrequency; in "Help me with the
+    // design" KH solves the drive frequency for a pinned turns ratio and driveAtSwitchingFrequency is
+    // NOT sent (the I-know forced drive is below, ABT #1539).
     if (topology === 'llc' && params.resonantFrequency != null) config.resonantFrequency = params.resonantFrequency;
     // CLLC: KH design_cllc resonates the tank at designRequirements.switchingFrequency and solves the
     // operating frequency inside [resonantBandMin, resonantBandMax] from the tank gain (or throws).
     // The CLLC wizard's operating frequency travels in operatingPoints[0].switchingFrequency, which
     // KH would take as the tank resonance; the wizard's "Resonant frequency" is the resonance (ABT #1503).
-    if (topology === 'cllc' && params.resonantFrequency != null) dr.switchingFrequency = khDim(params.resonantFrequency);
+    // ABT #1539, "I know the design I want" (the wizard sends driveAtSwitchingFrequency: true): the
+    // operating frequency FORCES the drive. KH drives the tank at exactly designRequirements.switchingFrequency
+    // and the output voltage becomes a result (no re-solve; KH throws only for a non-physical point such as a
+    // capacitive tank input). The tank resonance then travels as config.resonantFrequency for llc, cllc and src.
+    // "Help me with the design" sends no flag: KH solves (llc/cllc) or runs at resonance (src), and the
+    // wizard shows the solved frequency from the result.
+    const forceDrive = params.driveAtSwitchingFrequency === true
+        && (topology === 'llc' || topology === 'cllc' || topology === 'src');
+    if (forceDrive) {
+        if (!(khNominal(dr.switchingFrequency) > 0)) {
+            throw new Error(`webKirchhoff: ${topology} with driveAtSwitchingFrequency needs an operating switching frequency`);
+        }
+        config.driveAtSwitchingFrequency = true;
+        if (params.resonantFrequency != null) config.resonantFrequency = params.resonantFrequency;
+    } else if (topology === 'cllc' && params.resonantFrequency != null) {
+        dr.switchingFrequency = khDim(params.resonantFrequency);
+    }
+    // CLLLC "I know the design" tank pins (ABT #1538): MAS clllcResonant.primarySeriesInductance /
+    // primaryResonantCapacitance, which KH design_clllc reads from config (Lr2/Cr2 follow through N).
+    if (topology === 'clllc') {
+        if (params.desiredPrimarySeriesInductance != null) config.primarySeriesInductance = params.desiredPrimarySeriesInductance;
+        if (params.desiredPrimaryResonantCapacitance != null) config.primaryResonantCapacitance = params.desiredPrimaryResonantCapacitance;
+    }
     if (params.rectifierType != null) {
         const rectifierType = KH_RECTIFIER_TYPES[params.rectifierType];
         if (rectifierType == null) {

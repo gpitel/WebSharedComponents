@@ -2,7 +2,7 @@
 import { toTitleCase, getMultiplier, removeTrailingZeroes } from '../assets/js/utils.js'
 import { displayEntries, bestEntry, entryByValue, toDisplay, fromDisplay, unitSystem } from '../assets/js/units.js'
 import DimensionUnit from './DimensionUnit.vue'
-import InputNumber from 'primevue/inputnumber'
+import InputNumber from './DecimalInputNumber.js'
 </script>
 <script>
 export default {

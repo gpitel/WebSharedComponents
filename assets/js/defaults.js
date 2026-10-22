@@ -337,14 +337,18 @@ export const defaultOperatingPointExcitation = {
             "label": "triangular"
         }
     },
+    // A rectangle that matches its own processed data (offset 0, 100 V peak to peak, duty 0.5),
+    // so its volt-seconds balance. The previous -20.5 / +70.5 V levels at 50 % switching
+    // averaged 25 V, which the engine refuses since ABT #1585 on any design that integrates
+    // the voltage (every transformer built from this default).
     "voltage": {
         "waveform": {
             "data": [
-                -20.5,
-                70.5,
-                70.5,
-                -20.5,
-                -20.5
+                -50,
+                50,
+                50,
+                -50,
+                -50
             ],
             "time": [
                 0,

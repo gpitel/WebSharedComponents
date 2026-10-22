@@ -47,7 +47,25 @@ export async function waitForMvb() {
 // the worker so only the offending draw fails.
 const FATAL_WASM_ERROR = /memory access out of bounds|unreachable|index out of bounds|function signature mismatch|null function|RuntimeError|Aborted/i;
 
+// The options mvbWorker actually reads. Anything else used to be dropped without a
+// word (STL tolerances, an STP "include bobbin"), so a caller believed it had asked for
+// something it did not get (ABT #1233). An unknown key now throws.
+const KNOWN_OPTIONS = new Set(['symmetryPlanes', 'side', 'useRealWindingGeometry', 'femReady']);
+
+function requireKnownOptions(method, opts) {
+    if (opts == null) {
+        return;
+    }
+    const unknown = Object.keys(opts).filter((key) => !KNOWN_OPTIONS.has(key));
+    if (unknown.length > 0) {
+        throw new Error(`[MVB Runtime] ${method} does not support option(s) ${unknown.join(', ')}; supported: ${[...KNOWN_OPTIONS].join(', ')}`);
+    }
+}
+
 async function callMvb(method, args) {
+    if (args.length > 1 && args[args.length - 1] != null && typeof args[args.length - 1] === 'object') {
+        requireKnownOptions(method, args[args.length - 1]);
+    }
     const api = await waitForMvb();
     try {
         return await api[method](...args);
@@ -84,6 +102,7 @@ export async function buildCoreSTL(magnetic, opts = {}) {
 // The semi-shielded drum's magnetic-epoxy shell, as a separate product from the drum so a
 // viewer can render it translucent. Resolves to null for every other family.
 export async function buildCoreShellSTL(magnetic, opts = {}) {
+    requireKnownOptions('buildCoreShellSTL', opts);
     const api = await waitForMvb();
     return api.buildCoreShellSTL(magnetic, opts);
 }

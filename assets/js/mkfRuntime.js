@@ -35,8 +35,23 @@ let useWorker = true; // Worker mode enabled - WASM runs in background thread
 // worker had no equivalent, so a single hung call was unrecoverable AND invisible.
 //
 // Generous by design: it is a stuck-detector, not a performance budget. The slowest legitimate calls
-// here are the catalogue loads (~0.5 s) and the adviser sweeps, which run in their own stores.
+// here are the catalogue loads (exempt below) and the adviser searches (their own budget below).
 const MKF_CALL_WATCHDOG_MS = 120_000;
+// The adviser searches go through this same worker queue, and a legitimate one takes minutes: on a
+// fast desktop the Magnetic Adviser needs 110-160 s for the default DAB, PSFB, flyback, push-pull and
+// single-switch-forward designs (MKF bc5af89e, measured in node against the shipped libMKF). Under
+// the 120 s budget the watchdog killed every one of those runs as "stuck", restarted the engine and
+// left the user with zero advised magnetics. They keep a stuck-detector, with a budget sized for a
+// search on a slow machine rather than for a single calculation.
+const MKF_ADVISER_WATCHDOG_MS = 600_000;
+const MKF_ADVISER_CALLS = new Set([
+    'calculate_advised_magnetics', 'calculate_advised_magnetics_with_context', 'calculate_advised_magnetics_from_cache',
+    'calculate_advised_cores', 'calculate_advised_cores_with_context',
+    'calculate_advised_coil', 'calculate_advised_coil_with_context',
+]);
+function watchdogBudgetMs(methodName) {
+    return MKF_ADVISER_CALLS.has(methodName) ? MKF_ADVISER_WATCHDOG_MS : MKF_CALL_WATCHDOG_MS;
+}
 // Calls that are legitimately long-running and must NOT be interrupted.
 const MKF_WATCHDOG_EXEMPT = new Set(['load_core_materials', 'load_core_shapes', 'load_wires', 'load_cores']);
 // ABT #929: the ABT #913 watchdog guards worker CALLS, which are made through the proxy created at
@@ -52,6 +67,45 @@ const MKF_WATCHDOG_EXEMPT = new Set(['load_core_materials', 'load_core_shapes', 
 const MKF_INIT_WATCHDOG_MS = 180_000;
 
 let wasmJsUrlForRestart = null;
+
+/**
+ * The error a worker call rejects with when the runtime, not the engine, ended it: the watchdog
+ * aborted it ('watchdog'), or the worker it was queued on or made through was torn down
+ * ('restarted'). The message is the same developer-facing text as before; the fields let a page
+ * tell the user why its result never came (engineAbortMessage) instead of only logging it.
+ */
+export class MkfCallAbortedError extends Error {
+    constructor(message, { methodName, kind, budgetMs = null, reason = null }) {
+        super(message);
+        this.name = 'MkfCallAbortedError';
+        this.methodName = methodName;
+        this.kind = kind;
+        this.budgetMs = budgetMs;
+        this.reason = reason;
+    }
+}
+
+/**
+ * The sentence to show the user when `error` is a call the runtime aborted, naming what was
+ * running (e.g. 'The adviser'). Returns null when `error` is anything else: an engine exception
+ * is the caller's to report with its own message.
+ * @param {unknown} error
+ * @param {string} activity - subject of the sentence, e.g. 'The adviser'
+ * @returns {string|null}
+ */
+export function engineAbortMessage(error, activity) {
+    if (!(error instanceof MkfCallAbortedError)) return null;
+    if (!activity) throw new Error('engineAbortMessage: activity is required');
+    if (error.kind === 'watchdog') {
+        return `${activity} was stopped after ${Math.round(error.budgetMs / 1000)} s without finishing \u2014 ` +
+            `try narrower requirements or run it again.`;
+    }
+    if (error.kind === 'restarted') {
+        // error.reason names the engine call that hung; it is for the console, not the user.
+        return `${activity} was stopped because the engine had to be restarted \u2014 run it again.`;
+    }
+    throw new Error(`engineAbortMessage: unknown abort kind '${error.kind}'`);
+}
 
 // The worker runs one Embind call at a time however many are posted to it. They used to be posted
 // all at once, which put the queue inside the worker where nothing could see it, and the watchdog's
@@ -93,9 +147,9 @@ export function setEngineRestoreHandler(handler) {
  */
 function enqueueCall(methodName, invoke, callGeneration) {
     if (callGeneration !== workerGeneration) {
-        return Promise.reject(new Error(
+        return Promise.reject(new MkfCallAbortedError(
             `MKF call '${methodName}' was made on an engine worker that has since been restarted; ` +
-            `retry the action.`));
+            `retry the action.`, { methodName, kind: 'restarted' }));
     }
     return new Promise((resolve, reject) => {
         const call = { methodName, settled: false };
@@ -128,16 +182,17 @@ function enqueueCall(methodName, invoke, callGeneration) {
 async function withWatchdog(methodName, invoke, callGeneration, call) {
     if (MKF_WATCHDOG_EXEMPT.has(methodName)) return Promise.race([invoke(), call.cancelled]);
 
+    const budgetMs = watchdogBudgetMs(methodName);
     let timer;
     let timedOut = false;
     const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => {
             timedOut = true;
-            reject(new Error(
+            reject(new MkfCallAbortedError(
                 `MKF call '${methodName}' did not return within ` +
-                `${Math.round(MKF_CALL_WATCHDOG_MS / 1000)}s and was aborted. The engine worker has been ` +
-                `restarted; retry the action.`));
-        }, MKF_CALL_WATCHDOG_MS);
+                `${Math.round(budgetMs / 1000)}s and was aborted. The engine worker has been ` +
+                `restarted; retry the action.`, { methodName, kind: 'watchdog', budgetMs }));
+        }, budgetMs);
     });
     try {
         return await Promise.race([invoke(), timeout, call.cancelled]);
@@ -148,7 +203,7 @@ async function withWatchdog(methodName, invoke, callGeneration, call) {
             callsInFlight.delete(call);
             const url = wasmJsUrlForRestart;
             terminateWorker(`the engine worker was restarted because '${methodName}' did not return ` +
-                `within ${Math.round(MKF_CALL_WATCHDOG_MS / 1000)}s`);
+                `within ${Math.round(budgetMs / 1000)}s`);
             if (url) restartWorker(url);
         }
         throw error;
@@ -323,16 +378,54 @@ export async function enrichMagnetic(magnetic) {
  * is applied at engine init from the persisted store — once it is on, every wind
  * of the session is a real one, with no intermediate ideal pass to be painted.
  *
- * Every other settings writer in the app seeds its object from get_settings(),
- * so this value then survives all of them.
+ * Written through updateEngineSettings, so a concurrent writer cannot put the
+ * old value back.
  *
  * @param {Object} mkf - the MKF instance/proxy
  * @param {boolean} useRealWindingGeometry
  */
 export async function applyRealWindingGeometrySetting(mkf, useRealWindingGeometry) {
-    const settings = JSON.parse(await mkf.get_settings());
-    settings.coilUseRealWindingGeometry = !!useRealWindingGeometry;
-    await mkf.set_settings(JSON.stringify(settings));
+    await updateEngineSettings(mkf, (settings) => {
+        settings.coilUseRealWindingGeometry = !!useRealWindingGeometry;
+    });
+}
+
+// The engine's settings are ONE object in the worker, and every writer used to
+// read it whole (get_settings), change its own fields and write it whole back
+// (set_settings). Two writers interleaving lost an update: a 2D redraw that read
+// the settings before an advise pushed the wire standard wrote its stale copy
+// back after the push, and the advise ran with the wrong standard (ABT #1660).
+// All read-modify-writes therefore go through this queue, one at a time.
+let engineSettingsQueue = Promise.resolve();
+
+/**
+ * Run `task` once every earlier queued settings task has finished, and keep
+ * later ones waiting until it is done. Use it for a whole-settings write (set
+ * or reset) that is not a read-modify-write.
+ */
+export function queueEngineSettingsTask(task) {
+    const run = engineSettingsQueue.then(task);
+    engineSettingsQueue = run.then(() => undefined, () => undefined);
+    return run;
+}
+
+/**
+ * Change some engine settings without losing anyone else's: read the current
+ * settings, let `change` set its fields on them, write them back, all inside
+ * the queue. When `whileSet` is given it runs inside the queue too, right after
+ * the write, so no other writer can change the settings between the write and
+ * the engine call that depends on them (an advise reading the wire standard).
+ * `whileSet` must not queue settings work itself, or it waits for itself.
+ *
+ * @returns the value of `whileSet`, or the settings written
+ */
+export function updateEngineSettings(mkf, change, whileSet = null) {
+    return queueEngineSettingsTask(async () => {
+        const settings = JSON.parse(await mkf.get_settings());
+        change(settings);
+        await mkf.set_settings(JSON.stringify(settings));
+        return whileSet == null ? settings : await whileSet(settings);
+    });
 }
 
 /**
@@ -350,7 +443,8 @@ export function terminateWorker(reason = 'the engine worker was shut down') {
         const orphaned = [...callsInFlight];
         callsInFlight.clear();
         for (const call of orphaned) {
-            call.cancel(new Error(`MKF call '${call.methodName}' was cancelled: ${reason}. Retry the action.`));
+            call.cancel(new MkfCallAbortedError(`MKF call '${call.methodName}' was cancelled: ${reason}. Retry the action.`,
+                { methodName: call.methodName, kind: 'restarted', reason }));
         }
         // Re-arm `ready` so the NEXT initWorker() resolves a FRESH promise. Without
         // this, `ready` stays resolved with the terminated worker's proxy, so every

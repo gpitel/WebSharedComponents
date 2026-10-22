@@ -477,6 +477,31 @@ export default {
             }
             return data;
         },
+        // processData(index) split by datum.dashedPoints into two point lists of the same length
+        // as the curve, gaps written as [x, '-'] (ECharts leaves a gap there): `solid` holds the
+        // unflagged points, `dashed` the flagged ones plus the unflagged neighbour on each side of
+        // a flagged stretch, so the two draw one continuous curve.
+        splitDashed(index) {
+            const datum = this.data[index];
+            const flags = datum.dashedPoints;
+            if (flags.length !== datum.data.x.length) {
+                throw new Error(`LineVisualizer: '${datum.label}' has ${datum.data.x.length} points but ${flags.length} dashedPoints flags`);
+            }
+            const solid = [];
+            const dashed = [];
+            let hasDashed = false;
+            for (let pointIndex = 0; pointIndex < flags.length; pointIndex++) {
+                const x = datum.data.x[pointIndex];
+                const y = datum.data.y[pointIndex];
+                if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+                const flagged = flags[pointIndex] === true;
+                const besideFlagged = flags[pointIndex - 1] === true || flags[pointIndex + 1] === true;
+                hasDashed = hasDashed || flagged;
+                solid.push(flagged ? [x, '-'] : [x, y]);
+                dashed.push(flagged || besideFlagged ? [x, y] : [x, '-']);
+            }
+            return { solid, dashed, hasDashed };
+        },
         processLimits() {
             const limits = []
             const isLogX = this.xAxisOptions && this.xAxisOptions.type === 'log';
@@ -677,9 +702,15 @@ export default {
                 const chartType = datum.chartType ?? 'line';
                 const isLine = chartType === 'line';
                 const isScatter = chartType === 'scatter';
+                // A line may flag some of its points (datum.dashedPoints, one boolean per point):
+                // the flagged stretches are drawn dashed on the same axis, as a second series that
+                // takes the same colour and the legend name datum.dashedLabel, e.g. the stretches
+                // of an impedance curve where the core's complex permeability is estimated
+                // rather than measured (ABT #1861). Each stretch is joined to its solid neighbours.
+                const dashed = isLine && Array.isArray(datum.dashedPoints) ? this.splitDashed(index) : null;
                 options.series.push(
                     {
-                        data: this.processData(index),
+                        data: dashed ? dashed.solid : this.processData(index),
                         type: chartType,
                         smooth: isLine ? (datum.smooth ?? 0.15) : undefined,
                         name: this.legendLabels && this.legendLabels[index] ? this.legendLabels[index] : datum.label,
@@ -711,6 +742,21 @@ export default {
                         } : null,
                     }
                 );
+                if (dashed && dashed.hasDashed) {
+                    options.series.push({
+                        data: dashed.dashed,
+                        type: 'line',
+                        smooth: datum.smooth ?? 0.15,
+                        name: datum.dashedLabel ?? datum.label,
+                        color: seriesColor,
+                        showSymbol: showPoints,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        yAxisIndex: this.forceAxisUniquePerSide ? firstIndexPerSide[side] : index,
+                        lineStyle: { type: 'dashed', width: 1.5 },
+                        emphasis: { focus: 'series', lineStyle: { width: 2 } },
+                    });
+                }
 
             })
 

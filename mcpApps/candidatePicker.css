@@ -1,0 +1,105 @@
+/*
+ * Ranked-candidate picker (ABT #663). No colour literals here: every colour is a --cp-*
+ * token the HOST PAGE defines (README.md lists them), typically mapped onto the MCP Apps
+ * host's own --color-* variables so the widget follows the host theme. createCandidatePicker()
+ * refuses to mount when a token is missing rather than drawing in browser defaults.
+ */
+.cp-root {
+  background: var(--cp-bg);
+  color: var(--cp-fg);
+  font-family: var(--cp-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.cp-root * { box-sizing: border-box; }
+.cp-head { margin-bottom: 8px; }
+.cp-title { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.cp-sub, .cp-hint, .cp-maker, .cp-waiting { color: var(--cp-muted); font-size: 12px; }
+.cp-hint { margin-top: 8px; }
+.cp-waiting { padding: 12px 2px; }
+.cp-caveat {
+  margin-top: 10px; padding-left: 9px; font-size: 12px; color: var(--cp-muted);
+  border-left: 2px solid var(--cp-warn);
+}
+.cp-error {
+  margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12.5px;
+  color: var(--cp-fail); border: 1px solid var(--cp-fail);
+}
+
+.cp-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.cp-filter select, .cp-filter input {
+  font: inherit; font-size: 12px; color: var(--cp-fg); background: transparent;
+  border: 1px solid var(--cp-line); border-radius: 4px; padding: 3px 6px;
+}
+.cp-filter input { min-width: 180px; flex: 1 1 180px; }
+.cp-filter-error { color: var(--cp-fail); font-size: 12px; }
+
+.cp-scroll { overflow-x: auto; }
+.cp-table { width: 100%; border-collapse: collapse; }
+.cp-table th {
+  text-align: left; font-weight: 500; color: var(--cp-muted); font-size: 11.5px;
+  border-bottom: 1px solid var(--cp-line); padding: 0; white-space: nowrap;
+}
+.cp-sort {
+  font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer;
+  padding: 5px 7px; width: 100%; text-align: inherit;
+  /* Field names are keys a caller types back: monospace, verbatim, never re-cased. */
+  font-family: var(--cp-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+.cp-sort:hover { color: var(--cp-fg); }
+.cp-table td {
+  padding: 6px 7px; border-bottom: 1px solid var(--cp-line); vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+.cp-num, .cp-rank { text-align: right; }
+th.cp-metric, th.cp-margin, th.cp-score, th.cp-rank { text-align: right; }
+/* Engine labels run long ("97 PQ 32/15 gapped 0.23 mm, Turns: 12, …"): give identity room. */
+.cp-identity { min-width: 16em; }
+.cp-absent { color: var(--cp-muted); }
+.cp-row { cursor: pointer; }
+.cp-row:hover { background: var(--cp-hover); }
+.cp-row.cp-chosen { background: var(--cp-chosen); }
+.cp-label { font-weight: 600; }
+.cp-status { font-weight: 600; font-size: 12px; }
+.cp-status-recommended { color: var(--cp-pass); }
+.cp-status-partial { color: var(--cp-warn); }
+.cp-status-no_substitute { color: var(--cp-fail); }
+.cp-act { text-align: right; white-space: nowrap; }
+.cp-use {
+  font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  color: var(--cp-fg); background: transparent;
+  border: 1px solid var(--cp-line); border-radius: 5px; padding: 3px 9px;
+}
+.cp-use:hover:not(:disabled) { border-color: var(--cp-accent); color: var(--cp-accent); }
+.cp-use:disabled { cursor: not-allowed; opacity: .55; }
+.cp-use.cp-use-chosen { background: var(--cp-accent); border-color: var(--cp-accent); color: var(--cp-accent-fg); opacity: 1; }
+.cp-empty { color: var(--cp-muted); text-align: center; }
+
+.cp-detail > td { background: var(--cp-hover); }
+.cp-why { font-size: 12px; margin-bottom: 6px; }
+.cp-fields {
+  display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; margin: 0 0 6px;
+  font-size: 12px;
+}
+.cp-fields dt { color: var(--cp-muted); font-family: var(--cp-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.cp-fields dd { margin: 0; font-variant-numeric: tabular-nums; }
+.cp-structured summary { cursor: pointer; color: var(--cp-muted); font-size: 12px; }
+.cp-structured pre { font-size: 11px; max-height: 220px; overflow: auto; margin: 4px 0; }
+.cp-pills, .cp-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.cp-pill, .cp-chip {
+  font-size: 11px; border-radius: 4px; padding: 1px 6px;
+  border: 1px solid var(--cp-line); color: var(--cp-muted);
+}
+.cp-pill-pass { color: var(--cp-pass); border-color: var(--cp-pass); }
+.cp-pill-warn { color: var(--cp-warn); border-color: var(--cp-warn); }
+.cp-pill-fail { color: var(--cp-fail); border-color: var(--cp-fail); }
+/* Absence of data is not a defect: unverified is dashed and neutral, never the fail colour. */
+.cp-pill-unverified { border-style: dashed; }
+.cp-notes { margin: 0 0 6px; padding-left: 16px; font-size: 12px; }
+.cp-ref { font-size: 12px; color: var(--cp-muted); }
+.cp-ref code { color: var(--cp-fg); font-family: var(--cp-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.cp-original {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px;
+  padding: 6px 9px; border-radius: 6px; background: var(--cp-hover);
+}
+.cp-original-label { font-size: 11px; color: var(--cp-muted); font-weight: 600; }

@@ -1,7 +1,7 @@
 <script setup>
 import { toTitleCase, getMultiplier } from '../assets/js/utils.js'
 import DimensionUnit from './DimensionUnit.vue'
-import InputNumber from 'primevue/inputnumber'
+import InputNumber from './DecimalInputNumber.js'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputGroup from 'primevue/inputgroup'
@@ -14,7 +14,7 @@ const LONG = { minimum: 'Add minimum', nominal: 'Add nominal', maximum: 'Add max
 
 export default {
     components: { DimensionUnit, InputNumber, Button, InputText, InputGroup, InputGroupAddon },
-    emits: ['update', 'changeText', 'hasError'],
+    emits: ['update', 'changeText', 'hasError', 'accepted'],
     props: {
         name: { type: String, required: true },
         unit: { type: String, required: false },
@@ -92,6 +92,20 @@ export default {
             }
             return hasError
         },
+        // After a rejection the other fields may still show values that were never
+        // written (a nominal below the minimum, then the minimum is lowered): once the
+        // whole set is valid, write every shown value, not only the edited one.
+        commitShownValues() {
+            for (const f of FIELDS) {
+                const stored = this.modelValue[f] ?? null
+                const shown = this.localData[f].scaledValue == null ? null : this.localData[f].scaledValue * this.localData[f].multiplier
+                if (shown == null && stored == null) continue
+                // The shown value is the stored one scaled for display; ignore round-off.
+                if (shown != null && stored != null && Math.abs(shown - stored) <= 1e-9 * Math.max(Math.abs(shown), Math.abs(stored))) continue
+                this.modelValue[f] = shown
+                this.$emit('update', f, shown)
+            }
+        },
         update(field, actualValue) {
             const aux = getMultiplier(actualValue, 0.001, this.disabledScaling)
             this.localData[field].scaledValue = aux.scaledValue
@@ -99,6 +113,11 @@ export default {
             if (!this.checkErrors()) {
                 this.modelValue[field] = actualValue
                 this.$emit('update', field, actualValue)
+                this.commitShownValues()
+            } else {
+                // The value is NOT written: tell the parent, or it keeps using the previous
+                // value while the field shows the rejected one (user report #188).
+                this.$emit('hasError', this.errorMessages.trim())
             }
         },
         changeMultiplier(field, newMultiplier) {
@@ -115,6 +134,9 @@ export default {
             if (!this.checkErrors()) {
                 this.modelValue[field] = newActualValue
                 this.$emit('update', field, newActualValue)
+                this.commitShownValues()
+            } else {
+                this.$emit('hasError', this.errorMessages.trim())
             }
         },
         add(field) {
@@ -137,8 +159,14 @@ export default {
         removeField(field) {
             this.localData[field].scaledValue = null
             this.localData[field].multiplier = null
-            if (!this.checkErrors()) this.modelValue[field] = null
-            else this.$emit('hasError')
+            if (!this.checkErrors()) {
+                this.modelValue[field] = null
+                this.commitShownValues()
+                // Removing a bound can clear an earlier rejection (e.g. a nominal below
+                // the minimum): say the field is valid again.
+                this.$emit('accepted', field)
+            }
+            else this.$emit('hasError', this.errorMessages.trim())
         },
         changeScaledValue(value, field) {
             // Collapse back-to-back emissions from PrimeVue InputNumber
