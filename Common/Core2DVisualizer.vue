@@ -5,6 +5,8 @@ import { sanitizeSvg } from '../assets/js/sanitize.js'
 </script>
 
 <script>
+// Warnings and errors go to the host's log when it has one (notices.js).
+import { reportNotice, noticesShownInline } from '../assets/js/notices.js'
 
 export default {
     emits: ["errorInDimensions", "renderSuccess"],
@@ -50,6 +52,9 @@ export default {
         }
     },
     watch: {
+        errorMessage(message) {
+            reportNotice('ERROR', 'Core drawing', message);
+        },
         'core': {
             handler(newValue, oldValue) {
                 if (!this.blockingRebounds) {
@@ -62,6 +67,9 @@ export default {
         },
     },
     methods: {
+        inlineNotices() {
+            return noticesShownInline();
+        },
         tryToPlot() {
             if (!this.tryingToPlot) {
                 this.recentChange = false
@@ -165,7 +173,7 @@ export default {
                     <div data-cy="MagneticAdvise-core-field-plot-zoom-image" ref="topView" class="m-0" style="height: 50%" />
                 </div>
             </div>
-            <label :data-cy="dataTestLabel + '-ErrorMessage'" class="text-danger m-0" style="font-size: 0.9em"> {{errorMessage}}</label>
+            <label v-if="inlineNotices()" :data-cy="dataTestLabel + '-ErrorMessage'" class="text-danger m-0" style="font-size: 0.9em"> {{errorMessage}}</label>
         </div>
     </div>
 

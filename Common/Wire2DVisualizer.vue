@@ -6,6 +6,8 @@ import { sanitizeSvg } from '../assets/js/sanitize.js'
 </script>
 
 <script>
+// Warnings and errors go to the host's log when it has one (notices.js).
+import { reportNotice, noticesShownInline } from '../assets/js/notices.js'
 
 export default {
     props: {
@@ -58,6 +60,9 @@ export default {
         }
     },
     watch: {
+        errorMessage(message) {
+            reportNotice('ERROR', 'Wire drawing', message);
+        },
         'forceUpdate': {
             handler(newValue, oldValue) {
                 const wiresString = JSON.stringify(this.wire);
@@ -71,6 +76,9 @@ export default {
         },
     },
     methods: {
+        inlineNotices() {
+            return noticesShownInline();
+        },
         async computeWireLocally() {
             if (!this.posting && this.wire != null) {
                 try {
@@ -182,7 +190,7 @@ export default {
     <div class="mt-2 wire2DPlotViewer text-center mx-auto" ref="wire2DPlotViewContainer">
         <img :data-cy="dataTestLabel + 'Wire2DVisualizer-loading'" v-if="posting" class="mx-auto block col-12" alt="loading" style="width: auto; height: 20vh;" :src="loadingGif">
         <div :data-cy="dataTestLabel + 'Wire2DVisualizer-core-field-plot-image'" v-show="!posting" ref="wire2DPlotView" style="width: auto; height: 20vh;" />
-        <label v-if="errorMessage" :data-cy="dataTestLabel + 'Wire2DVisualizer-ErrorMessage'" class="text-danger m-0" style="font-size: 0.9em">{{ errorMessage }}</label>
+        <label v-if="inlineNotices() && errorMessage" :data-cy="dataTestLabel + 'Wire2DVisualizer-ErrorMessage'" class="text-danger m-0" style="font-size: 0.9em">{{ errorMessage }}</label>
     </div>
 </template>
 
