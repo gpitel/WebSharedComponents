@@ -697,10 +697,9 @@ export const defaultFlybackWizardInputs = {
     maximumDutyCycle: 0.5,
     currentRippleRatio: 1,
     inductance: 200e-6,
-    dutyCycle: {
-        minimum: 0.5,
-        maximum: 0.3
-    },
+    // dutyCycle: optional, empty by default (ABT #2160). Each row is the duty AT the input voltage of
+    // the same row; an empty row lets the engine derive the duty from the turns ratio at that voltage.
+    dutyCycle: { minimum: null, nominal: null, maximum: null },
     deadTime: 0,
     efficiency: 0.85,
     numberOutputs: 1,
@@ -837,7 +836,7 @@ export const defaultWeinbergWizardInputs = {
     maximumSwitchCurrent: 5,
     currentRippleRatio: 0.4,
     efficiency: 0.9,
-    turnsRatio: 0.5,
+    turnsRatio: 0.6,
     designLevel: 'Help me with the design',
     inductance: 200e-6,
     outputsParameters: {
@@ -872,7 +871,7 @@ export const defaultClllcWizardInputs = {
     efficiency: 0.95,
     qualityFactor: 0.4,
     designLevel: 'Help me with the design',
-    magnetizingInductance: 500e-6,
+    magnetizingInductance: 350e-6,
     turnsRatio: 8,
     primarySeriesInductance: 50e-6,
     primaryResonantCapacitance: 33e-9,
@@ -915,10 +914,9 @@ export const defaultIsolatedBuckWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 1,
     currentRippleRatio: 0.4,
-    // dutyCycle: required in I-know mode (buildParams zips .min/.nom/.max
-    // with inputVoltage to emit desiredDutyCycle). Without this, analytical
-    // sends an empty array and the backend produces no waveforms.
-    dutyCycle: { minimum: 0.25, nominal: 0.40, maximum: 0.55 },
+    // dutyCycle: optional, empty by default (ABT #2160). Each row is the duty AT the input voltage of
+    // the same row; an empty row lets the engine derive the duty from the turns ratio at that voltage.
+    dutyCycle: { minimum: null, nominal: null, maximum: null },
     deadTime: 100e-9,
     inductance: 10e-6,
     efficiency: 0.9,
@@ -949,9 +947,10 @@ export const defaultIsolatedBuckBoostWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 2.5,
     currentRippleRatio: 0.4,
-    // dutyCycle: required in I-know mode (see IsolatedBuck comment).
-    dutyCycle: { minimum: 0.30, nominal: 0.50, maximum: 0.65 },
-    deadTime: 100e-9,
+    // dutyCycle: optional, empty by default (ABT #2160). Each row is the duty AT the input voltage of
+    // the same row; an empty row lets the engine derive the duty from the turns ratio at that voltage.
+    dutyCycle: { minimum: null, nominal: null, maximum: null },
+    // No dead time: one switch and a diode, nothing to keep apart.
     inductance: 10e-6,
     efficiency: 0.9,
     numberOutputs: 3,
@@ -986,10 +985,9 @@ export const defaultPushPullWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 3,
     currentRippleRatio: 0.3,
-    // dutyCycle: I-know mode reads .minimum/.nominal/.maximum and zips with
-    // inputVoltage triple to build desiredDutyCycle. Scalar default would
-    // produce an empty array and crash analytical in I-know mode.
-    dutyCycle: { minimum: 0.30, nominal: 0.40, maximum: 0.45 },
+    // dutyCycle: optional, empty by default (ABT #2160). Each row is the duty AT the input voltage of
+    // the same row; an empty row lets the engine derive the duty from the turns ratio at that voltage.
+    dutyCycle: { minimum: null, nominal: null, maximum: null },
     inductance: 100e-6,
     efficiency: 0.9,
     numberOutputs: 1,
@@ -1014,11 +1012,9 @@ export const defaultForwardWizardInputs = {
     diodeVoltageDrop: 0.7,
     maximumSwitchCurrent: 3,
     currentRippleRatio: 0.3,
-    dutyCycle: {
-        minimum: null,
-        nominal: 0.40,  // 40% duty cycle - good balance for 36-72V input range
-        maximum: null
-    },
+    // dutyCycle: optional, empty by default (ABT #2160). Each row is the duty AT the input voltage of
+    // the same row; an empty row lets the engine derive the duty from the turns ratio at that voltage.
+    dutyCycle: { minimum: null, nominal: null, maximum: null },
     inductance: 200e-6,  // 200µH - better for 200kHz forward converter
     efficiency: 0.92,
     numberOutputs: 1,

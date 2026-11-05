@@ -3,9 +3,14 @@
 // sink at start-up, before mounting: every notice is then sent there and none is drawn inline over
 // or inside the cards (Alf, 2026-10-22). A host that registers none keeps the inline messages.
 
+import { describeFailure } from './noticeText.js';
+
 let sink = null;
 
-// sink: (level, source, message) => void; level is 'WARNING' or 'ERROR'.
+// sink: (level, source, message, { code, detail }) => void; level is 'WARNING' or 'ERROR'.
+// message is what the user reads: the transport around a failure ("Error: ", "Exception: ",
+// an engine error code, a C++ function name, a stack trace) is taken out (noticeText.js); the
+// code and the full text come along as code and detail.
 export function setNoticeSink(fn) {
     if (typeof fn !== 'function') {
         throw new Error(`setNoticeSink needs a function, got ${typeof fn}`);
@@ -23,5 +28,8 @@ export function reportNotice(level, source, message) {
         throw new Error(`Unknown notice level '${level}'`);
     }
     if (typeof message !== 'string' || message.trim() === '') return;
-    if (sink != null) sink(level, source, message.trim());
+    if (sink != null) {
+        const { message: readable, code, detail } = describeFailure(message.trim());
+        sink(level, source, readable, { code, detail });
+    }
 }

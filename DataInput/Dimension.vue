@@ -164,7 +164,7 @@ export default {
                 if (w < 310) slice = 6
                 if (w < 250) slice = 4
                 shortenName = shortenName.split(' ')
-                    .map(item => item.length < slice ? item + ' ' : item.slice(0, slice) + '. ')
+                    .map(item => item.length <= slice ? item + ' ' : item.slice(0, slice) + '. ')
                     .join('')
             }
             return shortenName

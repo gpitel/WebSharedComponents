@@ -1,6 +1,6 @@
 {
  "source": {
-  "mas": "e56be36b35ac874e236d93f9e999ddbaf9eb46f4",
+  "mas": "6e288e99c9c8067652b54dbd47f1f4309f7516d0",
   "peas": "4ce5f80b9b12d8d8ed9f963fbaf3fc92b1ef6bdb"
  },
  "schemas": [
@@ -2965,9 +2965,8 @@
      "type": "object",
      "properties": {
       "reactance": {
-       "description": "Reactance value in Ohms.",
-       "type": "number",
-       "minimum": 0
+       "description": "Reactance X = Im(Z) in Ohms: positive when the part is inductive, negative when capacitive (above self-resonance).",
+       "type": "number"
       },
       "frequency": {
        "description": "Frequency in Hz.",
@@ -5894,7 +5893,7 @@
      "$ref": "../../utils.json#/$defs/provenance"
     },
     "laminationThickness": {
-     "description": "Thickness of the ribbon/lamination strip, according to manufacturer. This is the eddy-current-limiting dimension for tape-wound materials (nanocrystalline, amorphous, electrical steel) and is independent of the core's own macroscopic geometry; it does not apply to sintered/bulk materials (ferrite, powder). Unit: m.",
+     "description": "Thickness of the ribbon/lamination strip, according to manufacturer. For nanocrystalline and amorphous materials this is the ribbon thickness. It is also the dimension that sets the fill (stacking) factor of a tape-wound core. It is the eddy-current-limiting dimension for tape-wound materials (nanocrystalline, amorphous, electrical steel) and is independent of the core's own macroscopic geometry; it does not apply to sintered/bulk materials (ferrite, powder). Unit: m.",
      "$ref": "../../utils.json#/$defs/dimensionWithTolerance"
     },
     "permeability": {

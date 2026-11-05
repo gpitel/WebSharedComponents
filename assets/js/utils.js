@@ -1076,6 +1076,56 @@ export function clean(object) {
     return object;
 }
 
+// A record handed to the engine as it is, without its null values: what clean() removes as
+// information-free, and nothing else. clean() also removes empty objects, which a record can
+// require: a core material whose losses are given per mass (Nanoperm 2000, `massLosses`)
+// carries `volumetricLosses: {}`, which MAS requires, and without it MKF refuses the material
+// with "key 'volumetricLosses' not found". Empty objects and arrays are kept. Returns a copy;
+// the argument is not changed.
+export function withoutNulls(value) {
+    const isNull = (v) => v === null || v === undefined || v === "null";
+    if (Array.isArray(value)) {
+        return value.filter((v) => !isNull(v)).map(withoutNulls);
+    }
+    if (value && typeof value === 'object') {
+        const copy = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (!isNull(v)) {
+                copy[k] = withoutNulls(v);
+            }
+        }
+        return copy;
+    }
+    return value;
+}
+
+// clean() for a document that holds core materials (a MAS, a magnetic, a core): the document is
+// cleaned as clean() does, except each core material record (the `material` object of a core's
+// functionalDescription) which loses only its nulls (withoutNulls). clean() would strip the
+// `volumetricLosses: {}` that MAS requires of a material whose losses are given per mass
+// (Nanoperm 2000, `massLosses`), and the exported file would not load again. Changes `document`
+// in place and returns it, as clean() does.
+export function cleanKeepingCoreMaterials(document) {
+    const materials = [];
+    const detach = (node) => {
+        if (node == null || typeof node !== 'object') {
+            return;
+        }
+        if (!Array.isArray(node) && node.shape != null && node.material != null
+            && typeof node.material === 'object' && !Array.isArray(node.material)) {
+            materials.push([node, node.material]);
+            delete node.material;
+        }
+        Object.values(node).forEach(detach);
+    };
+    detach(document);
+    clean(document);
+    materials.forEach(([functionalDescription, material]) => {
+        functionalDescription.material = withoutNulls(material);
+    });
+    return document;
+}
+
 // MAS coil.bobbin ARRAY form: per-column bobbins (element 0 = the centre/main
 // column part, later elements ad-hoc lateral parts — separate BOM items).
 // Returns the merged effective bobbin geometry consumers should read: element 0

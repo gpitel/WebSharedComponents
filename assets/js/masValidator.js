@@ -14,6 +14,8 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import bundle from './masSchemas.json';
+import { describeMasSchemaErrors, rawMasSchemaErrors } from './masSchemaText.js';
+import { DETAILS_SEPARATOR } from './noticeText.js';
 
 const KIND_TO_ID = {
     Mas: 'https://psma.com/mas/MAS.json',
@@ -37,7 +39,7 @@ function compiled(kind) {
         if (ajv == null) {
             // strict:false only relaxes checks on the SCHEMAS (e.g. unknown
             // annotation keywords in PEAS); the data is validated in full.
-            ajv = new Ajv2020({ strict: false, allErrors: true });
+            ajv = new Ajv2020({ strict: false, allErrors: true, verbose: true });
             addFormats(ajv);
             for (const schema of bundle.schemas) ajv.addSchema(schema);
         }
@@ -54,19 +56,32 @@ function compiled(kind) {
 export function masSchemaErrors(kind, obj) {
     const validate = compiled(kind);
     if (validate(obj)) return [];
-    return (validate.errors || []).map((e) => {
-        const where = e.instancePath || '/';
-        const extra = e.params && Object.keys(e.params).length ? ` ${JSON.stringify(e.params)}` : '';
-        return `${where} ${e.message}${extra}`;
-    });
+    return rawMasSchemaErrors(validate.errors || []);
 }
 
-/** Throw a specific error listing the violations if `obj` is not a valid MAS `kind`. */
+/**
+ * The schema violations of `obj` as MAS `kind`: `sentences` say them in words (which part of the
+ * design, which field, what is wrong), `raw` is the validator's report. Both empty when valid.
+ */
+export function masSchemaViolations(kind, obj) {
+    const validate = compiled(kind);
+    if (validate(obj)) return { sentences: [], raw: [] };
+    const errors = validate.errors || [];
+    return { sentences: describeMasSchemaErrors(errors, kind, obj), raw: rawMasSchemaErrors(errors) };
+}
+
+/**
+ * Throw a specific error listing the violations if `obj` is not a valid MAS `kind`. Its message
+ * says them in words, followed by the validator's report after DETAILS_SEPARATOR; the sentences
+ * are also on the error as `masSchemaSentences`.
+ */
 export function assertValidMas(kind, obj, where) {
-    const errors = masSchemaErrors(kind, obj);
-    if (errors.length > 0) {
-        const shown = errors.slice(0, 8).join('; ');
-        const more = errors.length > 8 ? ` (+${errors.length - 8} more)` : '';
-        throw new Error(`[MAS schema @ ${where}] not a valid MAS ${kind}: ${shown}${more}`);
+    const { sentences, raw } = masSchemaViolations(kind, obj);
+    if (raw.length > 0) {
+        const shown = raw.slice(0, 8).join('; ');
+        const more = raw.length > 8 ? ` (+${raw.length - 8} more)` : '';
+        const error = new Error(`${sentences.join(' ')}${DETAILS_SEPARATOR}[MAS schema @ ${where}] not a valid MAS ${kind}: ${shown}${more}`);
+        error.masSchemaSentences = sentences;
+        throw error;
     }
 }

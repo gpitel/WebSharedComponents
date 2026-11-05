@@ -105,7 +105,7 @@ export default {
                 let slice = 7
                 if (w < 310) slice = 6
                 if (w < 250) slice = 4
-                return base.split(' ').map(item => item.length < slice ? item + ' ' : item.slice(0, slice) + '. ').join('')
+                return base.split(' ').map(item => item.length <= slice ? item + ' ' : item.slice(0, slice) + '. ').join('')
             }
             return base
         },
