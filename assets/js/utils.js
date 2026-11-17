@@ -2,6 +2,7 @@ import * as Defaults from './defaults.js'
 import axios from "axios"
 import { recordExport } from './telemetry.js'
 import { formatInUnitSystem } from './units.js'
+import { waitForMkf } from './mkfRuntime.js'
 import * as MAS from '/WebSharedComponents/assets/ts/MAS.ts'
 const { ConnectionType, CoreType, MagneticCircuit, WiringTechnology } = MAS;
 
@@ -718,11 +719,16 @@ export function processCoreTexts(data) {
     const numberTurnsPrimary = data.magnetic.coil.functionalDescription[0].numberTurns;
     {
         let materialName;
-        if (typeof data.magnetic.core.functionalDescription.material === 'string' || data.magnetic.core.functionalDescription.material instanceof String) {
-            materialName = data.magnetic.core.functionalDescription.material;
+        // A material list ([drum, magnetic-epoxy shell] on a semi-shielded drum) names the core's own
+        // material first.
+        const coreMaterial = Array.isArray(data.magnetic.core.functionalDescription.material)
+            ? data.magnetic.core.functionalDescription.material[0]
+            : data.magnetic.core.functionalDescription.material;
+        if (typeof coreMaterial === 'string' || coreMaterial instanceof String) {
+            materialName = coreMaterial;
         }
         else {
-            materialName = data.magnetic.core.functionalDescription.material.name;
+            materialName = coreMaterial.name;
         }
         localTexts.coreDescription = `Core with shape ${data.magnetic.core.functionalDescription.shape.name} and material ${materialName}`
         if (data.magnetic.core.functionalDescription.gapping.length == 0) {
@@ -1272,26 +1278,45 @@ export async function checkAndFixMas(mas, mkf=null) {
             // Utils.cpp. A drumRing is a closed circuit but not a toroid, so this
             // wrote "open" onto a core MKF had correctly marked "closed" — two
             // contradictory values in one payload.
-            if (mas.magnetic.core.functionalDescription.shape.family == 't') {
-                mas.magnetic.core.functionalDescription.type = CoreType.Toroidal;
+            // ABT #2372: the type follows the family through MKF's one rule (EI/UI/PQI -> pieceAndPlate,
+            // drum/rod -> openShape, molded -> closedShape, t -> toroidal, the rest -> twoPieceSet). This
+            // used to know only t and drum/rod and typed every other family twoPieceSet, so an EI was
+            // mirrored into an E+E. magneticCircuit and gapping follow the type, as in MKF's
+            // magnetic_autocomplete.
+            if (mkf == null) {
+                throw new Error('checkAndFixMas needs the engine to set the core type of shape family "' + mas.magnetic.core.functionalDescription.shape.family + '"');
+            }
+            const coreType = await mkf.getCoreTypeForShapeFamily(mas.magnetic.core.functionalDescription.shape.family);
+            mas.magnetic.core.functionalDescription.type = coreType;
+            if (coreType == CoreType.Toroidal) {
                 // magneticCircuit lives on the shape in current MAS (it was removed
                 // from coreFunctionalDescription, which is additionalProperties:false).
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Closed;
                 mas.magnetic.core.functionalDescription.gapping = [];
             }
-            else if (mas.magnetic.core.functionalDescription.shape.family == 'drum' ||
-                     mas.magnetic.core.functionalDescription.shape.family == 'rod') {
+            else if (coreType == CoreType.OpenShape) {
                 // Open-circuit single piece (drum ABT #331, rod ABT #933): the return path
                 // is air, so a gap carried over from the previous core is meaningless and
                 // MKF refuses it ("an open-circuit core cannot be gapped", ABT #1071).
-                // Mirrors MKF's magnetic_autocomplete.
-                mas.magnetic.core.functionalDescription.type = CoreType.OpenShape;
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Open;
                 mas.magnetic.core.functionalDescription.gapping = [];
             }
-            else {
-                mas.magnetic.core.functionalDescription.type = CoreType.TwoPieceSet;
+            else if (coreType == CoreType.TwoPieceSet) {
                 mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Open;
+            }
+            else {
+                // pieceAndPlate and closedShape: the record describes the whole assembly.
+                mas.magnetic.core.functionalDescription.shape.magneticCircuit = MagneticCircuit.Closed;
+                // A shielded drum (drumRing, ABT #366) and a semi-shielded drum (drumSemishielded, ABT #362) carry
+                // no gap of the user's: MKF derives their structural clearances (or none, for a cast shell) from
+                // the shape and refuses any other gap. A gapping carried over from the previous core (a gapped
+                // PQ, say) made MKF refuse the drum outright (ABT #2410), so it is dropped here and MKF derives
+                // it again. Other piece-and-plate cores (EI, UI, ...) keep their gaps. MKF has no binding that
+                // answers "does this family take user gaps", so the two families are named here.
+                const family = mas.magnetic.core.functionalDescription.shape.family;
+                if (coreType == CoreType.PieceAndPlate && (family == 'drumRing' || family == 'drumSemishielded')) {
+                    mas.magnetic.core.functionalDescription.gapping = [];
+                }
             }
         }
         // Legacy migration: magneticCircuit moved from coreFunctionalDescription onto
@@ -1380,34 +1405,33 @@ export async function checkAndFixMas(mas, mkf=null) {
 
     if (mas.magnetic.core.functionalDescription.material != "" && mas.magnetic.core.functionalDescription.material != null) {
         if (mkf != null && (mas.magnetic.coil.bobbin == null || mas.magnetic.coil.bobbin == "Dummy" || mas.magnetic.core.processedDescription == null)) {
-            try {
-                // Check if mkf is a taskQueueStore (has masAutocomplete method)
-                if (typeof mkf.masAutocomplete === 'function') {
-                    // Use taskQueueStore
-                    const masResult = await mkf.masAutocomplete(mas, false, {});
-                    mas.magnetic.core = masResult.magnetic.core;
-                    if (masResult.magnetic?.coil?.bobbin && masResult.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = masResult.magnetic.coil.bobbin;
-                } else {
-                    // Legacy mkf direct usage
-                    await mkf.ready;
-                    const masJson = await mkf.mas_autocomplete(JSON.stringify(mas), false, "{}");
-                    if (masJson.startsWith("Exception")) {
-                        console.error(masJson);
-                        return mas;
-                    }
-                    else {
-                        const _masR = JSON.parse(masJson);
-                        mas.magnetic.core = _masR.magnetic.core;
-                        if (_masR.magnetic?.coil?.bobbin && _masR.magnetic.coil.bobbin !== 'Dummy') mas.magnetic.coil.bobbin = _masR.magnetic.coil.bobbin;
-                    }
+            // Only the core's processed description and a bobbin are wanted here. This used to run a
+            // full mas_autocomplete, which winds the coil: the placeholder coil above (1 turn of the
+            // "Dummy" wire, which MKF resolves to its thinnest 0.01 mm wire) cannot be wound with real
+            // winding geometry on, so a new two-winding magnetic threw COIL_WINDING_ERROR on Advise
+            // Core, and the error was logged and swallowed (Alf, 2026-11-05). The core and the bobbin
+            // are built directly, and any engine error propagates.
+            // The caller passes either a task-queue store or the engine itself.
+            const engine = typeof mkf.masAutocomplete === 'function' ? await waitForMkf() : mkf;
+            await engine.ready;
+            if (mas.magnetic.core.processedDescription == null) {
+                const coreJson = await engine.calculate_core_data(JSON.stringify(mas.magnetic.core), false);
+                if (coreJson.startsWith("Exception")) {
+                    throw new Error(`MKF could not process the core: ${coreJson}`);
                 }
-
-                return mas;
+                mas.magnetic.core = JSON.parse(coreJson);
             }
-            catch(error) {
-                console.error(error)
-                return mas;
+            if (mas.magnetic.coil.bobbin == null || mas.magnetic.coil.bobbin == "Dummy") {
+                // The bobbin mas_autocomplete builds for a "Dummy" one: the core's winding window with
+                // no walls (Bobbin::create_quick_bobbin(core, nullDimensions = true); the web never
+                // asks for synthesised pins).
+                const bobbinJson = await engine.create_simple_bobbin_from_core_with_custom_thickness(JSON.stringify(mas.magnetic.core), 0);
+                if (bobbinJson.startsWith("Exception")) {
+                    throw new Error(`MKF could not build a bobbin for the core: ${bobbinJson}`);
+                }
+                mas.magnetic.coil.bobbin = JSON.parse(bobbinJson);
             }
+            return mas;
         }
         else {
             return mas;

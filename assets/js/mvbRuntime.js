@@ -50,7 +50,7 @@ const FATAL_WASM_ERROR = /memory access out of bounds|unreachable|index out of b
 // The options mvbWorker actually reads. Anything else used to be dropped without a
 // word (STL tolerances, an STP "include bobbin"), so a caller believed it had asked for
 // something it did not get (ABT #1233). An unknown key now throws.
-const KNOWN_OPTIONS = new Set(['symmetryPlanes', 'side', 'useRealWindingGeometry', 'femReady']);
+const KNOWN_OPTIONS = new Set(['symmetryPlanes', 'side', 'useRealWindingGeometry', 'femReady', 'skipCollisionCheck']);
 
 function requireKnownOptions(method, opts) {
     if (opts == null) {
@@ -123,6 +123,13 @@ export async function buildBobbinSTL(magnetic, opts = {}) {
 
 export async function buildTurnsSTL(magnetic, opts = {}) {
     return callMvb('buildTurnsSTL', [magnetic, opts]);
+}
+
+// What the engine warned about during the last buildTurnsSTL (MKF's real-winding warnings,
+// MVB++'s collisions drawn as they are), once.
+export async function takeTurnsWarnings() {
+    const api = await waitForMvb();
+    return api.takeTurnsWarnings();
 }
 
 export async function buildFR4BoardSTL(magnetic, opts = {}) {

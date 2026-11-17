@@ -294,6 +294,7 @@ export default {
             <div class="pt-header-actions">
                 <button
                     v-if="enableEditing"
+                    :data-cy="dataTestLabel + '-edit-button'"
                     :style="showEditor? $styleStore?.[styleSection]?.activeButton : $styleStore?.[styleSection]?.button"
                     class="pt-icon-btn"
                     :class="showEditor? 'pt-icon-btn-active' : ''"
@@ -358,6 +359,34 @@ export default {
                         :valueBgColor='valueBgColor'
                         :textColor='textColor'
                         @update="$emit('onDimensionUpdate', $event, selectedPropertyToEdit, index)"
+                    />
+                    <!-- A point can carry more fields than the two the chart plots: a saturation point
+                         is (temperature, flux density) on the chart AND the magnetic field it is
+                         reached at (MAS bhCyclePoint). propertiesConfiguration.extraFields lists them;
+                         each is edited here and reported through onDimensionUpdate like the pair. -->
+                    <Dimension
+                        v-for="field in (propertiesConfiguration.extraFields ?? [])"
+                        :key="field.name"
+                        class="pt-point-extra"
+                        :name="field.name"
+                        :replaceTitle="field.replaceLabel"
+                        :tooltip="field.tooltip"
+                        :unit="field.unit"
+                        :min="field.min"
+                        :max="field.max"
+                        :numberDecimals="field.numberDecimals"
+                        :allowNegative="field.allowNegative"
+                        :allowZero="field.allowZero"
+                        :optional="true"
+                        :justifyContent="true"
+                        :dataTestLabel="dataTestLabel + '-Property-' + index + ' ' + field.name"
+                        :modelValue="properties[selectedPropertyToEdit][index]"
+                        :valueFontSize='valueFontSize'
+                        :labelFontSize='valueFontSize'
+                        :labelBgColor='labelBgColor'
+                        :valueBgColor='valueBgColor'
+                        :textColor='textColor'
+                        @update="(value) => $emit('onDimensionUpdate', {value: value, dimension: field.name}, selectedPropertyToEdit, index)"
                     />
                     <div class="pt-point-actions">
                         <button
@@ -431,7 +460,7 @@ export default {
                 <label class="pt-missing-label">
                     {{'Property is missing'}}
                 </label>
-                <button class="pt-add-btn" @click="addFirstValue()">Add values</button>
+                <button :data-cy="dataTestLabel + '-add-first-value-button'" class="pt-add-btn" @click="addFirstValue()">Add values</button>
             </span>
             <div
                 v-if="!showEditor"
@@ -560,6 +589,11 @@ export default {
 
 .pt-point-pair {
     flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pt-point-extra {
+    flex: 1 1 100%;
     min-width: 0;
 }
 

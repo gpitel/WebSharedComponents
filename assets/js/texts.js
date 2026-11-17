@@ -25,6 +25,7 @@ export const tooltipsMagneticSynthesisOperatingPoints = {
     "coolingMode": "How heat leaves the magnetic. Natural convection is still air around the component. Forced air adds a fan, and needs the air speed over the component. Heatsink means the component is bolted to one, and needs its thermal resistance.",
     "airVelocity": "Speed of the air moving over the component, in metres per second. A typical small fan gives 1-3 m/s; 5 m/s and above is strong forced cooling.",
     "thermalResistance": "Bulk thermal resistance of the heatsink the component is mounted on, in kelvin per watt. Lower means a bigger heatsink and a cooler component.",
+    "interfaceThermalResistance": "Thermal resistance of the pad, grease or adhesive between the core and the heatsink, per unit of contact area (K·cm²/W, as pad datasheets give it). Pre-filled with 1 K·cm²/W, a typical silicone gap pad; enter your interface material's value.",
 }
 
 export const tooltipsMagneticBuilder = {
@@ -89,6 +90,13 @@ export const tooltipsMagneticBuilder = {
     "coreShapeFamily": "Family of the shape of the core",
     "coreMaterial": "Material of the core",
     "coreMaterialManufacturer": "Manufacturer of the material of the core",
+    "coreShellMaterial": "Material of the magnetic-epoxy shell of a semi-shielded drum: the drum's flux returns through it, so the inductance and core losses depend on it. Only materials of type magnetic epoxy are listed",
+    "coreShellMaterialDefine": "Define the shell's material in the material editor: give it its name, the type magnetic epoxy and its permeability, saturation and loss data. A new shell starts with no data at all (nothing is taken from the drum); an existing shell opens with its own data",
+    "materialSaturationMagneticField": "Magnetic field strength at which this point's saturation flux density is reached. Every saturation point of a material states its flux density, its magnetic field and its temperature",
+    "materialLossesMagneticFluxDensity": "Peak AC magnetic flux density of this measured loss point. The engine fits the loss model from the points: it needs at least four, at two or more flux densities and two or more frequencies",
+    "materialLossesFrequency": "Frequency of this measured loss point. The engine fits the loss model from the points: it needs at least four, at two or more flux densities and two or more frequencies",
+    "materialLossesTemperature": "Temperature of this measured loss point. Points at one temperature fit a loss model without temperature dependence",
+    "materialLossesFitSteinmetz": "The measured points alone give the engine no core-loss model. This fits a Steinmetz model (k, alpha, beta) to them over the frequencies they span, and stores it in the material, replacing a Steinmetz model it had. The points stay as entered",
     "coreNumberStacks": "Number of stacked cores",
     "coreGapping": "Gapping system of the core. It can be residual, ground, spacer, or distributed",
     "coreGappingType": "Type of the gapping system. It can be residual, ground, spacer, or distributed",

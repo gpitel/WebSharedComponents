@@ -1,7 +1,7 @@
 {
  "source": {
-  "mas": "6e288e99c9c8067652b54dbd47f1f4309f7516d0",
-  "peas": "4ce5f80b9b12d8d8ed9f963fbaf3fc92b1ef6bdb"
+  "mas": "879685ccdc021faf2022e5d646b653bacf7bfc49",
+  "peas": "aaa71c5c740615f97317bd9b248f001f0eff1ac0"
  },
  "schemas": [
   {
@@ -3216,6 +3216,20 @@
       "leakageInductance": {
        "description": "Leakage inductance in Henries.",
        "$ref": "./utils.json#/$defs/dimensionWithTolerance"
+      },
+      "inductancePoints": {
+       "description": "Inductance vs. DC-bias current points (inductance roll-off / saturation curve), optionally per temperature, measured on the winding whose inductance is stated.",
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/magneticDatasheetInductancePoint"
+       }
+      },
+      "impedancePoints": {
+       "description": "Impedance vs. frequency points, measured on the winding whose inductance is stated.",
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/magneticDatasheetImpedancePoint"
+       }
       }
      },
      "required": [
@@ -5432,6 +5446,12 @@
        "description": "This is the product of the effective length by the effective area, and represents the equivalent volume that is magnetized by the field",
        "type": "number",
        "exclusiveMinimum": 0
+      },
+      "fillFactor": {
+       "description": "Fraction of the gross cross-section that is magnetic material: the stacking or lamination factor of a tape-wound or laminated core (MAS-RFC 0020). effectiveArea, minimumArea and effectiveVolume already include it, so it must not be applied to them again; the gross area is effectiveArea / fillFactor. Absent for solid cores (ferrite, powder), where it is 1 by construction.",
+       "type": "number",
+       "exclusiveMinimum": 0,
+       "maximum": 1
       }
      },
      "required": [
@@ -5665,7 +5685,7 @@
    "type": "object",
    "properties": {
     "type": {
-     "description": "The type of coating material applied to the core",
+     "description": "The type of coating material applied to the core. magneticEpoxy is DEPRECATED: the magnetic-epoxy shell of a semi-shielded drum (drumSemishielded) is a magnetic material, carried as the second entry of functionalDescription.material (material[1], a core material whose material type is magneticEpoxy). The value is kept so existing data stays valid.",
      "title": "coatingType",
      "type": "string",
      "enum": [
@@ -5786,7 +5806,8 @@
       "powder",
       "nanocrystalline",
       "amorphous",
-      "electricalSteel"
+      "electricalSteel",
+      "magneticEpoxy"
      ]
     },
     "materialComposition": {
@@ -9965,7 +9986,7 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "$id": "https://psma.com/peas/peas.json",
    "title": "PEAS",
-   "description": "Power Electronics Agnostic Structure — Universal container for any electronic component. A valid MAS / CAS / SAS / RAS / controller / connector / analog / timeBase document is also a valid PEAS.",
+   "description": "Power Electronics Agnostic Structure — Universal container for any electronic component. A valid MAS / CAS / SAS / RAS / controller / connector / analog / timeBase / EMAS (relay, switch, protection) / TMAS (thermal management) document is also a valid PEAS.",
    "type": "object",
    "additionalProperties": false,
    "required": [
@@ -10034,6 +10055,9 @@
     "potentiometer": {
      "$ref": "https://psma.com/ras/potentiometer.json"
     },
+    "protection": {
+     "$ref": "https://psma.com/emas/protection.json"
+    },
     "relay": {
      "$ref": "https://psma.com/emas/relay.json"
     },
@@ -10048,6 +10072,9 @@
     },
     "switch": {
      "$ref": "https://psma.com/emas/switch.json"
+    },
+    "thermalManagement": {
+     "$ref": "https://psma.com/tmas/thermalManagement.json"
     },
     "thermistor": {
      "$comment": "Validated by the top-level oneOf; declared here only so the closed root permits the key."
@@ -10086,7 +10113,7 @@
      ]
     },
     {
-     "description": "Semiconductor (MOSFET, diode, IGBT, BJT) — defined by SAS.",
+     "description": "Semiconductor — discrete power and signal semiconductors, defined by SAS. The list of device kinds is SAS.json's own top-level oneOf (one discriminating field per kind); it is deliberately not repeated here, so a new SAS kind needs no PEAS edit.",
      "properties": {
       "semiconductor": {
        "$ref": "https://psma.com/sas/SAS.json"
@@ -10119,7 +10146,7 @@
      ]
     },
     {
-     "description": "Thermistor (NTC / PTC) — defined by RAS alongside resistor and varistor; temperature-dependent resistor for inrush limiting and temperature sensing/compensation. Resettable polymer PTC fuses (PPTC) are protection parts, out of scope.",
+     "description": "Thermistor (NTC / PTC) — defined by RAS alongside resistor and varistor; temperature-dependent resistor for inrush limiting and temperature sensing/compensation. Resettable polymer PTC fuses (PPTC) are not thermistors: they are EMAS `protection` parts (family resettableFuse).",
      "properties": {
       "thermistor": {
        "$ref": "https://psma.com/ras/thermistor.json"
@@ -10152,7 +10179,7 @@
      ]
     },
     {
-     "description": "Analog IC (op amp, comparator, instrumentation/difference amp, PGA, buffer/line driver, sample-and-hold, analog switch, multiplexer, ADC, DAC) — generic analog/linear parts, defined by AAS. Distinct from CTAS (power-control ICs) and SAS (discrete power semiconductors).",
+     "description": "Analog IC — generic analog/linear signal-path parts, defined by AAS. The list of analog families is AAS.json's own top-level oneOf (one discriminating field per family); it is deliberately not repeated here, so a new AAS family needs no PEAS edit. Distinct from CTAS (power-control ICs) and SAS (discrete power semiconductors).",
      "properties": {
       "analog": {
        "$ref": "https://psma.com/aas/AAS.json"
@@ -10215,6 +10242,28 @@
      },
      "required": [
       "switch"
+     ]
+    },
+    {
+     "description": "Circuit-protection part -- fuse, resettable PPTC fuse, gas discharge tube, spark gap, surge protective device, fuse holder or thermal cut-off -- defined by EMAS as its third member. `part.family` pins a closed oneOf of family electrical blocks inside the kind, so one discriminator covers every protection family and a new family needs no PEAS edit. Circuit breakers stay `switch` (technology circuitBreaker, with the IEC curve letter in trip.curveClass); varistors stay RAS, TVS/thyristor protectors stay SAS.",
+     "properties": {
+      "protection": {
+       "$ref": "https://psma.com/emas/protection.json"
+      }
+     },
+     "required": [
+      "protection"
+     ]
+    },
+    {
+     "description": "Thermal-management part (heatsink, thermal interface material, fan, heatsink mounting hardware) -- defined by TMAS. The families are discriminated INSIDE the object by a pinned `family` const, so a new TMAS family needs no PEAS edit (the AAS pattern).",
+     "properties": {
+      "thermalManagement": {
+       "$ref": "https://psma.com/tmas/thermalManagement.json"
+      }
+     },
+     "required": [
+      "thermalManagement"
      ]
     },
     {
@@ -10524,6 +10573,42 @@
         "properties": {
          "designRequirements": {
           "$ref": "https://psma.com/emas/inputs/designRequirements.json"
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "required": [
+       "protection"
+      ]
+     },
+     "then": {
+      "properties": {
+       "inputs": {
+        "properties": {
+         "designRequirements": {
+          "$ref": "https://psma.com/emas/inputs/designRequirements.json"
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "required": [
+       "thermalManagement"
+      ]
+     },
+     "then": {
+      "properties": {
+       "inputs": {
+        "properties": {
+         "designRequirements": {
+          "$ref": "https://psma.com/tmas/inputs/designRequirements.json"
          }
         }
        }
@@ -11063,6 +11148,10 @@
        "description": "Name of the fluid used.",
        "type": "string",
        "default": "air"
+      },
+      "part": {
+       "description": "Optional URI of the TMAS fan that produces this air flow (same grammar as heatsinkCooling.part). `velocity` stays the number the model uses: the air velocity at the operating point where the fan's pressure-airflow curve meets the system's pressure drop.",
+       "$ref": "#/$defs/partUri"
       }
      },
      "required": [
@@ -11103,6 +11192,14 @@
         }
        },
        "additionalProperties": false
+      },
+      "part": {
+       "description": "Optional URI of the TMAS part that provides this cooling (a TMAS heatsink), in the CIAS component-data grammar '<catalogue>.ndjson?<key>=<value>' (e.g. 'TAS/data/thermal_management.ndjson?partNumber=577202B00000G'). PEAS cannot $ref a module, so the link is by URI, resolved by the referential-integrity pass like a CIAS component URI. `thermalResistance` stays the number the thermal model uses: the value read off the named part's curve at this condition.",
+       "$ref": "#/$defs/partUri"
+      },
+      "interfacePart": {
+       "description": "Optional URI of the TMAS thermal interface material between the device and the heatsink (same grammar as `part`). `interfaceThermalResistance` stays the value the model uses, read off the material's data at the mounting pressure.",
+       "$ref": "#/$defs/partUri"
       }
      },
      "required": [
@@ -11161,12 +11258,27 @@
         }
        },
        "additionalProperties": false
+      },
+      "part": {
+       "description": "Optional URI of the cold-plate part that provides this cooling (same grammar as heatsinkCooling.part). TMAS has no coldPlate family yet (0 demand rows); the slot is added now so the cooling definitions stay symmetric. `thermalResistance` stays the number the thermal model uses.",
+       "$ref": "#/$defs/partUri"
+      },
+      "interfacePart": {
+       "description": "Optional URI of the TMAS thermal interface material between the device and the cold plate (same grammar as `part`).",
+       "$ref": "#/$defs/partUri"
       }
      },
      "required": [
       "maximumTemperature"
      ],
      "additionalProperties": false
+    },
+    "partUri": {
+     "title": "partUri",
+     "description": "Reference to one record of a part-data file: '<catalogue>.ndjson?<key>=<value>' with exactly one key=value pair and no URL-encoding (e.g. 'TAS/data/mosfets.ndjson?partNumber=C3M0032120K'). Same grammar as the URI branch of CIAS component `data`. The schema checks only the grammar; that the file and the record exist and are unique is the referential-integrity pass's job.",
+     "type": "string",
+     "minLength": 1,
+     "pattern": "^[^\\s?]+\\.ndjson\\?[A-Za-z][A-Za-z0-9]*=[^&=?]+$"
     },
     "dimensionWithTolerance": {
      "description": "A dimension with minimum, nominal, and maximum values.",
@@ -11713,12 +11825,17 @@
       "sepicConverter",
       "cukConverter",
       "zetaConverter",
+      "invertingBuckBoostConverter",
       "flybackConverter",
+      "activeClampFlybackConverter",
+      "twoSwitchFlybackConverter",
       "activeClampForwardConverter",
       "singleSwitchForwardConverter",
       "twoSwitchForwardConverter",
       "pushPullConverter",
       "weinbergConverter",
+      "halfBridgeConverter",
+      "fullBridgeConverter",
       "asymmetricHalfBridgeConverter",
       "phaseShiftedFullBridgeConverter",
       "phaseShiftedHalfBridgeConverter",
@@ -11731,7 +11848,10 @@
       "cllcResonantConverter",
       "clllcResonantConverter",
       "seriesResonantConverter",
+      "lccResonantConverter",
       "viennaRectifierConverter",
+      "singlePhaseInverter",
+      "threePhaseInverter",
       "commonModeChoke",
       "differentialModeChoke",
       "powerFactorCorrection"
@@ -11986,6 +12106,157 @@
       "PD4"
      ]
     },
+    "isolationRating": {
+     "title": "isolationRating",
+     "description": "Galvanic-isolation barrier rating of a part that carries a signal, a measurement or power across an insulation barrier (digital isolators, isolated amplifiers and delta-sigma modulators, isolated gate drivers, current sensors and transducers, opto feedback). Hoisted from CTAS controller.json $defs/isolationRating (2026-10) KEEPING its key names, so the 147 controller rows that already carry it and the Blade Runner checks that read it need no change. Absent on non-isolated parts: a non-isolated part omits the block rather than stating 'none'. Every voltage is in V, every distance in m, capacitance in F, resistance in Ohm, CMTI in V/s, durations in s. A datasheet distance printed as a guaranteed minimum ('>8 mm', '>=8.5 mm') is written as that minimum (0.008). Peak vs RMS is part of each key's meaning and never mixed: workingVoltage / transientVoltage / impulseVoltage / surgeVoltage are peak (or DC), withstandVoltageRms / workingVoltageRms are RMS.",
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "isolationType": {
+       "description": "Insulation class the barrier is certified to (IEC 60664-1 / IEC 62368-1 / DIN EN IEC 60747-17 vocabulary). Uses the PEAS isolationClass enum; the old CTAS-local value 'none' is dropped (no catalogue row uses it; a non-isolated part omits the whole block). A part certified to more than one class in different packages or for different standards is catalogued per orderable code, with the class of that code.",
+       "$ref": "#/$defs/isolationClass"
+      },
+      "withstandVoltageRms": {
+       "description": "Withstand isolation voltage V_ISO (UL 1577 / IEC 60747-17 type test), in V RMS, for the duration in withstandVoltageDuration (60 s when the datasheet follows UL 1577).",
+       "type": "number",
+       "minimum": 0
+      },
+      "withstandVoltageDuration": {
+       "description": "Duration of the withstandVoltageRms qualification test, in s (60 for the UL 1577 one-minute test).",
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      "workingVoltage": {
+       "description": "Maximum repetitive peak isolation voltage V_IORM (IEC 60747-17), in V peak; for parts rated to UL 60950-1 / IEC 62368-1 instead, the maximum working voltage in V peak or V DC (Allegro V_WVBI 'Vpk or VDC').",
+       "type": "number",
+       "minimum": 0
+      },
+      "workingVoltageRms": {
+       "description": "Maximum working isolation voltage V_IOWM as an AC RMS value (IEC 60747-17, time-dependent dielectric breakdown basis), in V RMS; or the RMS working voltage of a UL 60950-1 rating (Allegro V_WVBI in Vrms).",
+       "type": "number",
+       "minimum": 0
+      },
+      "transientVoltage": {
+       "description": "Maximum transient isolation voltage V_IOTM (IEC 60747-17; 60 s qualification), in V peak.",
+       "type": "number",
+       "minimum": 0
+      },
+      "impulseVoltage": {
+       "description": "Maximum impulse voltage V_IMP / impulse withstand voltage U_Ni, 1.2/50 us waveform tested in air (IEC 62368-1 / IEC 60664-1), in V peak.",
+       "type": "number",
+       "minimum": 0
+      },
+      "surgeVoltage": {
+       "description": "Surge isolation voltage V_IOSM (IEC 60747-17, tested in oil) or the dielectric surge strength of a non-60747 part (Allegro V_SURGE, IEC 61000-4-5 1.2/50 us), in V peak.",
+       "type": "number",
+       "minimum": 0
+      },
+      "cmti": {
+       "description": "Common-mode transient immunity, in V/s (the datasheet's guaranteed minimum where one is printed; UCC21520 125e9 = 125 V/ns).",
+       "type": "number",
+       "minimum": 0
+      },
+      "barrierCapacitance": {
+       "description": "Barrier capacitance C_IO, input to output (all pins of each side tied together), in F.",
+       "type": "number",
+       "minimum": 0
+      },
+      "barrierResistance": {
+       "description": "Isolation resistance R_IO, input to output, at 25 C ambient, in Ohm (the datasheet's guaranteed minimum).",
+       "type": "number",
+       "minimum": 0
+      },
+      "creepage": {
+       "description": "External creepage across the package surface, side to side, in m.",
+       "type": "number",
+       "minimum": 0
+      },
+      "clearance": {
+       "description": "External clearance through air, side to side, in m.",
+       "type": "number",
+       "minimum": 0
+      },
+      "distanceThroughInsulation": {
+       "description": "Distance through insulation DTI (minimum internal gap), in m.",
+       "type": "number",
+       "minimum": 0
+      },
+      "comparativeTrackingIndex": {
+       "description": "Comparative tracking index CTI of the package material (IEC 60112), in V. The guaranteed lower bound of the stated range ('>600' is 600; '400 to 599' is 400).",
+       "type": "number",
+       "minimum": 0
+      },
+      "materialGroup": {
+       "description": "IEC 60664-1 material group of the package (I: CTI >= 600, II: 400 <= CTI < 600, IIIa: 175 <= CTI < 400, IIIb: 100 <= CTI < 175).",
+       "type": "string",
+       "enum": [
+        "I",
+        "II",
+        "IIIa",
+        "IIIb"
+       ]
+      },
+      "pollutionDegree": {
+       "description": "Pollution degree the insulation specification is stated for (IEC 60664-1).",
+       "$ref": "#/$defs/pollutionDegree"
+      },
+      "ratedInsulationVoltage": {
+       "description": "Rated insulation / rated mains voltages the barrier supports, one entry per row of the datasheet's insulation-coordination table: TI 'rated mains voltage <= 600 Vrms: overvoltage category I-IV' is {voltage 600, overvoltageCategory IV}; LEM 'EN 50178, reinforced insulation, 150 V, OV 3, PD2' is {standard 'EN 50178', insulationClass reinforced, voltage 150, overvoltageCategory III, pollutionDegree PD2}. overvoltageCategory is the HIGHEST category the row allows.",
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "voltage": {
+          "description": "Rated insulation voltage or rated mains voltage, in V RMS.",
+          "type": "number",
+          "exclusiveMinimum": 0
+         },
+         "insulationClass": {
+          "description": "Insulation class this voltage applies to, where the row names one.",
+          "$ref": "#/$defs/isolationClass"
+         },
+         "overvoltageCategory": {
+          "$ref": "#/$defs/overvoltageCategory"
+         },
+         "pollutionDegree": {
+          "$ref": "#/$defs/pollutionDegree"
+         },
+         "standard": {
+          "description": "Equipment standard the row is stated under, as printed (e.g. 'EN 50178', 'IEC 61010-1', 'IEC 60664-1').",
+          "type": "string",
+          "minLength": 1
+         }
+        },
+        "required": [
+         "voltage"
+        ]
+       }
+      }
+     }
+    },
+    "surgeWaveform": {
+     "title": "surgeWaveform",
+     "description": "Standardised test impulse at which a surge/pulse rating or a clamping measurement is stated. The labels are identifiers as datasheets print them, not quantities. A double-exponential label is 'T1/T2' in microseconds (front time / time to half-value, IEC 61000-4-5 / IEC 60060-1), and each label names ONE wave of its standard, which is not always the current (the one exception is '10/700', below): '8/20' current wave, IEC 61000-4-5 combination-wave short-circuit current (the usual rating of ESD/PTVS diodes and varistors); '10/1000' current wave, IEC 61643-321 / Telcordia GR-1089 (the classic TVS P_PPM rating); '10/350' current wave, IEC 62305-1 / IEC 61643-11 Class I (lightning current); '2/10' current wave, Telcordia GR-1089; '5/320' current wave, ITU-T K.20/K.21/K.44 (the short-circuit current of the 10/700 generator, named by its own shape); '10/700' the ITU-T K.20/K.21/K.44 10/700 generator, which names TWO waves: on a voltage condition it is the open-circuit VOLTAGE wave, and on a CURRENT rating it is the current that generator drives, as GDT and thyristor-protector datasheets print it ('200 A, 10/700 us'). Such a current line is recorded as printed, with '10/700'; '5/320' stays the label for a datasheet that prints the current wave by its own shape. The two labels are never converted into each other, so a current rating at '10/700' is compared only with other '10/700' current ratings; '10/560' current wave, FCC Part 68 / GR-1089; '9/720' VOLTAGE wave (open circuit), FCC Part 68; '10/160' current wave, GR-1089. 'TLP 100 ns' is the rectangular 100 ns transmission-line pulse of ANSI/ESD STM5.5.1, at which ESD-diode clamping is often printed. ISO 7637 / ISO 16750 pulses and IEC 61000-4-2 ESD discharges are NOT members (ESD ratings live in the esdVoltage* fields). A waveform outside this list cannot be recorded: leave the condition absent rather than approximating it. Absent never means a default. Telecom current waves as protector datasheets print them (2026-10): '5/310' current wave of the ITU-T K.20/K.21 (and FTZ R12) 10/700 generator as the older editions and Bourns/Littelfuse print it (the same generator '5/320' names; kept as printed, never rewritten); '5/200' current wave of the VDE 0433 10/700 generator; '0.2/310' current wave of the I3124 0.5/700 generator; '10/360' current wave as SIDACtor-class protector surge tables print it (Eaton SMCP, Littelfuse).",
+     "type": "string",
+     "enum": [
+      "8/20",
+      "10/1000",
+      "10/350",
+      "2/10",
+      "5/320",
+      "10/700",
+      "10/560",
+      "9/720",
+      "10/160",
+      "TLP 100 ns",
+      "5/310",
+      "5/200",
+      "0.2/310",
+      "10/360"
+     ]
+    },
     "mountingStyle": {
      "description": "Mechanical mounting style at the product (not component) level. Used by COAS for converter form-factor.",
      "type": "string",
@@ -12185,7 +12456,7 @@
         ]
        },
        "verification": {
-        "description": "What was actually DONE to establish this entry, as a closed vocabulary. `source` says WHERE the data is claimed to come from; `verification` says HOW FAR anyone got in confirming that claim. The two are independent: a manufacturerDatasheet entry may be anything from notAttempted to valuesReadFromSource. ABSENT means UNSTATED — never a claim of verification — which is what makes this key additive for the 1.7M entries written before it existed. Values, weakest to strongest: 'notAttempted' nobody tried to confirm the claim; 'sourceUnreachable' a fetch was attempted and the source could not be reached (dead URL, gated host, network failure) — evidence about the CITATION, never about the part; 'documentUnreadable' the source was retrieved but yields no usable content (scanned image, no text layer, textless CAD drawing); 'citationOnly' the cited document was retrieved and is a real document, but nothing in it was matched to this record; 'existenceConfirmed' an authoritative catalogue or database confirms this part number exists, without any document being read; 'seriesConfirmed' the retrieved document covers this part's SERIES but does not print this individual order code; 'partNamed' the retrieved document names this exact part number; 'valuesReadFromSource' the stored VALUES for the fields listed in `fields` were actually read or re-derived from the source — the only value that asserts the NUMBERS were checked, and deliberately the hardest to claim; 'disproven' the source was retrieved and CONTRADICTS this record (does not mention the part, or names a different one); 'inferredNotVerified' the entry was constructed from the record itself (its own URL, its own manufacturer name, a templated search query) with no retrieval of any kind — such an entry is NOT evidence and must never be counted as a citation.",
+        "description": "What was actually DONE to establish this entry, as a closed vocabulary. `source` says WHERE the data is claimed to come from; `verification` says HOW FAR anyone got in confirming that claim. The two are independent: a manufacturerDatasheet entry may be anything from notAttempted to valuesReadFromSource. ABSENT means UNSTATED — never a claim of verification — which is what makes this key additive for the 1.7M entries written before it existed. Values, weakest to strongest: 'notAttempted' nobody tried to confirm the claim; 'sourceUnreachable' a fetch was attempted and the source could not be reached (dead URL, gated host, network failure) — evidence about the CITATION, never about the part; 'documentUnreadable' the source was retrieved but yields no usable content (scanned image, no text layer, textless CAD drawing); 'citationOnly' the cited document was retrieved and is a real document, but nothing in it was matched to this record; 'existenceConfirmed' an authoritative catalogue or database confirms this part number exists, without any document being read; 'seriesConfirmed' the retrieved document covers this part's SERIES but does not print this individual order code; 'partNamed' the retrieved document names this exact part number; 'digitizedFromGraph' the stored points for the curves listed in `fields` were read off a plotted graph in the retrieved document (its vector path or its image) because the manufacturer publishes those values in no numeric form; they are as accurate as the graph, never a tabulated value; 'valuesReadFromSource' the stored VALUES for the fields listed in `fields` were actually read or re-derived from the source — the only value that asserts the NUMBERS were checked, and deliberately the hardest to claim; 'disproven' the source was retrieved and CONTRADICTS this record (does not mention the part, or names a different one); 'inferredNotVerified' the entry was constructed from the record itself (its own URL, its own manufacturer name, a templated search query) with no retrieval of any kind — such an entry is NOT evidence and must never be counted as a citation.",
         "type": "string",
         "enum": [
          "notAttempted",
@@ -12195,6 +12466,7 @@
          "existenceConfirmed",
          "seriesConfirmed",
          "partNamed",
+         "digitizedFromGraph",
          "valuesReadFromSource",
          "disproven",
          "inferredNotVerified"
@@ -12297,7 +12569,7 @@
     },
     "pinFunction": {
      "title": "pinFunction",
-     "description": "Normalized electrical ROLE of one physical terminal — the family-wide controlled vocabulary, hoisted to PEAS (2026-08) from the previously divergent module-local copies (AAS pinout.function 25-value enum, CONAS contactSystem signalRole 7-value enum, CTAS pins.function free string). One vocabulary so a controller's 'ground' and an op-amp's 'ground' are machine-comparable. This is the ROLE axis only: electrical direction is implied by the role (dataIn/dataOut), active level lives in pin.polarity, output topology in family extensions (AAS outputStage), and pad geometry in landPattern. Values are grouped: generic (signal/power/ground/shield/mechanical/noConnect/doNotConnect/other), differential pair halves, analog amplifier roles, supply rails, control, digital data/bus, power-semiconductor terminals, magnetic winding ends, and the power-controller vocabulary merged from CTAS controllerPinFunction (2026-08; normalized on merge: gnd->ground, and the duplicate feedback/compensation/enable/address/noConnect/gate entries deduplicated). 'mechanical' is a terminal with no electrical function (mounting post, board-lock). 'doNotConnect' is a datasheet DNC (internally bonded — must stay open), distinct from 'noConnect' (not bonded).",
+     "description": "Normalized electrical ROLE of one physical terminal — the family-wide controlled vocabulary, hoisted to PEAS (2026-08) from the previously divergent module-local copies (AAS pinout.function 25-value enum, CONAS contactSystem signalRole 7-value enum, CTAS pins.function free string). One vocabulary so a controller's 'ground' and an op-amp's 'ground' are machine-comparable. This is the ROLE axis only: electrical direction is implied by the role (dataIn/dataOut), active level lives in pin.polarity, output topology in family extensions (AAS outputStage), and pad geometry in landPattern. Values are grouped: generic (signal/power/ground/shield/mechanical/noConnect/doNotConnect/other), differential pair halves, analog amplifier roles, supply rails, control, digital data/bus, power-semiconductor terminals, magnetic winding ends, resistive-element terminals, and the power-controller vocabulary merged from CTAS controllerPinFunction (2026-08; normalized on merge: gnd->ground, and the duplicate feedback/compensation/enable/address/noConnect/gate entries deduplicated). 'mechanical' is a terminal with no electrical function (mounting post, board-lock). 'doNotConnect' is a datasheet DNC (internally bonded — must stay open), distinct from 'noConnect' (not bonded). Resistive-element terminals (potentiometers, trimmers, digital potentiometers): 'terminalA' / 'terminalB' = the two ends of the resistive element (datasheet A / B, or the numbered end terminals), 'wiper' = the movable tap (W); a rheostat that brings out only one end and the wiper uses that end's role plus 'wiper'. 'tap' stays the magnetic winding tap. Thyristor terminals (2026-10): 'mainTerminal1' / 'mainTerminal2' = the two main terminals of a bidirectional thyristor (triac MT1/MT2, datasheet 'T1'/'T2' or 'A1'/'A2'; the gate is referred to MT1), and the two symmetrical terminals of a bidirectional surge protector (Bourns 'T'/'R', 'A'/'B'); an SCR uses anode/cathode/gate.",
      "type": "string",
      "enum": [
       "signal",
@@ -12340,10 +12612,15 @@
       "base",
       "anode",
       "cathode",
+      "mainTerminal1",
+      "mainTerminal2",
       "thermalPad",
       "windingStart",
       "windingEnd",
       "tap",
+      "terminalA",
+      "terminalB",
+      "wiper",
       "vcc",
       "vdd",
       "vddLow",

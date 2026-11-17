@@ -20,7 +20,13 @@ async function init() {
         try {
             const code = await (await fetch(`${BASE}wasm/mvbpp.js`)).text();
             const createMvbpp = new Function(code + '\nreturn createMvbpp;')();
-            _mvbpp = await createMvbpp({ locateFile: (f) => `${BASE}wasm/${f}` });
+            _mvbpp = await createMvbpp({
+                locateFile: (f) => `${BASE}wasm/${f}`,
+                // The engine's own output goes to the console as before; while a viewer draw
+                // runs, its warnings are also collected (see buildTurnsSTL).
+                print: (text) => { collectOutput(text); console.log(text); },
+                printErr: (text) => { collectOutput(text); console.warn(text); },
+            });
         } catch (e) {
             _initPromise = null;
             console.error('[MVB Worker] init failed:', e);
@@ -28,6 +34,28 @@ async function init() {
         }
     })();
     return _initPromise;
+}
+
+// What the engine reports, as a warning, while one viewer draw runs: MKF's log warnings
+// ("[...] [WARNING] [Coil] ...") and MVB++'s collision findings ("[ConductorBuilder] FINDING ...",
+// printed instead of thrown while the collision gate is skipped). Collected only during that draw,
+// so an export's output never lands in the viewer's warnings.
+let _collecting = null;
+let _lastTurnsWarnings = [];
+const ANSI_COLOUR = /\u001b\[[0-9;]*m/g;
+
+function collectOutput(text) {
+    if (_collecting == null) return;
+    const line = String(text).replace(ANSI_COLOUR, '').trim();
+    const warning = line.match(/\[WARNING\]\s*(?:\[[^\]]*\]\s*)?(.*)$/);
+    if (warning) {
+        _collecting.push(warning[1]);
+        return;
+    }
+    const finding = line.match(/\[ConductorBuilder\] FINDING \([^)]*\):\s*(.*)$/);
+    if (finding) {
+        _collecting.push(`The conductors collide, drawn as they are: ${finding[1]}`);
+    }
 }
 
 function toBuffer(u8) {
@@ -356,19 +384,39 @@ Comlink.expose({
         // and the 3D render silently loses its turns. They are passed explicitly here;
         // undefined selects the documented legacy behaviour (coating painted, per-turn-loop
         // geometry, fast non-meshable compound), so this changes nothing about what is drawn.
-        return callDraw('drawTurns[stl]', _mvbpp.drawTurns, [
-            JSON.stringify(magnetic), '3D', 'XY', 0.0, 'stl',
-            d.scale, d.wireSeg, sym, side,
-            true,  // paintCoating: draw turns at OUTER (insulation) diameter (ABT #7)
-            // Real winding: ONE continuous copper body per (winding, parallel) with the
-            // real leads, pitch and dragbacks, instead of one closed loop per turn. Same
-            // conductors the whole-magnetic export builds — drawTurns and drawMagnetic go
-            // through one implementation in MagneticBuilder, so the viewer and the STEP
-            // cannot show different copper. Much slower; opt-in.
-            opts.useRealWindingGeometry ?? undefined,
-            opts.femReady ?? undefined,
-        ]);
+        // skipCollisionCheck (the 3D viewer, real winding only): MVB++ draws colliding
+        // conductors as they are and reports each collision instead of refusing the whole
+        // winding (Alf, 2026-11-06). Set for this one draw only; exports keep the gate.
+        const skipCollisionCheck = !!opts.skipCollisionCheck && !!opts.useRealWindingGeometry;
+        _collecting = [];
+        if (skipCollisionCheck) _mvbpp.mvbppSetSkipChecks(true);
+        try {
+            return callDraw('drawTurns[stl]', _mvbpp.drawTurns, [
+                JSON.stringify(magnetic), '3D', 'XY', 0.0, 'stl',
+                d.scale, d.wireSeg, sym, side,
+                true,  // paintCoating: draw turns at OUTER (insulation) diameter (ABT #7)
+                // Real winding: ONE continuous copper body per (winding, parallel) with the
+                // real leads, pitch and dragbacks, instead of one closed loop per turn. Same
+                // conductors the whole-magnetic export builds — drawTurns and drawMagnetic go
+                // through one implementation in MagneticBuilder, so the viewer and the STEP
+                // cannot show different copper. Much slower; opt-in.
+                opts.useRealWindingGeometry ?? undefined,
+                opts.femReady ?? undefined,
+            ]);
+        }
+        finally {
+            if (skipCollisionCheck) _mvbpp.mvbppSetSkipChecks(false);
+            _lastTurnsWarnings = [...new Set(_collecting)];
+            _collecting = null;
+        }
     }),
+
+    // The warnings of the last buildTurnsSTL, once.
+    takeTurnsWarnings: async () => {
+        const warnings = _lastTurnsWarnings;
+        _lastTurnsWarnings = [];
+        return warnings;
+    },
 
     buildFR4BoardSTL: timed('buildFR4BoardSTL', async (magnetic, opts = {}) => {
         await init();

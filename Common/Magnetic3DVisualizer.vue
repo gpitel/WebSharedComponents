@@ -4,9 +4,10 @@ import { MeshPhysicalMaterial, Object3D, Group, Mesh, Box3, Vector3 } from 'thre
 import { Camera, Renderer, SpotLight, Scene, AmbientLight } from 'troisjs';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { deepCopy, hexToRgb } from '../assets/js/utils.js';
-import { initMvbWorker, buildCoreSTL, buildCoreShellSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
+import { initMvbWorker, buildCoreSTL, buildCoreShellSTL, buildSpacersSTL, buildBobbinSTL, buildTurnsSTL, takeTurnsWarnings, buildFR4BoardSTL, terminateWorker } from '../assets/js/mvbRuntime.js';
 import { enrichMagnetic } from '../assets/js/mkfRuntime.js';
 import { buildInstancedTurns } from '../assets/js/turnsInstanced.js';
+import { reportNotice, noticesShownInline } from '../assets/js/notices.js';
 </script>
 
 <script>
@@ -196,6 +197,12 @@ export default {
       // leave a core-and-bobbin picture that reads as a design with no copper.
       turnsBuildFailed: false,
       turnsBuildError: '',
+      // Set while the real winding could not be built and the idealised turns are drawn in
+      // its place; the last one reported, so a rebuild does not log the same warning again.
+      realWindingWarning: '',
+      lastRealWindingWarning: '',
+      // The engine warnings of real-winding draws already in the Engine log (one entry each).
+      reportedTurnsWarnings: new Set(),
       // Internal visibility state (can be toggled by UI)
       internalShowCore: this.showCore,
       internalShowBobbin: this.showBobbin,
@@ -257,6 +264,11 @@ export default {
     // the same thing without nine call sites having to remember to pass it.
     realWinding() {
       return this.$settingsStore?.magneticBuilderSettings?.useRealWindingGeometry ?? false;
+    },
+    // A host without a log of its own (no notice sink) gets the real-winding warning
+    // inside the viewer instead of the Engine log.
+    noticesInline() {
+      return noticesShownInline();
     },
     hasMagneticLoaded() {
       // Check if there's a valid magnetic with core data
@@ -606,7 +618,40 @@ export default {
               // copper per (winding, parallel), with leads, pitch and dragbacks — rather
               // than one idealised closed loop per turn. Same builder the whole-magnetic
               // STEP export uses, so the picture and the CAD file agree.
-              const buf = await buildTurnsSTL(mag, { useRealWindingGeometry: this.realWinding });
+              let buf;
+              this.realWindingWarning = '';
+              if (this.realWinding) {
+                try {
+                  // The viewer draws colliding conductors as they are instead of refusing the
+                  // winding; MVB++ reports each collision, and MKF each real-winding layout it
+                  // had to keep although it does not clear, as a warning (Alf, 2026-11-06).
+                  buf = await buildTurnsSTL(mag, { useRealWindingGeometry: true, skipCollisionCheck: true });
+                  for (const warning of await takeTurnsWarnings()) {
+                    const message = `Real winding: ${warning.replace(/^Real winding:\s*/, '')}`;
+                    if (!this.reportedTurnsWarnings.has(message)) {
+                      this.reportedTurnsWarnings.add(message);
+                      console.warn(message);
+                      reportNotice('WARNING', '3D view', message);
+                    }
+                  }
+                } catch (err) {
+                  // The 3D view never refuses over the real winding: when it cannot be
+                  // routed (e.g. a layer whose bundles end up a few nm closer than a radial
+                  // step needs), the view draws the idealised turns and says so as a
+                  // warning in the Engine log (Alf, 2026-11-06).
+                  const reason = String(err?.message ?? err);
+                  this.realWindingWarning = `The real winding could not be built, so the 3D view shows the idealised turns: ${reason}`;
+                  if (this.realWindingWarning !== this.lastRealWindingWarning) {
+                    this.lastRealWindingWarning = this.realWindingWarning;
+                    console.warn(this.realWindingWarning);
+                    reportNotice('WARNING', '3D view', this.realWindingWarning);
+                  }
+                }
+              }
+              if (buf === undefined) {
+                buf = await buildTurnsSTL(mag, { useRealWindingGeometry: false });
+              }
+              if (!this.realWindingWarning) this.lastRealWindingWarning = '';
               if (buf) {
                 const m = this.addMeshFromSTL(buf, this.turnsColor, { metalness: 0.2, roughness: 0.6 });
                 if (m) { m.visible = this.internalShowTurns; group.add(m); this.turnsMeshes.push(m); }
@@ -617,9 +662,6 @@ export default {
               // Do NOT let the copper just disappear. A swallowed failure here renders as a
               // core-and-bobbin-only picture that looks like a design with no winding —
               // indistinguishable from success unless you happen to have the console open.
-              // Real winding in particular refuses to route a conductor it cannot fit
-              // (ConductorBuilder collision), and the user needs to be told that rather
-              // than shown a magnetic with no turns.
               console.warn('Could not build turns:', err.message);
               this.turnsBuildFailed = true;
               this.turnsBuildError = String(err.message ?? err);
@@ -734,9 +776,15 @@ export default {
       class="core-build-failed-overlay"
       :title="turnsBuildError"
     >
-      {{ realWinding
-          ? 'The real winding could not be routed for this design — showing no turns'
-          : '3D winding preview unavailable for this configuration' }}
+      3D winding preview unavailable for this configuration
+    </label>
+    <label
+      v-if="realWindingWarning && noticesInline && !updating && internalShowTurns"
+      :data-cy="`${dataTestLabel}-real-winding-warning`"
+      class="real-winding-warning"
+      :title="realWindingWarning"
+    >
+      Real winding could not be built; showing the idealised turns
     </label>
     <Renderer 
       :data-cy="`${dataTestLabel}-canvas`" 
@@ -802,6 +850,19 @@ export default {
   max-width: 100%;
 }
 
+.real-winding-warning {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+  background: var(--p-light);
+  color: var(--p-warning);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
 .core-build-failed-overlay {
   position: absolute;
   top: 0.4rem;
